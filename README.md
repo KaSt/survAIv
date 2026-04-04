@@ -55,13 +55,13 @@ Every cycle the agent:
 - **x402 micropayments** — wallet-is-auth, no accounts. Supports [tx402.ai](https://tx402.ai), [x402engine.app](https://x402engine.app), [claw402.org](https://claw402.org), and custom endpoints.
 - **Dynamic model selection** — built-in catalog of 20+ models across providers. Auto-picks per task complexity and remaining budget.
 - **Paper & live trading** — paper mode by default with realistic cost simulation; opt into live CLOB trading with on-device EIP-712 signing.
-- **Wisdom learning** — tracks every decision outcome, generates trading rules from verified results, and feeds them back into the prompt. Export/import knowledge between agents.
+- **Wisdom learning** — tracks every decision outcome, generates trading rules from verified results, and feeds them back into the prompt. Custom rules (LLM-distilled or hand-crafted) get priority in the byte budget. Export/import knowledge between agents and platforms for training on powerful hardware and deploying on microcontrollers.
 
 ### Dashboard
 - **Real-time web UI** — equity chart, P&L cards, positions table, market scanner, decision log.
 - **SSE streaming** — live updates without polling.
 - **Dark / light theme** — toggle with persistence.
-- **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import.
+- **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter.
 - **Market descriptions** — LLM receives resolution criteria and event context, not just prices.
 
 ### ESP32 Specific
@@ -92,6 +92,9 @@ Every cycle the agent:
 
 # Or with wallet provisioning:
 ./flash.sh --wallet <64-char-hex-private-key>
+
+# Build without OTA (3.9 MB app partition, more resources):
+./flash.sh --no-ota
 ```
 
 On first boot, connect to the **SURVAIV-SETUP** WiFi AP and follow the captive portal wizard.
@@ -179,16 +182,105 @@ When opted in, the agent places real orders on Polymarket's CLOB:
 
 ## Wisdom System
 
-The agent learns from its own track record:
+The agent builds a knowledge base from its own track record and can transfer that knowledge between platforms.
 
-1. **Track** — every decision (buy/hold) is recorded with market state at time of decision.
-2. **Resolve** — periodically checks Polymarket for final outcomes.
-3. **Evaluate** — computes accuracy, win rate, edge calibration.
-4. **Generate rules** — distills verified outcomes into concise trading rules.
-5. **Inject** — rules are appended to the system prompt, improving future decisions.
-6. **Persist** — wisdom survives reboots (NVS on ESP32, SQLite on cloud).
+### Knowledge Acquisition
 
-Export knowledge from one agent and import into another to share learned behavior.
+```
+cycle N: agent decides → "buy YES on market X at 0.35"
+         ↓
+cycle N+K: market X resolves → YES won → agent was correct
+         ↓
+wisdom updated: "crypto regulatory markets: 68% win rate, bullish bias profitable"
+         ↓
+cycle N+K+1: wisdom injected into system prompt → better decisions
+```
+
+1. **Track** — every decision (buy/hold) is recorded with market state, confidence, edge estimate, and model used.
+2. **Resolve** — periodically checks Polymarket for final outcomes on tracked markets.
+3. **Evaluate** — computes accuracy by category (crypto, politics, sports…), buy vs hold performance, edge calibration.
+4. **Generate rules** — distills verified outcomes into concise trading rules injected into the system prompt.
+5. **Persist** — wisdom survives reboots (NVS on ESP32, SQLite on cloud).
+
+### Custom Rules
+
+Beyond auto-generated stats, agents support **custom rules** — LLM-distilled or hand-crafted insights that get priority in the prompt byte budget:
+
+```
+AVOID: sports match outcomes — no edge vs oddsmakers
+EDGE: geopolitical binary events — markets overreact to headlines
+RULE: >0.85 yes_price = skip, edge too thin at extremes
+RULE: crypto regulatory = bearish bias profitable 68%
+CAL: weight recent 30d outcomes 2x vs older
+S:42/60=70% h:75% b:65% +geopolitical:80% -sports:30%
+```
+
+Custom rules are:
+- **Persistent** — survive stat regeneration and reboots
+- **Priority** — injected before auto-generated stats in the prompt
+- **Portable** — included in knowledge exports for cross-platform transfer
+- **Editable** — via the dashboard settings UI (textarea with live byte counter)
+
+### Knowledge Transfer
+
+Export the full knowledge state as a JSON file and import it on any platform:
+
+```
+Pi + Opus 4 (cloud)          →  export  →  survaiv-knowledge-v2.json
+                                               │
+ESP32-C3 (paper)             ←  import  ←──────┘  (auto-truncated to 800B budget)
+ESP32-S3 (live)              ←  import  ←──────┘  (4 KB budget, full fidelity)
+Another cloud agent          ←  import  ←──────┘  (8 KB budget)
+```
+
+The export includes:
+- **Custom rules** — the high-value distilled insights
+- **Wisdom text** — the current prompt injection
+- **Stats** — accuracy by category, buy/hold breakdown
+- **Decision ring** — last 200 tracked decisions with outcomes
+- **Model history** — which models were used and when
+
+On import, custom rules are automatically truncated to the target platform's wisdom budget at line boundaries — no manual trimming needed.
+
+### The Learning Pipeline
+
+The intended workflow for maximum knowledge quality:
+
+1. **Train on powerful hardware** — run the cloud agent on a Pi or server with a strong model (Opus 4, GPT-5, DeepSeek R1) for weeks or months. Paper trading is free with a local model.
+2. **Accumulate outcomes** — the agent tracks hundreds of decisions and their resolutions, building statistical confidence.
+3. **Distill into rules** — periodically review outcomes and craft (or let the LLM generate) custom rules that capture the highest-signal patterns.
+4. **Export knowledge** — download the `survaiv-knowledge-v2.json` from the dashboard.
+5. **Import to target** — upload to any agent (ESP32-C3, S3, another cloud instance). The rules are compressed to fit.
+6. **Freeze learning** — on resource-constrained devices, freeze learning to prevent the small model from overwriting good rules with noisy ones.
+7. **Deploy** — the C3 now carries months of curated wisdom in 800 bytes, making better decisions with a cheap model.
+
+### Knowledge Sharing
+
+Since the export format is a standard JSON file, knowledge can be shared between agents:
+
+- **Fleet deployment** — train one agent, export, import into many devices
+- **Community sharing** — publish anonymized knowledge files (decisions contain market IDs and outcomes, not personal data)
+- **A/B testing** — run two agents with different custom rules on the same markets, compare P&L
+- **Versioning** — keep snapshots of knowledge at different stages; roll back if performance degrades
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/wisdom` | GET | Current wisdom stats, custom rules, budget |
+| `/api/wisdom/rules` | POST | Set custom rules (`{"rules":"..."}`) |
+| `/api/wisdom/freeze` | POST | Toggle learning (`{"frozen":true}`) |
+| `/api/knowledge` | GET | Export full knowledge as JSON |
+| `/api/knowledge` | POST | Import knowledge from JSON |
+
+### Platform Wisdom Budgets
+
+| Platform | Budget | Typical Content |
+|----------|--------|-----------------|
+| C3 (OTA) | 800 bytes | 10–12 terse rules + compact stats |
+| C3 (no-OTA) | 2,000 bytes | 25+ rules with context |
+| S3 | 4,000 bytes | Full rule set + verbose stats |
+| Cloud | 8,000 bytes | Comprehensive rules + category breakdowns |
 
 ## Architecture
 
@@ -247,15 +339,17 @@ cloud/
 
 ## Platform Differences
 
-| Feature | C3 | S3 | Cloud |
-|---------|----|----|-------|
-| Markets per scan | 6 | 50 | unlimited |
-| HTTP body size | 64 KB | 512 KB | unlimited |
-| Model registry | 40 dynamic | 200 dynamic | unlimited |
-| x402 providers | tx402 only* | all 4 | all 4 |
-| Persistence | NVS flash | NVS flash | SQLite |
-| UI | Web dashboard | Web dashboard | TUI + web |
-| Deployment | USB flash | USB flash | `go build` / Heroku |
+| Feature | C3 (OTA) | C3 (no-OTA) | S3 | Cloud |
+|---------|----------|-------------|----|----|
+| Markets per scan | 6 | 12 | 50 | unlimited |
+| HTTP body size | 64 KB | 128 KB | 512 KB | unlimited |
+| Wisdom budget | 800 B | 2,000 B | 4,000 B | 8,000 B |
+| Model registry | 40 dynamic | 80 dynamic | 200 dynamic | unlimited |
+| OTA updates | ✅ | — | ✅ | N/A |
+| x402 providers | tx402 only* | tx402 only* | all 4 | all 4 |
+| Persistence | NVS flash | NVS flash | NVS flash | SQLite |
+| UI | Web dashboard | Web dashboard | Web dashboard | TUI + web |
+| Deployment | USB flash | USB flash | USB flash | `go build` / Heroku |
 
 \* x402engine catalog too large for C3's 400 KB SRAM.
 
