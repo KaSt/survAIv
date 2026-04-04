@@ -20,8 +20,11 @@ constexpr const char *kTag = "survaiv_http";
 #if CONFIG_IDF_TARGET_ESP32S3
 constexpr size_t kMaxBodySize = 512 * 1024;   // S3: 8MB PSRAM
 constexpr size_t kMinFreeHeap = 40 * 1024;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+constexpr size_t kMaxBodySize = 128 * 1024;   // C3 no-OTA: more flash headroom
+constexpr size_t kMinFreeHeap = 20 * 1024;
 #else
-constexpr size_t kMaxBodySize = 64 * 1024;    // C3: 400KB SRAM
+constexpr size_t kMaxBodySize = 64 * 1024;    // C3 OTA: 400KB SRAM
 constexpr size_t kMinFreeHeap = 20 * 1024;
 #endif
 

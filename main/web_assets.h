@@ -230,7 +230,7 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
           <input type="file" id="restore-file" accept=".json" style="display:none"
             onchange="restoreConfig(this.files[0])">
         </label>
-        <label class="badge" style="padding:6px 14px;background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow);cursor:pointer">
+        <label id="ota-btn" class="badge" style="padding:6px 14px;background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow);cursor:pointer;display:none">
           ⚡ OTA Update
           <input type="file" id="ota-file" accept=".bin" style="display:none"
             onchange="otaUpdate(this.files[0])">
@@ -585,6 +585,8 @@ function updateState(s) {
   }
   const walletSec = $('wallet-section');
   if (walletSec) walletSec.style.display = s.live_mode ? 'block' : 'none';
+  var otaBtn = $('ota-btn');
+  if (otaBtn) otaBtn.style.display = s.ota_enabled ? '' : 'none';
   if (s.firmware) {
     $('v-fw').textContent = s.firmware;
   }

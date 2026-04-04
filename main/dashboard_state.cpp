@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "config.h"
-#include "esp_ota_ops.h"
+#include "esp_app_desc.h"
 #include "json_util.h"
 
 namespace survaiv {
@@ -193,6 +193,12 @@ std::string DashboardState::ToJson() const {
   // News search config presence.
   o << ",\"news_provider\":\"" << JsonEscape(config::NewsProvider()) << "\"";
   o << ",\"has_news_key\":" << (config::NewsApiKey().empty() ? "false" : "true");
+
+#if CONFIG_SURVAIV_ENABLE_OTA
+  o << ",\"ota_enabled\":true";
+#else
+  o << ",\"ota_enabled\":false";
+#endif
 
   o << "}";
 

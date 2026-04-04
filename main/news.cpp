@@ -16,6 +16,8 @@ constexpr const char *kTag = "survaiv_news";
 
 #if CONFIG_IDF_TARGET_ESP32S3
 constexpr size_t kMaxSnippetLen = 300;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+constexpr size_t kMaxSnippetLen = 250;
 #else
 constexpr size_t kMaxSnippetLen = 150;
 #endif

@@ -27,6 +27,9 @@ constexpr int kMaxDecisions = 30;
 #if CONFIG_IDF_TARGET_ESP32S3
 constexpr int kMaxWisdomBytes = 4000;
 constexpr int kMaxQuestionLen = 120;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+constexpr int kMaxWisdomBytes = 2000;
+constexpr int kMaxQuestionLen = 90;
 #else
 constexpr int kMaxWisdomBytes = 800;
 constexpr int kMaxQuestionLen = 60;

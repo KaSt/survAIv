@@ -62,6 +62,68 @@ std::string StripCodeFence(std::string text) {
   return text.substr(first_newline + 1, last_fence - first_newline - 1);
 }
 
+// Repair truncated JSON: the LLM hit the token limit mid-output.
+// Strategy: find the last complete top-level key-value pair and close.
+static std::string RepairTruncatedJson(const std::string &text) {
+  int depth = 0;
+  bool in_str = false;
+  bool esc = false;
+  size_t last_comma_d1 = std::string::npos;
+  for (size_t i = 0; i < text.size(); ++i) {
+    char ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch == '\\' && in_str) { esc = true; continue; }
+    if (ch == '"') { in_str = !in_str; continue; }
+    if (in_str) continue;
+    if (ch == '{' || ch == '[') ++depth;
+    else if (ch == '}' || ch == ']') --depth;
+    else if (ch == ',' && depth == 1) last_comma_d1 = i;
+  }
+
+  // Truncate at last top-level comma, close the object.
+  if (last_comma_d1 != std::string::npos) {
+    std::string repaired = text.substr(0, last_comma_d1) + "}";
+    cJSON *parsed = cJSON_Parse(repaired.c_str());
+    if (parsed) {
+      cJSON_Delete(parsed);
+      return repaired;
+    }
+  }
+
+  // Try closing mid-string: the truncation was inside a string value.
+  // Close the string and all open braces/brackets.
+  std::string closers;
+  depth = 0;
+  in_str = false;
+  esc = false;
+  int arr_depth = 0;
+  for (size_t i = 0; i < text.size(); ++i) {
+    char ch = text[i];
+    if (esc) { esc = false; continue; }
+    if (ch == '\\' && in_str) { esc = true; continue; }
+    if (ch == '"') { in_str = !in_str; continue; }
+    if (in_str) continue;
+    if (ch == '{') ++depth;
+    else if (ch == '}') --depth;
+    else if (ch == '[') ++arr_depth;
+    else if (ch == ']') --arr_depth;
+  }
+  if (in_str) closers += '"';
+  for (int i = 0; i < arr_depth; ++i) closers += ']';
+  for (int i = 0; i < depth; ++i) closers += '}';
+
+  if (!closers.empty()) {
+    std::string repaired = text + closers;
+    cJSON *parsed = cJSON_Parse(repaired.c_str());
+    if (parsed) {
+      cJSON_Delete(parsed);
+      return repaired;
+    }
+  }
+
+  return text;
+}
+
 std::string ExtractFirstJsonObject(const std::string &text) {
   // Fast path: already starts with '{'.
   if (!text.empty() && text.front() == '{') {
@@ -126,7 +188,10 @@ std::string ExtractFirstJsonObject(const std::string &text) {
       if (depth == 0) return text.substr(start, i - start + 1);
     }
   }
-  return text.substr(start);
+
+  // Truncated JSON (no closing brace) — attempt repair.
+  // Find the last complete key-value pair and close the object.
+  return RepairTruncatedJson(text.substr(start));
 }
 
 double JsonToDouble(const cJSON *item) {

@@ -50,8 +50,10 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
   // under ~42 KB so it fits comfortably in heap alongside TLS buffers.
 #if CONFIG_IDF_TARGET_ESP32S3
   int fetch_limit = std::min(limit, 50);  // S3: PSRAM allows more
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+  int fetch_limit = std::min(limit, 12);  // C3 no-OTA: more flash headroom
 #else
-  int fetch_limit = std::min(limit, 6);   // C3: ~42 KB budget
+  int fetch_limit = std::min(limit, 6);   // C3 OTA: ~42 KB budget
 #endif
   std::ostringstream url;
   url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
@@ -90,6 +92,8 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
     std::string desc = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "description"));
 #if CONFIG_IDF_TARGET_ESP32S3
     constexpr size_t kMaxDescLen = 500;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+    constexpr size_t kMaxDescLen = 350;
 #else
     constexpr size_t kMaxDescLen = 200;
 #endif

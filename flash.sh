@@ -5,6 +5,7 @@ set -euo pipefail
 WALLET_KEY=""
 MONITOR=false
 TARGET="esp32c3"
+NO_OTA=false
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -15,6 +16,8 @@ while [[ $# -gt 0 ]]; do
     --c3|--C3) TARGET="esp32c3"; shift ;;
     --target) TARGET="$2"; shift 2 ;;
     --target=*) TARGET="${1#*=}"; shift ;;
+    --no-ota) NO_OTA=true; shift ;;
+    --ota) NO_OTA=false; shift ;;
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
@@ -22,6 +25,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --c3             Target ESP32-C3 (default)"
       echo "  --s3             Target ESP32-S3 N16R8"
       echo "  --target <chip>  Explicit target (esp32c3, esp32s3)"
+      echo "  --no-ota         Disable OTA: single 3.9 MB app partition (USB-only updates)"
+      echo "  --ota            Enable OTA: dual 1.75 MB partitions (default)"
       echo "  --wallet <hex>   Provision wallet private key (64 hex chars)"
       echo "  -m, --monitor    Open serial monitor after flash"
       echo "  -h, --help       Show this help"
@@ -45,6 +50,11 @@ echo "╔═══════════════════════�
 echo "║  ⟁ SURVAIV — build & flash       ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
+if $NO_OTA; then
+  echo "  OTA    : disabled (single 3.9 MB partition)"
+else
+  echo "  OTA    : enabled (dual 1.75 MB partitions)"
+fi
 echo "  Port   : $PORT"
 echo "  Baud   : $BAUD"
 if [[ -n "$WALLET_KEY" ]]; then
@@ -61,8 +71,14 @@ fi
 
 idf.py set-target "$TARGET"
 
+# ── Build with optional no-OTA overlay ──────────────────────────
+BUILD_ARGS=()
+if $NO_OTA; then
+  BUILD_ARGS+=(-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.no_ota")
+fi
+
 echo "── Building ──────────────────────"
-idf.py build
+idf.py "${BUILD_ARGS[@]}" build
 
 echo ""
 echo "── Flashing ──────────────────────"

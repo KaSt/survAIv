@@ -29,6 +29,8 @@ namespace {
 constexpr const char *kTag = "survaiv_agent";
 #if CONFIG_IDF_TARGET_ESP32S3
 constexpr int kEstPromptTokens = 8000;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+constexpr int kEstPromptTokens = 4000;
 #else
 constexpr int kEstPromptTokens = 2000;
 #endif
@@ -116,23 +118,24 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
       << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
       << "LLM round.\n"
       << "6. CRITICAL: Return ONLY a single JSON object. No thinking, no analysis, no prose "
-      << "before or after. Your entire response must start with { and end with }.\n";
+      << "before or after. Your entire response must start with { and end with }.\n"
+      << "7. Keep \"rationale\" under 20 words. Be terse.\n";
 
   if (paper_only || geoblocked) {
     prompt
-        << "7. Allowed decision types: hold, tool_call, paper_buy_yes, paper_buy_no, paper_close.\n"
-        << "8. Only recommend a paper position when confidence >= 0.65 and edge_bps >= 150.\n"
-        << "9. Keep size_fraction <= 0.02.\n";
+        << "8. Allowed decision types: hold, tool_call, paper_buy_yes, paper_buy_no, paper_close.\n"
+        << "9. Only recommend a paper position when confidence >= 0.65 and edge_bps >= 150.\n"
+        << "10. Keep size_fraction <= 0.02.\n";
   } else {
     prompt
-        << "7. Allowed decision types: hold, tool_call, buy_yes, buy_no, close, "
+        << "8. Allowed decision types: hold, tool_call, buy_yes, buy_no, close, "
         << "paper_buy_yes, paper_buy_no, paper_close.\n"
-        << "8. Prefer live trades (buy_yes/buy_no/close) when you have conviction. "
+        << "9. Prefer live trades (buy_yes/buy_no/close) when you have conviction. "
         << "Use paper trades only for exploration or low-confidence ideas.\n";
   }
 
   prompt
-      << "10. Allowed tools (prefer zero or one per cycle):\n"
+      << "11. Allowed tools (prefer zero or one per cycle):\n"
       << "  a) search_markets: {\"order\":\"volume24hr\",\"limit\":N,\"offset\":N} — fetch Polymarket listings.\n"
       << "  b) search_news: {\"query\":\"<search terms>\"} — web search for recent news/context on a topic. "
       << "Use this when you need current events context to assess a market. Keep queries short and specific.\n"
@@ -161,7 +164,7 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
       << "\"confidence\":0.75,\"size_fraction\":0.0,\"rationale\":\"...\"}\n"
       << "{\"type\":\"hold\",\"market_id\":\"\",\"edge_bps\":0,"
       << "\"confidence\":0.0,\"size_fraction\":0.0,\"rationale\":\"...\"}\n"
-      << "11. ALWAYS include a \"market_ratings\" array rating each market you reviewed. "
+      << "12. ALWAYS include a \"market_ratings\" array rating each market you reviewed. "
       << "Each entry: {\"id\":\"<market_id>\",\"signal\":\"bullish|bearish|neutral|skip\","
       << "\"edge_bps\":<number>,\"confidence\":<0-1>,\"note\":\"<1 sentence>\"}. "
       << "Include it even for hold decisions. Example:\n"

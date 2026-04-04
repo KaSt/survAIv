@@ -187,6 +187,8 @@ static constexpr int kModelCount =
 
 #if CONFIG_IDF_TARGET_ESP32S3
 static constexpr int kMaxDynamic = 200;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+static constexpr int kMaxDynamic = 80;
 #else
 static constexpr int kMaxDynamic = 40;
 #endif
@@ -578,6 +580,8 @@ void RefreshRegistry() {
   // Scratch buffer: static to avoid blowing the stack (~124 bytes each).
 #if CONFIG_IDF_TARGET_ESP32S3
   static constexpr int kCatalogBuf = 200;
+#elif !CONFIG_SURVAIV_ENABLE_OTA
+  static constexpr int kCatalogBuf = 80;
 #else
   static constexpr int kCatalogBuf = 40;
 #endif

@@ -11,7 +11,9 @@
 
 #include "esp_http_server.h"
 #include "esp_log.h"
+#if CONFIG_SURVAIV_ENABLE_OTA
 #include "esp_ota_ops.h"
+#endif
 #include "esp_random.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -521,6 +523,7 @@ static esp_err_t ApiRestoreHandler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+#if CONFIG_SURVAIV_ENABLE_OTA
 static esp_err_t ApiOtaHandler(httpd_req_t *req) {
   if (!ValidateAuthToken(req)) {
     httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
@@ -600,6 +603,7 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
 
   return ESP_OK;
 }
+#endif  // CONFIG_SURVAIV_ENABLE_OTA
 
 // ─── POST /api/llm-config ───────────────────────────────────────
 // Change LLM endpoint, model, and API key at runtime (paper mode only).
@@ -829,7 +833,9 @@ void StartDashboard(int port) {
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);
+#if CONFIG_SURVAIV_ENABLE_OTA
   RegisterUri("/api/ota", HTTP_POST, ApiOtaHandler);
+#endif
   RegisterUri("/api/generate-wallet", HTTP_POST, ApiGenerateWalletHandler);
   RegisterUri("/api/llm-config", HTTP_POST, ApiLlmConfigHandler);
   RegisterUri("/api/auth", HTTP_GET, ApiAuthGetHandler);
