@@ -170,11 +170,29 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	a.dash.ClearError()
 	a.spendForUsage(usage)
 
-	// 8. Handle tool calls.
-	toolCall := ParseToolCall(responseText)
-	if toolCall.Valid && toolCall.Tool == "search_markets" {
-		toolMarkets := polymarket.FetchMarkets(ctx, a.client, toolCall.Limit, toolCall.Offset, toolCall.Order)
-		if len(toolMarkets) > 0 && (paperOnly || a.cfg.ToolUsageLevel() >= 2 || a.ledger.CanSpendOnInference(estimatedCost, toolMarkets)) {
+	// 8. Handle tool calls (capped by tool usage slider).
+	maxToolCalls := 1 // balanced
+	switch a.cfg.ToolUsageLevel() {
+	case 0:
+		maxToolCalls = 0 // frugal: skip tool calls entirely
+	case 2:
+		maxToolCalls = 2 // generous: allow up to 2 rounds
+	}
+
+	for toolRound := 0; toolRound < maxToolCalls; toolRound++ {
+		toolCall := ParseToolCall(responseText)
+		if !toolCall.Valid {
+			break
+		}
+
+		canSpend := paperOnly || a.cfg.ToolUsageLevel() >= 2 || a.ledger.CanSpendOnInference(estimatedCost, markets)
+
+		if toolCall.Tool == "search_markets" {
+			toolMarkets := polymarket.FetchMarkets(ctx, a.client, toolCall.Limit, toolCall.Offset, toolCall.Order)
+			if len(toolMarkets) == 0 || !canSpend {
+				slog.Info("tool call skipped", "tool", "search_markets", "round", toolRound, "reason", "no_markets_or_budget")
+				break
+			}
 			var followModel string
 			if useX402 {
 				sel := models.SelectModel(baseURL, models.Complex, a.ledger.Cash(), estCycles)
@@ -202,21 +220,28 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 					a.spendForUsage(u2)
 					responseText = text
 					markets = toolMarkets
+				} else {
+					break
 				}
 			} else {
 				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUpPrompt, followModel); ok2 {
 					a.spendForUsage(u2)
 					responseText = text
 					markets = toolMarkets
+				} else {
+					break
 				}
 			}
-		}
-	} else if toolCall.Valid && toolCall.Tool == "search_news" && toolCall.Query != "" {
-		newsProvider := news.Provider(a.cfg.NewsProvider())
-		results, err := news.Search(newsProvider, a.cfg.NewsAPIKey(), toolCall.Query, 5)
-		if err != nil {
-			slog.Warn("news search failed", "error", err)
-		} else if len(results) > 0 {
+		} else if toolCall.Tool == "search_news" && toolCall.Query != "" {
+			newsProvider := news.Provider(a.cfg.NewsProvider())
+			results, err := news.Search(newsProvider, a.cfg.NewsAPIKey(), toolCall.Query, 5)
+			if err != nil {
+				slog.Warn("news search failed", "error", err)
+				break
+			}
+			if len(results) == 0 {
+				break
+			}
 			var followModel string
 			if useX402 {
 				sel := models.SelectModel(baseURL, models.Complex, a.ledger.Cash(), estCycles)
@@ -243,14 +268,23 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				if ok2 {
 					a.spendForUsage(u2)
 					responseText = text
+				} else {
+					break
 				}
 			} else {
 				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUp, followModel); ok2 {
 					a.spendForUsage(u2)
 					responseText = text
+				} else {
+					break
 				}
 			}
+		} else {
+			slog.Warn("unknown tool call", "tool", toolCall.Tool, "round", toolRound)
+			break
 		}
+
+		slog.Info("tool call completed", "tool", toolCall.Tool, "round", toolRound)
 	}
 
 	// 9. Parse decision.

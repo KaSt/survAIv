@@ -610,9 +610,20 @@ int RunAgentCycle(BudgetLedger *ledger) {
   dash.ClearError();
   SpendForUsage(ledger, usage);
 
-  // Handle tool calls.
-  ToolCall tool_call = ParseToolCall(response_text);
-  if (tool_call.valid && CONFIG_SURVAIV_MAX_TOOL_CALLS_PER_CYCLE > 0) {
+  // Handle tool calls (capped by tool usage slider).
+  int max_tool_calls = 1; // balanced
+  switch (config::ToolUsageLevel()) {
+    case 0: max_tool_calls = 0; break; // frugal
+    case 2: max_tool_calls = 2; break; // generous
+  }
+
+  for (int tool_round = 0; tool_round < max_tool_calls; ++tool_round) {
+    ToolCall tool_call = ParseToolCall(response_text);
+    if (!tool_call.valid) break;
+
+    bool can_spend = paper_only || config::ToolUsageLevel() >= 2 ||
+                     ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), markets);
+
     std::string follow_model;
     if (use_x402) {
       auto sel2 = models::SelectModel(base_url, models::TaskComplexity::kComplex,
@@ -620,11 +631,11 @@ int RunAgentCycle(BudgetLedger *ledger) {
       if (sel2.model) follow_model = sel2.model_id;
     }
 
+    bool handled = false;
     if (tool_call.tool == "search_markets") {
       std::vector<MarketSnapshot> tool_markets =
           FetchMarkets(tool_call.limit, tool_call.offset, tool_call.order);
-      if (!tool_markets.empty() &&
-          (paper_only || config::ToolUsageLevel() >= 2 || ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets))) {
+      if (!tool_markets.empty() && can_spend) {
         std::ostringstream follow_up;
         follow_up << user_prompt << "\n"
                   << "{\"tool_result\":{\"tool\":\"search_markets\",\"markets\":"
@@ -632,20 +643,26 @@ int RunAgentCycle(BudgetLedger *ledger) {
         if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
           SpendForUsage(ledger, usage);
           markets = tool_markets;
+          handled = true;
         }
       }
     } else if (tool_call.tool == "search_news" && !tool_call.query.empty()) {
       std::vector<NewsResult> news = SearchNews(tool_call.query, 3);
-      if (!news.empty()) {
+      if (!news.empty() && can_spend) {
         std::ostringstream follow_up;
         follow_up << user_prompt << "\n"
                   << "{\"tool_result\":{\"tool\":\"search_news\",\"results\":"
                   << BuildNewsJson(news) << "}}";
         if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
           SpendForUsage(ledger, usage);
+          handled = true;
         }
       }
     }
+
+    ESP_LOGI(kTag, "Tool call round %d: %s (%s)", tool_round,
+             tool_call.tool.c_str(), handled ? "ok" : "skipped");
+    if (!handled) break;
   }
 
   Decision decision = ParseDecision(response_text);
