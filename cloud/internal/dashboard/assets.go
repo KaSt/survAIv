@@ -168,6 +168,8 @@ canvas { width: 100% !important; height: 100% !important; }
     </div>
   </header>
 
+  <div id="errorBanner" style="display:none;border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;font-size:0.85em;font-weight:600;background:rgba(248,81,73,0.08)"></div>
+
   <div class="cards" id="budgetCards">
     <div class="card"><div class="card-label">Cash</div><div class="card-value" id="cardCash">$0.00</div><div class="card-sub">USDC available</div></div>
     <div class="card"><div class="card-label">Equity</div><div class="card-value v-accent" id="cardEquity">$0.00</div><div class="card-sub">Cash + positions</div></div>
@@ -219,6 +221,7 @@ canvas { width: 100% !important; height: 100% !important; }
   </div>
 
   <div id="sys-stats" style="padding:4px 16px;font-size:0.8em;color:var(--fg2);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
+  <div style="text-align:center;padding:8px 16px;font-size:0.8em;color:var(--fg2)">Build: <span id="v-build">—</span> · Model: <span id="v-model-footer">—</span> (<span id="v-model-price">—</span>/req)</div>
 </div>
 
 <div class="modal-overlay" id="settingsModal">
@@ -276,6 +279,25 @@ canvas { width: 100% !important; height: 100% !important; }
       <div style="margin-top:8px;font-size:10px;color:var(--fg2)">
         <div style="font-weight:600;margin-bottom:4px">Platform Comparison</div>
         <div id="eff-compare" style="display:grid;grid-template-columns:1fr auto;gap:2px 8px"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Data Management</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn" href="/api/backup?full=1" download="survaiv-backup.json" style="font-size:0.8em;text-decoration:none">⬇ Backup Config</a>
+        <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Restore Config
+          <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreConfig(this.files[0])">
+        </label>
+      </div>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Knowledge</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button onclick="downloadKnowledge()" class="btn" style="font-size:0.8em">⬇ Export Knowledge</button>
+        <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Import Knowledge
+          <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
+        </label>
+        <span id="kb-status" style="font-size:0.8em;color:var(--fg2)"></span>
       </div>
     </div>
     <div class="modal-actions">
@@ -358,6 +380,22 @@ function updateState(d) {
   $('#uptime').textContent = fmtDuration(d.uptime_seconds || 0);
   $('#cycles').textContent = d.cycle_count || 0;
   if (d.agent_name) document.getElementById('agent-title').textContent = '\u27C1 ' + d.agent_name;
+  var errBanner = document.getElementById('errorBanner');
+  if (errBanner) {
+    if (d.last_error) {
+      var retryText = d.next_retry_sec > 0 ? ' \u00B7 retrying in ' + d.next_retry_sec + 's' : '';
+      errBanner.textContent = '\u26A0 ' + d.last_error + retryText;
+      errBanner.style.display = 'block';
+    } else {
+      errBanner.style.display = 'none';
+    }
+  }
+  var vBuild = document.getElementById('v-build');
+  if (vBuild) vBuild.textContent = d.firmware || d.version || '\u2014';
+  var vModelFoot = document.getElementById('v-model-footer');
+  if (vModelFoot) vModelFoot.textContent = d.active_model || '\u2014';
+  var vModelPr = document.getElementById('v-model-price');
+  if (vModelPr) vModelPr.textContent = d.model_price > 0 ? fmtUsd4(d.model_price) : '\u2014';
   var pb = document.getElementById('mode-paper-btn');
   var rb = document.getElementById('mode-real-btn');
   if (pb && rb) {
@@ -526,10 +564,23 @@ function renderWisdom(d) {
   html += '<span>Tracked: <strong>' + (d.total_tracked || 0) + '</strong></span>';
   html += '<span>Resolved: <strong>' + (d.total_resolved || 0) + '</strong></span>';
   html += '<span>Correct: <strong>' + (d.total_correct || 0) + '</strong></span>';
-  const acc = d.total_resolved > 0 ? ((d.total_correct / d.total_resolved) * 100).toFixed(1) + '%' : '—';
+  var acc = d.total_resolved > 0 ? ((d.total_correct / d.total_resolved) * 100).toFixed(1) + '%' : '\u2014';
   html += '<span>Accuracy: <strong>' + acc + '</strong></span>';
+  var buyAcc = d.buy_resolved > 0 ? ((d.buy_correct / d.buy_resolved) * 100).toFixed(1) + '%' : '\u2014';
+  html += '<span>Buy Acc: <strong>' + buyAcc + '</strong></span>';
+  var holdAcc = d.hold_resolved > 0 ? ((d.hold_correct / d.hold_resolved) * 100).toFixed(1) + '%' : '\u2014';
+  html += '<span>Hold Acc: <strong>' + holdAcc + '</strong></span>';
   if (d.frozen) html += '<span style="color:var(--yellow)">🧊 Frozen</span>';
   html += '</div>';
+  html += '<label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--fg2);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="wisdom-freeze" onchange="toggleWisdomFreeze(this.checked)" ' + (d.frozen ? 'checked' : '') + '> Freeze learning</label>';
+  if (d.models && d.models.length > 0) {
+    html += '<div style="font-size:0.82em;color:var(--fg2);margin-bottom:8px">🧠 Models: ';
+    var modelParts = [];
+    for (var mi = 0; mi < d.models.length; mi++) {
+      modelParts.push('<strong>' + d.models[mi].name + '</strong> (' + d.models[mi].decisions + ' decisions)');
+    }
+    html += modelParts.join(' \u2192 ') + '</div>';
+  }
   html += '<div class="wisdom-text">' + (d.wisdom_text || 'Collecting data...') + '</div>';
   // Custom rules editor — preserve focus.
   const existing = el.querySelector('#rules-editor');
@@ -712,6 +763,32 @@ function connectSSE() {
   evtSource.addEventListener('scouted', function(e) {
     try { renderScouted(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
   });
+  evtSource.addEventListener('positions', function(e) {
+    try { renderPositions(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
+  });
+  evtSource.addEventListener('wisdom', function(e) {
+    try { renderWisdom(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
+  });
+  evtSource.addEventListener('decision', function(e) {
+    try {
+      var d = JSON.parse(e.data);
+      var log = document.getElementById('decisionLog');
+      var empty = log.querySelector('.no-data');
+      if (empty) log.innerHTML = '';
+      var t = d.type || 'unknown';
+      var typeCls = 'log-type-hold';
+      if (t.indexOf('buy') >= 0) typeCls = 'log-type-buy';
+      else if (t.indexOf('close') >= 0) typeCls = 'log-type-close';
+      else if (t === 'tool_call') typeCls = 'log-type-tool';
+      var ts = d.epoch ? new Date(d.epoch * 1000).toLocaleTimeString() : '';
+      var entry = document.createElement('div');
+      entry.className = 'log-item';
+      entry.innerHTML = '<span class="log-type ' + typeCls + '">' + t + '</span> ' +
+        '<span class="log-meta">' + ts + '</span>' +
+        (d.rationale ? '<div class="log-rationale">' + d.rationale.slice(0, 120) + '</div>' : '');
+      log.prepend(entry);
+    } catch(ex) { console.error(ex); }
+  });
   evtSource.onerror = function() { evtSource.close(); setTimeout(connectSSE, 3000); };
 }
 
@@ -729,6 +806,51 @@ function saveCustomRules() {
     if (d.ok) loadAll();
   })
   .catch(function(e) { console.error('Save rules error:', e); });
+}
+
+function toggleWisdomFreeze(frozen) {
+  fetch('/api/wisdom/freeze', {method:'POST', body:JSON.stringify({frozen:frozen}),
+    headers:authHeaders()})
+    .then(function(r) { return r.json(); })
+    .then(function() { loadAll(); })
+    .catch(function(e) { console.error('Freeze toggle error:', e); });
+}
+
+function restoreConfig(file) {
+  if (!file) return;
+  file.text().then(function(text) {
+    return fetch('/api/restore', {method:'POST', headers:authHeaders(), body:text});
+  }).then(function(r) {
+    if (r.ok) alert('Restored! Restarting...');
+    else alert('Restore failed');
+  }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+function downloadKnowledge() {
+  var a = document.createElement('a');
+  a.href = '/api/knowledge';
+  a.download = 'survaiv-knowledge.json';
+  a.click();
+}
+
+function importKnowledge(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var status = document.getElementById('kb-status');
+  status.textContent = 'Uploading\u2026';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    fetch('/api/knowledge', {method:'POST', body:e.target.result, headers:authHeaders()})
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        status.textContent = d.ok ? '\u2713 ' + (d.msg || 'Imported') : '\u2717 Failed';
+        status.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+        if (d.ok) loadAll();
+      })
+      .catch(function() { status.textContent = '\u2717 Error'; status.style.color = 'var(--red)'; });
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 
 async function loadAll() {
