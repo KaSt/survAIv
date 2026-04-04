@@ -35,6 +35,9 @@ constexpr int kEstPromptTokens = 4000;
 constexpr int kEstPromptTokens = 2000;
 #endif
 constexpr int kEstCompletionTokens = 800;
+// Reasoning models (e.g. gpt-oss:20b) count reasoning tokens against max_tokens.
+// Send a larger limit so content isn't starved. Actual usage is metered from response.
+constexpr int kMaxCompletionTokens = 2000;
 constexpr double kSimulatedCostPerRequest = 0.0005;
 
 // LLM timeout: 120s to handle cold-start LLM servers (e.g. llama.cpp sleep mode).
@@ -231,7 +234,8 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
     body << "\"model\":\"" << JsonEscape(model) << "\",";
   }
   body << "\"temperature\":0.2,"
-       << "\"max_tokens\":" << kEstCompletionTokens << ","
+       << "\"max_tokens\":" << kMaxCompletionTokens << ","
+       << "\"reasoning_effort\":\"low\","
        << "\"messages\":["
        << "{\"role\":\"system\",\"content\":\"" << JsonEscape(system_prompt) << "\"},"
        << "{\"role\":\"user\",\"content\":\"" << JsonEscape(user_prompt) << "\"}"

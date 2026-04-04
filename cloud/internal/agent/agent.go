@@ -423,8 +423,9 @@ func (a *Agent) trackWisdom(
 
 func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userPrompt string) []byte {
 	body := map[string]interface{}{
-		"temperature": 0.2,
-		"max_tokens":  estCompletionTokens,
+		"temperature":      0.2,
+		"max_tokens":       maxCompletionTokens,
+		"reasoning_effort": "low",
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
