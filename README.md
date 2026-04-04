@@ -8,9 +8,9 @@ Three deployment targets, one codebase philosophy:
 
 | Platform | Hardware | Code | Status |
 |----------|----------|------|--------|
-| **ESP32-C3** | Seeed XIAO · 400 KB SRAM · 4 MB flash | 8,500 lines C++ | ✅ Primary |
+| **ESP32-C3** | Seeed XIAO · 400 KB SRAM · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
 | **ESP32-S3** | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
-| **Cloud / TUI** | Any server, Heroku, local machine | 6,200 lines Go | ✅ Ready |
+| **Cloud / TUI** | Any server, Heroku, local machine | ~6,900 lines Go | ✅ Ready |
 
 ## How It Works
 
@@ -54,15 +54,18 @@ Every cycle the agent:
 ### Core
 - **x402 micropayments** — wallet-is-auth, no accounts. Supports [tx402.ai](https://tx402.ai), [x402engine.app](https://x402engine.app), [claw402.org](https://claw402.org), and custom endpoints.
 - **Dynamic model selection** — built-in catalog of 20+ models across providers. Auto-picks per task complexity and remaining budget.
+- **Reasoning model awareness** — detects reasoning models (e.g. DeepSeek R1, gpt-oss:20b) and sends `reasoning_effort: "low"` with separate token budgets so chain-of-thought doesn't starve the response.
 - **Paper & live trading** — paper mode by default with realistic cost simulation; opt into live CLOB trading with on-device EIP-712 signing.
 - **Wisdom learning** — tracks every decision outcome, generates trading rules from verified results, and feeds them back into the prompt. Custom rules (LLM-distilled or hand-crafted) get priority in the byte budget. Export/import knowledge between agents and platforms for training on powerful hardware and deploying on microcontrollers.
+- **API authentication** — PIN-based claim system with session tokens. All API endpoints (including GET and SSE) are auth-guarded once claimed. First user to enter the PIN displayed on serial console owns the agent.
 
 ### Dashboard
-- **Real-time web UI** — equity chart, P&L cards, positions table, market scanner, decision log.
+- **Real-time web UI** — equity chart, P&L chart (profit/loss over cycles), positions table, market scanner, decision log.
 - **SSE streaming** — live updates without polling.
 - **Dark / light theme** — toggle with persistence.
 - **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter.
 - **Market descriptions** — LLM receives resolution criteria and event context, not just prices.
+- **Platform badge** — shows firmware version with OTA/NO-OTA indicator on ESP32 builds.
 
 ### ESP32 Specific
 - **On-device wallet** — secp256k1 key generation with hardware RNG, stored in NVS flash.
@@ -118,12 +121,26 @@ cd cloud
 cp .env.example .env
 # Edit .env — at minimum set SURVAIV_OAI_URL and SURVAIV_OAI_MODEL
 
+# macOS / Linux:
+./build.sh build       # compile
+./build.sh run         # build + run (TUI mode)
+./build.sh headless    # dashboard only
+
+# Windows:
+build.bat build
+build.bat run
+
+# Or with Make:
+make run
+
+# Or manually:
 go build -o survaiv .
-./survaiv           # TUI + dashboard
-./survaiv --headless  # dashboard only (for servers)
+./survaiv              # TUI + dashboard
+./survaiv --headless   # dashboard only (for servers)
+./survaiv --version    # print version
 ```
 
-Dashboard at `http://localhost:8080`. See [cloud/README.md](cloud/README.md) for full env var reference.
+Dashboard at `http://localhost:8080`. See [cloud/README.md](cloud/README.md) for full env var reference and build options.
 
 ### Generate a Wallet
 
@@ -234,6 +251,7 @@ Another cloud agent          ←  import  ←──────┘  (8 KB budget
 ```
 
 The export includes:
+- **Scope metadata** — total decisions tracked, unique markets, categories (crypto, politics…), time range of training data
 - **Custom rules** — the high-value distilled insights
 - **Wisdom text** — the current prompt injection
 - **Stats** — accuracy by category, buy/hold breakdown
@@ -282,6 +300,17 @@ Since the export format is a standard JSON file, knowledge can be shared between
 | S3 | 4,000 bytes | Full rule set + verbose stats |
 | Cloud | 8,000 bytes | Comprehensive rules + category breakdowns |
 
+## Security
+
+All API endpoints are protected by a PIN-based authentication system:
+
+1. **First boot** — the agent generates a random PIN in `adjective-animal-number` format (e.g. `swift-newt-6750`) and prints it to the serial console (ESP32) or stdout (cloud).
+2. **Claim** — the first user to enter the PIN in the dashboard owns the agent and receives a session token.
+3. **Session token** — all subsequent API requests must include the token via `X-Auth-Token` header (or `Authorization: Bearer` for cloud). SSE uses a `?token=` query parameter since `EventSource` can't set custom headers.
+4. **Unclaimed agents** — if no one has claimed the agent yet, all endpoints are open (for first-boot UX).
+
+Protected endpoints include all state, positions, history, equity, scouted markets, wisdom, knowledge export, backup, wallet generation, and SSE streams.
+
 ## Architecture
 
 ### ESP32 (C3 / S3) — `main/`
@@ -328,8 +357,9 @@ cloud/
 ├── internal/db/          — SQLite open + migrations
 ├── internal/httpclient/  — HTTP client with LLM retry (120s timeout, 3 retries)
 ├── internal/ledger/      — Budget & position accounting
-├── internal/polymarket/  — Market + geoblock API
 ├── internal/models/      — LLM model registry + selection
+├── internal/news/        — News search (Tavily, Brave) for market context
+├── internal/polymarket/  — Market + geoblock API
 ├── internal/provider/    — Provider adapters (tx402, x402engine, claw402, custom)
 ├── internal/x402/        — Micropayment signatures
 ├── internal/wallet/      — Ethereum wallet management
