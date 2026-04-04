@@ -15,6 +15,8 @@
 #include "wisdom.h"
 #include "x402.h"
 
+#include "esp_app_desc.h"
+#include "esp_chip_info.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
@@ -30,6 +32,34 @@ constexpr const char *kTag = "survaiv";
 }
 
 extern "C" void app_main(void) {
+  // ── Startup banner ──────────────────────────────────────────────
+  const esp_app_desc_t *app = esp_app_get_description();
+
+  esp_chip_info_t chip;
+  esp_chip_info(&chip);
+  const char *chip_name = "ESP32";
+  switch (chip.model) {
+    case CHIP_ESP32C3: chip_name = "ESP32-C3"; break;
+    case CHIP_ESP32S3: chip_name = "ESP32-S3"; break;
+    default: break;
+  }
+
+  ESP_LOGI(kTag,
+    "╔═══════════════════════════════════╗\n"
+    "║        ⟁ SURVAIV starting         ║\n"
+    "╚═══════════════════════════════════╝");
+  ESP_LOGI(kTag, "Firmware : %s (%s)", app->version, app->date);
+  ESP_LOGI(kTag, "IDF      : %s", app->idf_ver);
+  ESP_LOGI(kTag, "Chip     : %s rev %d, %d core(s)",
+           chip_name, chip.revision, chip.cores);
+#if CONFIG_SURVAIV_ENABLE_OTA
+  ESP_LOGI(kTag, "OTA      : enabled (dual-partition)");
+#else
+  ESP_LOGI(kTag, "OTA      : disabled (single factory partition)");
+#endif
+  ESP_LOGI(kTag, "Free heap: %lu bytes",
+           (unsigned long)esp_get_free_heap_size());
+
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_CHECK(nvs_flash_erase());

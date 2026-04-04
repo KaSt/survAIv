@@ -75,6 +75,11 @@ idf.py set-target "$TARGET"
 BUILD_ARGS=()
 if $NO_OTA; then
   BUILD_ARGS+=(-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.no_ota")
+
+  # Force sdkconfig regeneration: set-target only applies the base defaults,
+  # so the OTA=n overlay is lost. Delete sdkconfig to let build recreate it
+  # with both overlay files.
+  rm -f sdkconfig
 fi
 
 echo "── Building ──────────────────────"
