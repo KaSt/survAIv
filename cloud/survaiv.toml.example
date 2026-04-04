@@ -63,6 +63,9 @@
 # Dashboard HTTP port.
 # port = 8080
 
+# Listen address: "" or "0.0.0.0" = all interfaces, "127.0.0.1" = local only.
+# listen = ""
+
 # Database file path.
 # db_path = "survaiv.db"
 

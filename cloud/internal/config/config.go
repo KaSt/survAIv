@@ -33,6 +33,7 @@ type Config struct {
 	MarketLimit      int
 	DailyLossLimit   float64
 	Port             int
+	ListenAddr       string
 	DBPath           string
 	Headless         bool
 }
@@ -70,6 +71,9 @@ func Load(db *sql.DB, configFile string) *Config {
 	} else {
 		c.Port = resolveInt("SURVAIV_PORT", "port", file, 8080)
 	}
+
+	// Listen address: "127.0.0.1" for local-only, "0.0.0.0" or "" for all interfaces.
+	c.ListenAddr = resolve("SURVAIV_LISTEN", "listen", file, "")
 
 	// Headless mode: auto-detect Heroku or explicit flag.
 	c.Headless = os.Getenv("DYNO") != ""

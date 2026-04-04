@@ -12,7 +12,7 @@ import (
 // Serve starts the dashboard HTTP server. Blocks until context is cancelled.
 func Serve(ctx context.Context, cfg *config.Config, state *State) error {
 	router := NewRouter(state, cfg)
-	addr := fmt.Sprintf(":%d", cfg.Port)
+	addr := fmt.Sprintf("%s:%d", cfg.ListenAddr, cfg.Port)
 
 	srv := &http.Server{
 		Addr:    addr,
