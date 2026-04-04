@@ -250,6 +250,10 @@ canvas { width: 100% !important; height: 100% !important; }
         <span id="mode-msg" style="font-size:11px;color:var(--fg2)"></span>
       </div>
       <div style="font-size:10px;color:var(--fg2);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+      <div id="paper-reset-row" style="display:none;margin-top:8px">
+        <button onclick="confirmResetPaper()" class="btn" style="font-size:0.75em;padding:4px 12px;color:var(--red);border-color:var(--red)">&#x1F5D1; Reset Paper Trading</button>
+        <span id="reset-msg" style="font-size:10px;color:var(--fg2);margin-left:6px"></span>
+      </div>
     </div>
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px">Tool Usage</div>
@@ -377,6 +381,23 @@ function setTradingMode(paper) {
     });
 }
 
+function confirmResetPaper() {
+  if (!confirm('Reset all paper trading data?\n\nThis will clear positions, P&L, equity history, and decision log.\nWisdom and settings are preserved.\n\nThis cannot be undone.')) return;
+  var msg = document.getElementById('reset-msg');
+  msg.textContent = 'Resetting...';
+  msg.style.color = 'var(--fg2)';
+  fetch('/api/reset-paper', {method:'POST', headers: authHeaders()})
+    .then(function(r) { return r.json(); }).then(function() {
+      msg.textContent = '\u2713 Reset complete';
+      msg.style.color = 'var(--green)';
+      setTimeout(function() { msg.textContent = ''; }, 3000);
+      loadAll();
+    }).catch(function() {
+      msg.textContent = 'Reset failed';
+      msg.style.color = 'var(--red)';
+    });
+}
+
 function fmtUsd(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2); }
 function fmtUsd4(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(4); }
 function fmtDuration(sec) {
@@ -430,6 +451,8 @@ function updateState(d) {
       rb.style.background = 'var(--accent)'; rb.style.color = '#fff';
     }
   }
+  var prr = document.getElementById('paper-reset-row');
+  if (prr) prr.style.display = d.paper_only ? 'block' : 'none';
   var newsProv = document.getElementById('cfg-news-prov');
   if (newsProv && d.news_provider) newsProv.value = d.news_provider;
   var tus = document.getElementById('tool-usage-slider');

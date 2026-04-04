@@ -193,6 +193,18 @@ func (l *Ledger) ResetDailyLoss() {
 	l.dailyLoss = 0
 }
 
+// ResetPaper resets the ledger to initial state with given bankroll.
+func (l *Ledger) ResetPaper(startingUsdc, reserveUsdc float64) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.cash = startingUsdc
+	l.reserve = reserveUsdc
+	l.llmSpend = 0
+	l.realizedPnl = 0
+	l.dailyLoss = 0
+	l.positions = nil
+}
+
 // BudgetInfo returns a snapshot of the ledger state for the dashboard.
 func (l *Ledger) BudgetInfo(markets []types.MarketSnapshot) types.BudgetInfo {
 	l.mu.RLock()

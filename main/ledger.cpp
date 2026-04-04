@@ -104,4 +104,13 @@ void BudgetLedger::MarkPositionLive(const std::string &market_id,
   }
 }
 
+void BudgetLedger::ResetPaper(double starting_usdc, double reserve_usdc) {
+  cash_usdc_ = starting_usdc;
+  reserve_usdc_ = reserve_usdc;
+  llm_spend_usdc_ = 0.0;
+  realized_paper_pnl_usdc_ = 0.0;
+  daily_loss_usdc_ = 0.0;
+  positions_.clear();
+}
+
 }  // namespace survaiv

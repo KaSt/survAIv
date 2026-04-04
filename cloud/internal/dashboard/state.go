@@ -57,6 +57,8 @@ type State struct {
 	cpuPercent  float64
 
 	sseClients []chan string
+
+	onResetPaper func() // callback to reset ledger; set by agent
 }
 
 func NewState() *State {
@@ -72,6 +74,36 @@ func NewState() *State {
 		s.prevCPUSys = ru.Stime.Sec*1e6 + int64(ru.Stime.Usec)
 	}
 	return s
+}
+
+// SetResetPaperFunc sets the callback invoked when the user resets paper trading.
+func (s *State) SetResetPaperFunc(fn func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onResetPaper = fn
+}
+
+// ResetPaperTrading clears all dashboard financial state and invokes the ledger reset callback.
+func (s *State) ResetPaperTrading() bool {
+	s.mu.Lock()
+	if !s.paperOnly {
+		s.mu.Unlock()
+		return false
+	}
+	fn := s.onResetPaper
+	s.decisions = nil
+	s.equityHistory = nil
+	s.positions = nil
+	s.budget = types.BudgetInfo{}
+	s.scoutedMarkets = nil
+	s.cycleCount = 0
+	s.inferenceSpent = 0
+	s.lastError = ""
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
+	return true
 }
 
 func (s *State) UpdateBudget(b types.BudgetInfo) {

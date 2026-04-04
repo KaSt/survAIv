@@ -283,6 +283,10 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
         <span id="mode-msg" style="font-size:11px;color:var(--dim)"></span>
       </div>
       <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+      <div id="paper-reset-row" style="display:none;margin-top:8px">
+        <button onclick="confirmResetPaper()" class="badge" style="padding:4px 12px;color:var(--red);border:1px solid var(--red);cursor:pointer;font-size:10px">🗑 Reset Paper Trading</button>
+        <span id="reset-msg" style="font-size:10px;color:var(--dim);margin-left:6px"></span>
+      </div>
     </div>
 
     <div class="setting-group">
@@ -413,6 +417,23 @@ function setTradingMode(paper) {
       setTimeout(() => msg.textContent = '', 3000);
     }).catch(() => {
       $('mode-msg').textContent = '\u2717 Failed'; $('mode-msg').style.color = 'var(--red)';
+    });
+}
+
+function confirmResetPaper() {
+  if (!confirm('Reset all paper trading data?\n\nThis will clear positions, P&L, equity history, and decision log.\nWisdom and settings are preserved.\n\nThis cannot be undone.')) return;
+  const msg = $('reset-msg');
+  msg.textContent = 'Resetting...';
+  msg.style.color = 'var(--dim)';
+  fetch('/api/reset-paper', {method:'POST', headers: authHeaders()})
+    .then(r => r.json()).then(() => {
+      msg.textContent = '\u2713 Reset complete';
+      msg.style.color = 'var(--green)';
+      setTimeout(() => msg.textContent = '', 3000);
+      poll();
+    }).catch(() => {
+      msg.textContent = 'Reset failed';
+      msg.style.color = 'var(--red)';
     });
 }
 
@@ -721,6 +742,8 @@ function updateState(s) {
     rb.style.background = !isPaper ? 'var(--green)' : '';
     rb.style.color = !isPaper ? '#000' : '';
   }
+  const prr = $('paper-reset-row');
+  if (prr) prr.style.display = isPaper ? 'block' : 'none';
 
   // News search config
   if (s.news_provider) {

@@ -203,6 +203,37 @@ void DashboardState::ClearError() {
   xSemaphoreGive(mutex_);
 }
 
+void DashboardState::SetResetPaperFunc(ResetCallback fn) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  on_reset_paper_ = std::move(fn);
+  xSemaphoreGive(mutex_);
+}
+
+bool DashboardState::ResetPaperTrading() {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  // Only allow reset in paper mode.
+  bool paper = !live_mode_;
+  ResetCallback fn = on_reset_paper_;
+  if (paper) {
+    decisions_.clear();
+    equity_history_.clear();
+    positions_.clear();
+    scouted_markets_.clear();
+    cash_ = 0.0;
+    reserve_ = 0.0;
+    equity_ = 0.0;
+    llm_spend_ = 0.0;
+    realized_pnl_ = 0.0;
+    daily_loss_ = 0.0;
+    inference_spent_usdc_ = 0.0;
+    cycle_count_ = 0;
+    last_error_.clear();
+  }
+  xSemaphoreGive(mutex_);
+  if (paper && fn) fn();
+  return paper;
+}
+
 std::string DashboardState::ToJson() const {
   xSemaphoreTake(mutex_, portMAX_DELAY);
 

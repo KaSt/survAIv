@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -58,6 +59,11 @@ class DashboardState {
   void SetNextRetrySec(int seconds);
   void SetNextCycleEpoch(int64_t epoch);
   void ClearError();
+
+  // Paper trading reset.
+  using ResetCallback = std::function<void()>;
+  void SetResetPaperFunc(ResetCallback fn);
+  bool ResetPaperTrading();
 
   // Called by the web server to serialize state as JSON.
   std::string ToJson() const;
@@ -117,6 +123,8 @@ class DashboardState {
   std::string last_error_;
   int next_retry_sec_ = 0;
   int64_t next_cycle_epoch_ = 0;
+
+  ResetCallback on_reset_paper_;
 };
 
 // Global dashboard state instance.

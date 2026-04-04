@@ -857,6 +857,19 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
   return httpd_resp_send(req, resp.c_str(), resp.size());
 }
 
+// ─── POST /api/reset-paper ──────────────────────────────────────
+static esp_err_t ApiResetPaperHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
+  auto &dash = GetDashboardState();
+  if (!dash.ResetPaperTrading()) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Not in paper mode");
+    return ESP_FAIL;
+  }
+  httpd_resp_set_type(req, "application/json");
+  const char *ok = "{\"ok\":true}";
+  return httpd_resp_send(req, ok, strlen(ok));
+}
+
 // ─── URI registration helpers ───────────────────────────────────
 
 static esp_err_t OptionsHandler(httpd_req_t *req) {
@@ -915,6 +928,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/auth", HTTP_GET, ApiAuthGetHandler);
   RegisterUri("/api/auth", HTTP_POST, ApiAuthPostHandler);
   RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
+  RegisterUri("/api/reset-paper", HTTP_POST, ApiResetPaperHandler);
 
   // CORS preflight handlers.
   static const char *cors_paths[] = {
@@ -922,6 +936,7 @@ void StartDashboard(int port) {
     "/api/scouted", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
     "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
     "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
+    "/api/reset-paper",
   };
   for (const char *p : cors_paths) {
     RegisterUri(p, HTTP_OPTIONS, OptionsHandler);

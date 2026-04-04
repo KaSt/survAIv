@@ -148,6 +148,13 @@ extern "C" void app_main(void) {
       static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
       static_cast<double>(survaiv::config::ReserveCents()) / 100.0);
 
+  survaiv::GetDashboardState().SetResetPaperFunc([&ledger]() {
+    ledger.ResetPaper(
+        static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
+        static_cast<double>(survaiv::config::ReserveCents()) / 100.0);
+    ESP_LOGI("main", "Paper trading reset by user");
+  });
+
   int cycle = 0;
   while (true) {
     int retry_delay = survaiv::RunAgentCycle(&ledger);

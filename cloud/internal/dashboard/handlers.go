@@ -108,6 +108,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Post("/api/auth", handleAuthPost(cfg))
 	r.Post("/api/config", handleConfig(cfg, state))
 	r.Post("/api/llm-config", handleLLMConfig(cfg, state))
+	r.Post("/api/reset-paper", handleResetPaper(state))
 	r.Get("/api/backup", handleBackup(cfg))
 	r.Post("/api/restore", handleRestore(cfg))
 	r.Post("/api/ota", func(w http.ResponseWriter, r *http.Request) {
@@ -463,6 +464,18 @@ func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
 			state.SetToolUsage(v)
 			slog.Info("tool usage level changed", "level", v)
 		}
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+func handleResetPaper(state *State) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if ok := state.ResetPaperTrading(); !ok {
+			http.Error(w, `{"error":"not in paper mode"}`, http.StatusBadRequest)
+			return
+		}
+		slog.Info("paper trading state reset by user")
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
 	}

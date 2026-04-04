@@ -52,7 +52,7 @@ func New(
 	dash *dashboard.State,
 	wis *wisdom.Tracker,
 ) *Agent {
-	return &Agent{
+	a := &Agent{
 		cfg:       cfg,
 		client:    client,
 		ledger:    ldgr,
@@ -61,6 +61,12 @@ func New(
 		wisdom:    wis,
 		startTime: time.Now(),
 	}
+	// Register paper-reset callback so the dashboard can reset the ledger.
+	dash.SetResetPaperFunc(func() {
+		ldgr.ResetPaper(cfg.StartingBankroll, cfg.Reserve)
+		slog.Info("paper trading reset", "bankroll", cfg.StartingBankroll)
+	})
+	return a
 }
 
 // RunCycle executes one agent cycle. Returns retry delay in seconds (0 = no retry).

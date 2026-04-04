@@ -37,6 +37,9 @@ class BudgetLedger {
   double DailyLossUsdc() const { return daily_loss_usdc_; }
   void ResetDailyLoss() { daily_loss_usdc_ = 0.0; }
 
+  // Reset all paper trading state back to initial bankroll.
+  void ResetPaper(double starting_usdc, double reserve_usdc);
+
   // Mark a position as live (backed by a real CLOB order).
   void MarkPositionLive(const std::string &market_id, const std::string &order_id);
 
