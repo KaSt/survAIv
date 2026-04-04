@@ -475,7 +475,8 @@ function updateState(s) {
   pnlEl.className = 'value ' + cls(s.budget.realized_pnl);
 
   $('v-spend').textContent = fmtUsd(s.budget.llm_spend);
-  if (s.inference_spent_usdc !== undefined && s.inference_spent_usdc > 0) {
+  if (s.inference_spent_usdc !== undefined && s.inference_spent_usdc > 0 &&
+      Math.abs(s.inference_spent_usdc - s.budget.llm_spend) > 0.005) {
     $('v-spend').textContent += ' (' + fmtUsd(s.inference_spent_usdc) + ' x402)';
   }
 
