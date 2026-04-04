@@ -63,11 +63,25 @@ std::string ExtractMessageContent(const cJSON *root) {
   const cJSON *choice = cJSON_GetArrayItem(choices, 0);
   const cJSON *message = cJSON_GetObjectItemCaseSensitive(choice, "message");
   if (message == nullptr) {
-    return "";
+    // Some providers nest under "delta" (streaming leftover).
+    message = cJSON_GetObjectItemCaseSensitive(choice, "delta");
+    if (message == nullptr) return "";
   }
   const cJSON *content = cJSON_GetObjectItemCaseSensitive(message, "content");
-  if (cJSON_IsString(content) && content->valuestring != nullptr) {
+  if (cJSON_IsString(content) && content->valuestring != nullptr &&
+      content->valuestring[0] != '\0') {
     return content->valuestring;
+  }
+  // Fallback: some models put reasoning in a separate field when content is null.
+  const cJSON *reasoning = cJSON_GetObjectItemCaseSensitive(message, "reasoning_content");
+  if (cJSON_IsString(reasoning) && reasoning->valuestring != nullptr &&
+      reasoning->valuestring[0] != '\0') {
+    return reasoning->valuestring;
+  }
+  // Fallback: "text" field (used by some OpenAI-compat servers).
+  const cJSON *text = cJSON_GetObjectItemCaseSensitive(choice, "text");
+  if (cJSON_IsString(text) && text->valuestring != nullptr && text->valuestring[0] != '\0') {
+    return text->valuestring;
   }
   return "";
 }
@@ -296,12 +310,18 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
 
   cJSON *root = cJSON_Parse(response.body.c_str());
   if (root == nullptr) {
-    ESP_LOGW(kTag, "LLM response: invalid JSON");
+    ESP_LOGW(kTag, "LLM response: invalid JSON (first 200 chars: %.200s)", response.body.c_str());
     return false;
   }
 
   *usage_out = ParseUsage(root);
   *content_out = StripCodeFence(ExtractMessageContent(root));
+
+  if (content_out->empty()) {
+    ESP_LOGW(kTag, "LLM content empty — raw response (first 500 chars): %.500s",
+             response.body.c_str());
+  }
+
   cJSON_Delete(root);
 
   ESP_LOGI(kTag, "LLM response: %d prompt + %d completion tokens, %u chars",
