@@ -258,15 +258,22 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
 
     <div class="setting-group" id="llm-cfg" style="display:none">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+        <button onclick="setLlmPreset('local')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">Local</button>
+        <button onclick="setLlmPreset('openrouter')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">OpenRouter</button>
+        <button onclick="setLlmPreset('openai')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">OpenAI</button>
+        <button onclick="setLlmPreset('groq')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">Groq</button>
+        <button onclick="setLlmPreset('x402')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">x402 (auto)</button>
+      </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
-        <label style="font-size:10px;color:var(--dim)">URL<br>
-          <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="https://…">
+        <label style="font-size:10px;color:var(--dim);flex:2">Base URL<br>
+          <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="https://…/v1">
         </label>
-        <label style="font-size:10px;color:var(--dim)">Model<br>
-          <input id="cfg-model" style="width:140px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="model-id">
+        <label style="font-size:10px;color:var(--dim);flex:1">Model<br>
+          <input id="cfg-model" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="model-id">
         </label>
-        <label style="font-size:10px;color:var(--dim)">API Key<br>
-          <input id="cfg-key" type="password" style="width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="sk-…">
+        <label style="font-size:10px;color:var(--dim);flex:1">API Key<br>
+          <input id="cfg-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="sk-…">
         </label>
         <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
       </div>
@@ -507,7 +514,7 @@ function updateState(s) {
     $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
   }
 
-  // Show LLM config panel in paper mode
+  // Show LLM config panel in paper mode only
   const llmCfg = $('llm-cfg');
   if (llmCfg) {
     llmCfg.style.display = s.live_mode ? 'none' : 'block';
@@ -799,6 +806,24 @@ function saveLlmConfig() {
       msg.textContent = 'Error: ' + e.message;
       msg.style.color = 'var(--red)';
     });
+}
+
+const llmPresets = {
+  local:      {url:'http://192.168.1.100:8080', model:'local-model', key:''},
+  openrouter: {url:'https://openrouter.ai/api', model:'meta-llama/llama-4-scout', key:''},
+  openai:     {url:'https://api.openai.com',    model:'gpt-4.1-mini', key:''},
+  groq:       {url:'https://api.groq.com/openai', model:'llama-3.3-70b-versatile', key:''},
+  x402:       {url:'https://tx402.ai',           model:'auto', key:''}
+};
+function setLlmPreset(name) {
+  const p = llmPresets[name];
+  if (!p) return;
+  $('cfg-url').value = p.url;
+  $('cfg-url').dataset.touched = '1';
+  $('cfg-model').value = p.model;
+  $('cfg-key').value = p.key;
+  $('llm-cfg-msg').textContent = name + ' preset loaded — edit and Apply';
+  $('llm-cfg-msg').style.color = 'var(--blue)';
 }
 
 function saveNewsConfig() {
