@@ -11,9 +11,9 @@ namespace survaiv {
 namespace {
 constexpr const char *kTag = "survaiv_http";
 constexpr size_t kMaxBodySize = 64 * 1024;
-// Stop accumulating body if free heap drops below this threshold.
-// Reserves headroom for TLS buffers, cJSON, and other allocations.
-constexpr size_t kHeapSafetyMargin = 40 * 1024;
+// Minimum free heap to maintain while accumulating response body.
+// Covers TLS internal buffers (~16 KB) plus headroom for other allocations.
+constexpr size_t kMinFreeHeap = 20 * 1024;
 }
 
 static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
@@ -36,15 +36,20 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
           break;
         }
         // When the string must reallocate, verify enough heap remains.
-        // std::string realloc needs old + new buffer simultaneously.
+        // Peak usage: new buffer allocated before old buffer is freed.
         if (new_size > context->response->body.capacity()) {
           size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-          size_t realloc_need = new_size * 2;  // typical doubling strategy
-          if (free_heap < realloc_need + kHeapSafetyMargin) {
-            ESP_LOGW(kTag, "HTTP body truncated: heap too low (%u free, need %u+%u)",
-                     static_cast<unsigned>(free_heap),
-                     static_cast<unsigned>(realloc_need),
-                     static_cast<unsigned>(kHeapSafetyMargin));
+          // Estimate new capacity (std::string typically doubles).
+          size_t new_cap = context->response->body.capacity() * 2;
+          if (new_cap < new_size) new_cap = new_size;
+          if (free_heap < new_cap + kMinFreeHeap) {
+            if (!context->truncated) {
+              ESP_LOGW(kTag, "HTTP body truncated at %uB: heap %uB, need %uB+%uB",
+                       static_cast<unsigned>(context->response->body.size()),
+                       static_cast<unsigned>(free_heap),
+                       static_cast<unsigned>(new_cap),
+                       static_cast<unsigned>(kMinFreeHeap));
+            }
             context->truncated = true;
             break;
           }

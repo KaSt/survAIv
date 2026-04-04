@@ -45,8 +45,10 @@ GeoblockStatus FetchGeoblockStatus() {
 
 std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
                                          const std::string &order) {
+  // Over-fetch to compensate for near-resolved markets that get filtered out.
+  int fetch_limit = std::min(limit * 3, 20);
   std::ostringstream url;
-  url << kPolymarketMarketsUrl << limit << "&offset=" << offset << "&order=" << order;
+  url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
 
   HttpResponse response = HttpRequest(url.str(), HTTP_METHOD_GET, {});
   std::vector<MarketSnapshot> markets;
@@ -56,6 +58,9 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
   }
 
   cJSON *root = cJSON_Parse(response.body.c_str());
+  // Free the response body immediately — only the cJSON tree is needed now.
+  { std::string().swap(response.body); }
+
   if (root == nullptr || !cJSON_IsArray(root)) {
     if (root != nullptr) {
       cJSON_Delete(root);
@@ -100,11 +105,16 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
     }
 
     if (!market.id.empty() && !market.question.empty()) {
+      // Skip near-resolved markets — no tradeable edge when price is extreme.
+      if (market.yes_price > 0.95 || market.yes_price < 0.05) continue;
       markets.push_back(market);
+      if (static_cast<int>(markets.size()) >= limit) break;
     }
   }
 
   cJSON_Delete(root);
+  ESP_LOGI(kTag, "Fetched %d tradeable markets (from %d raw)", 
+           static_cast<int>(markets.size()), fetch_limit);
   return markets;
 }
 

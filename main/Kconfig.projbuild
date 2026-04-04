@@ -46,8 +46,8 @@ config SURVAIV_MAX_OPEN_POSITIONS
 
 config SURVAIV_MARKET_LIMIT
     int "Top markets per scan"
-    range 1 32
-    default 6
+    range 1 20
+    default 4
 
 config SURVAIV_MAX_TOOL_CALLS_PER_CYCLE
     int "Maximum Polymarket tool calls per cycle"
