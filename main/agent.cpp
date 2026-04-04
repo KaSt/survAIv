@@ -123,7 +123,15 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
       << "{\"type\":\"paper_close\",\"market_id\":\"...\",\"edge_bps\":0,"
       << "\"confidence\":0.75,\"size_fraction\":0.0,\"rationale\":\"...\"}\n"
       << "{\"type\":\"hold\",\"market_id\":\"\",\"edge_bps\":0,"
-      << "\"confidence\":0.0,\"size_fraction\":0.0,\"rationale\":\"...\"}";
+      << "\"confidence\":0.0,\"size_fraction\":0.0,\"rationale\":\"...\"}\n"
+      << "11. ALWAYS include a \"market_ratings\" array rating each market you reviewed. "
+      << "Each entry: {\"id\":\"<market_id>\",\"signal\":\"bullish|bearish|neutral|skip\","
+      << "\"edge_bps\":<number>,\"confidence\":<0-1>,\"note\":\"<1 sentence>\"}. "
+      << "Include it even for hold decisions. Example:\n"
+      << "{\"type\":\"hold\",\"market_id\":\"\",\"edge_bps\":0,\"confidence\":0.0,"
+      << "\"size_fraction\":0.0,\"rationale\":\"...\","
+      << "\"market_ratings\":[{\"id\":\"abc\",\"signal\":\"neutral\",\"edge_bps\":30,"
+      << "\"confidence\":0.40,\"note\":\"Too close to call\"}]}";
   return prompt.str();
 }
 
@@ -310,6 +318,48 @@ Decision ParseDecision(const std::string &json_text) {
   return decision;
 }
 
+std::vector<ScoutedMarket> ParseMarketRatings(
+    const std::string &json_text, const std::vector<MarketSnapshot> &markets) {
+  std::vector<ScoutedMarket> result;
+  cJSON *root = cJSON_Parse(json_text.c_str());
+  if (!root) return result;
+
+  cJSON *ratings = cJSON_GetObjectItemCaseSensitive(root, "market_ratings");
+  if (!cJSON_IsArray(ratings)) {
+    cJSON_Delete(root);
+    return result;
+  }
+
+  time_t now;
+  time(&now);
+  int64_t epoch = static_cast<int64_t>(now);
+
+  cJSON *item = nullptr;
+  cJSON_ArrayForEach(item, ratings) {
+    ScoutedMarket sm;
+    sm.epoch = epoch;
+    sm.market_id = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "id"));
+    sm.signal = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "signal"));
+    sm.edge_bps = JsonToDouble(cJSON_GetObjectItemCaseSensitive(item, "edge_bps"));
+    sm.confidence = JsonToDouble(cJSON_GetObjectItemCaseSensitive(item, "confidence"));
+    sm.note = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "note"));
+
+    // Enrich with market data.
+    const MarketSnapshot *ms = FindMarket(markets, sm.market_id);
+    if (ms) {
+      sm.question = ms->question;
+      sm.yes_price = ms->yes_price;
+      sm.volume = ms->volume;
+      sm.liquidity = ms->liquidity;
+    }
+    if (sm.signal.empty()) sm.signal = "neutral";
+    result.push_back(std::move(sm));
+  }
+
+  cJSON_Delete(root);
+  return result;
+}
+
 void SpendForUsage(BudgetLedger *ledger, const UsageStats &usage) {
   if (ledger == nullptr) {
     return;
@@ -479,6 +529,14 @@ void RunAgentCycle(BudgetLedger *ledger) {
     if (dm) rec.market_question = dm->question;
     dash.PushDecision(rec);
     dash.IncrementCycleCount();
+
+    // Parse and push per-market ratings for the scanner view.
+    auto scouted = ParseMarketRatings(response_text, markets);
+    if (!scouted.empty()) {
+      dash.SetScoutedMarkets(scouted);
+      webserver::PushSseEvent("scouted", dash.ScoutedMarketsJson());
+    }
+
     webserver::PushSseEvent("state", dash.SseStateEvent());
   }
 

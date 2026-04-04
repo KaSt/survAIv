@@ -101,6 +101,16 @@ void DashboardState::SetActiveModel(const std::string &model_name, double price_
   xSemaphoreGive(mutex_);
 }
 
+void DashboardState::SetScoutedMarkets(const std::vector<ScoutedMarket> &scouted) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  scouted_markets_ = scouted;
+  // Trim to max.
+  if (static_cast<int>(scouted_markets_.size()) > kMaxScoutedMarkets) {
+    scouted_markets_.resize(kMaxScoutedMarkets);
+  }
+  xSemaphoreGive(mutex_);
+}
+
 double DashboardState::InferenceSpentUsdc() const {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   double val = inference_spent_usdc_;
@@ -222,6 +232,32 @@ std::string DashboardState::EquityHistoryJson() const {
   for (size_t i = 0; i < equity_history_.size(); ++i) {
     if (i > 0) o << ",";
     o << "[" << equity_history_[i].epoch << "," << equity_history_[i].equity << "]";
+  }
+  o << "]";
+
+  xSemaphoreGive(mutex_);
+  return o.str();
+}
+
+std::string DashboardState::ScoutedMarketsJson() const {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+
+  std::ostringstream o;
+  o << "[";
+  for (size_t i = 0; i < scouted_markets_.size(); ++i) {
+    const auto &s = scouted_markets_[i];
+    if (i > 0) o << ",";
+    o << "{\"epoch\":" << s.epoch
+      << ",\"market_id\":\"" << JsonEscape(s.market_id) << "\""
+      << ",\"question\":\"" << JsonEscape(s.question) << "\""
+      << ",\"signal\":\"" << JsonEscape(s.signal) << "\""
+      << ",\"edge_bps\":" << s.edge_bps
+      << ",\"confidence\":" << s.confidence
+      << ",\"note\":\"" << JsonEscape(s.note) << "\""
+      << ",\"yes_price\":" << s.yes_price
+      << ",\"volume\":" << s.volume
+      << ",\"liquidity\":" << s.liquidity
+      << "}";
   }
   o << "]";
 

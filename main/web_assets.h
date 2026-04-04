@@ -52,6 +52,17 @@ margin-right:6px}
 .log-type.buy{background:#e8f5e9;color:var(--green)}
 .log-type.close{background:#ffebee;color:var(--red)}
 .log-type.tool{background:#e3f2fd;color:var(--blue)}
+.scout-grid{display:grid;grid-template-columns:1fr;gap:6px;max-height:320px;overflow-y:auto}
+.scout-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;
+display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.scout-signal{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.scout-signal.bullish{background:var(--green)}.scout-signal.bearish{background:var(--red)}
+.scout-signal.neutral{background:var(--yellow)}.scout-signal.skip{background:var(--dim)}
+.scout-q{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scout-meta{font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap}
+.scout-right{text-align:right;white-space:nowrap}
+.scout-price{font-size:14px;font-weight:700}
+.scout-conf{font-size:10px;color:var(--dim)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;
 height:120px;position:relative}
 canvas{width:100%!important;height:100%!important}
@@ -97,6 +108,11 @@ canvas{width:100%!important;height:100%!important}
     <thead><tr><th>Market</th><th>Side</th><th>Entry</th><th>Current</th><th>P&amp;L</th><th>Stake</th><th>Type</th></tr></thead>
     <tbody id="pos-body"><tr><td colspan="7" class="empty">No open positions</td></tr></tbody>
   </table>
+</div>
+
+<div class="section">
+  <h2>Market Scanner</h2>
+  <div class="scout-grid" id="scout-body"><div class="empty">Waiting for first scan…</div></div>
 </div>
 
 <div class="section">
@@ -303,10 +319,44 @@ function updateDecisions(decisions) {
   }).join('');
 }
 
+function updateScouted(list) {
+  const el = $('scout-body');
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="empty">No markets scanned yet</div>';
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const q = s.question ? (s.question.length > 60 ? s.question.substring(0, 57) + '…' : s.question) : s.market_id;
+    const sig = s.signal || 'neutral';
+    const edge = s.edge_bps ? s.edge_bps.toFixed(0) + 'bp' : '—';
+    const conf = s.confidence ? (s.confidence * 100).toFixed(0) + '%' : '—';
+    const vol = s.volume > 1000 ? (s.volume / 1000).toFixed(0) + 'k' : s.volume.toFixed(0);
+    const liq = s.liquidity > 1000 ? (s.liquidity / 1000).toFixed(0) + 'k' : s.liquidity.toFixed(0);
+    const note = s.note ? s.note.substring(0, 80) : '';
+    return `<div class="scout-card">
+      <span class="scout-signal ${sig}" title="${sig}"></span>
+      <div>
+        <div class="scout-q" title="${s.question || ''}">${q}</div>
+        <div class="scout-meta">
+          <span>Edge: ${edge}</span>
+          <span>Vol: $${vol}</span>
+          <span>Liq: $${liq}</span>
+          ${note ? '<span>— ' + note + '</span>' : ''}
+        </div>
+      </div>
+      <div class="scout-right">
+        <div class="scout-price">${s.yes_price ? (s.yes_price * 100).toFixed(0) + '¢' : '—'}</div>
+        <div class="scout-conf">${conf}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function poll() {
   fetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
   fetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
   fetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
+  fetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
   fetch('/api/equity').then(r => r.json()).then(data => {
     equityData = data;
     drawChart();
@@ -327,6 +377,9 @@ function connectSSE() {
   });
   es.addEventListener('positions', function(e) {
     try { updatePositions(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('scouted', function(e) {
+    try { updateScouted(JSON.parse(e.data)); } catch(err) {}
   });
   es.addEventListener('decision', function(e) {
     try {

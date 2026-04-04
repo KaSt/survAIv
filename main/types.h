@@ -76,6 +76,19 @@ struct Position {
   std::string order_id;
 };
 
+struct ScoutedMarket {
+  int64_t epoch = 0;
+  std::string market_id;
+  std::string question;
+  std::string signal;    // "bullish", "bearish", "neutral", "skip"
+  double edge_bps = 0.0;
+  double confidence = 0.0;
+  std::string note;      // One-line agent reasoning
+  double yes_price = 0.0;
+  double volume = 0.0;
+  double liquidity = 0.0;
+};
+
 inline const MarketSnapshot *FindMarket(const std::vector<MarketSnapshot> &markets,
                                         const std::string &market_id) {
   auto it = std::find_if(markets.begin(), markets.end(),

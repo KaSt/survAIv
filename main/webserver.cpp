@@ -64,6 +64,12 @@ static esp_err_t ApiEquityHandler(httpd_req_t *req) {
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+static esp_err_t ApiScoutedHandler(httpd_req_t *req) {
+  std::string json = GetDashboardState().ScoutedMarketsJson();
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, json.c_str(), json.size());
+}
+
 // SSE endpoint — keeps connection open and sends events.
 static esp_err_t ApiEventsHandler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/event-stream");
@@ -493,7 +499,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 14;
+  config.max_uri_handlers = 16;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -507,6 +513,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/positions", HTTP_GET, ApiPositionsHandler);
   RegisterUri("/api/history", HTTP_GET, ApiHistoryHandler);
   RegisterUri("/api/equity", HTTP_GET, ApiEquityHandler);
+  RegisterUri("/api/scouted", HTTP_GET, ApiScoutedHandler);
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);

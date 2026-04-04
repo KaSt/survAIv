@@ -14,6 +14,7 @@ namespace survaiv {
 // Maximum entries kept in ring buffers.
 constexpr int kMaxDecisionHistory = 50;
 constexpr int kMaxEquityHistory = 200;
+constexpr int kMaxScoutedMarkets = 20;
 
 struct DecisionRecord {
   int64_t epoch = 0;
@@ -50,6 +51,7 @@ class DashboardState {
   void SetLiveMode(bool enabled);
   void SetInferenceSpend(double usdc);
   void SetActiveModel(const std::string &model_name, double price_per_req);
+  void SetScoutedMarkets(const std::vector<ScoutedMarket> &scouted);
   void IncrementCycleCount();
 
   // Called by the web server to serialize state as JSON.
@@ -57,6 +59,7 @@ class DashboardState {
   std::string PositionsJson() const;
   std::string DecisionHistoryJson() const;
   std::string EquityHistoryJson() const;
+  std::string ScoutedMarketsJson() const;
 
   // Read current inference spend.
   double InferenceSpentUsdc() const;
@@ -86,6 +89,9 @@ class DashboardState {
 
   // Equity history (ring buffer).
   std::vector<EquitySnapshot> equity_history_;
+
+  // Scouted markets from last cycle.
+  std::vector<ScoutedMarket> scouted_markets_;
 
   // Agent status.
   std::string agent_status_ = "initializing";
