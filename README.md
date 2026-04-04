@@ -1,8 +1,10 @@
 # Survaiv
 
+> **⚠️ Disclaimer** — This project is a **research experiment in autonomous AI behaviour**, not financial advice and not a scheme to make money. Survaiv exists to explore how a resource-constrained AI agent behaves when it must pay for its own reasoning and face real-world consequences for its decisions. Any real-money mode is **intentionally capped at tiny amounts** ($15–25 USDC) to keep stakes trivial. You should expect to **lose your entire bankroll**. Do not fund this agent with money you cannot afford to lose. The authors make no claims about profitability, and nothing in this repository constitutes a recommendation to trade, invest, or speculate.
+
 **An autonomous agent that pays for its own LLM inference via [x402](https://x402.org) micropayments and bets on [Polymarket](https://polymarket.com) prediction markets to survive on a tiny USDC bankroll.**
 
-> Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets.
+> Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets. This is a social experiment in AI autonomy, not a trading strategy.
 
 Three deployment targets, one codebase philosophy:
 
@@ -481,6 +483,23 @@ Using tx402.ai with DeepSeek V3.2 ($0.0005/request, as of April 2025 — check [
 | $25 USDC | ~50,000 | ~520 days |
 
 The real constraint is trading P&L, not inference cost.
+
+## Disclaimer
+
+This software is provided for **educational and research purposes only**. Survaiv is an experiment in autonomous AI agent behaviour — specifically, how an agent allocates scarce resources (money) when it must pay for its own cognition and bear the consequences of its decisions.
+
+**This is not financial advice.** This project does not promote, endorse, or guarantee any trading strategy, investment approach, or money-making scheme. Prediction markets carry inherent risk, and autonomous agents make mistakes.
+
+Key points:
+
+- **Expect to lose your entire bankroll.** The default $15–25 USDC budget is intentionally tiny to keep the experiment low-stakes.
+- **Paper mode is the default** — no real money is at risk unless you explicitly opt in to live trading and fund a wallet.
+- **Live trading is capped** by configurable guardrails: daily loss limits, confidence thresholds, position size limits, and a hard reserve floor.
+- **No guarantees of any kind** — the agent may make poor decisions, encounter bugs, or lose connectivity at critical moments.
+- **You are solely responsible** for any funds you choose to deposit and any trades the agent executes on your behalf.
+- **Check your local laws** — prediction market trading may be restricted or prohibited in your jurisdiction.
+
+The authors and contributors of this project accept no liability for financial losses incurred through the use of this software.
 
 ## License
 
