@@ -538,7 +538,6 @@ std::string ExportKnowledge() {
   // Scope — what this agent learned on (helps importers assess applicability).
   {
     int64_t first_epoch = 0, last_epoch = 0;
-    int unique_markets = 0;
     // Collect unique market IDs and categories from the ring.
     // Simple O(n²) dedup — ring is small (≤30 on ESP32).
     struct { char id[24]; char question[100]; } seen_markets[30];
