@@ -13,6 +13,7 @@ struct TrackedDecision {
   std::string category;
   std::string decision_type;  // "hold", "buy_yes", "buy_no", "paper_buy_yes", etc.
   std::string signal;         // "bullish", "bearish", "neutral"
+  std::string model_name;     // LLM model used for this decision
   double yes_price_at_decision = 0.0;
   double confidence = 0.0;
   double edge_bps = 0.0;
@@ -38,17 +39,28 @@ struct WisdomStats {
   CategoryStat categories[8] = {};
 };
 
+// Up to 8 model changes tracked over time.
+struct ModelEpoch {
+  char name[48] = {};
+  int64_t first_seen = 0;
+  uint16_t decision_count = 0;
+};
+
 void Init();
 
 void TrackDecision(const std::string &market_id, const std::string &question,
                    const std::string &category, const std::string &decision_type,
-                   const std::string &signal, double yes_price, double confidence,
-                   double edge_bps);
+                   const std::string &signal, const std::string &model_name,
+                   double yes_price, double confidence, double edge_bps);
 
 void CheckOutcomes();
 void EvaluateAndUpdateWisdom();
 std::string GetWisdom();
 std::string StatsJson();
+
+// Export/import the full knowledge base as a single JSON blob.
+std::string ExportKnowledge();
+bool ImportKnowledge(const std::string &json);
 
 }  // namespace wisdom
 }  // namespace survaiv

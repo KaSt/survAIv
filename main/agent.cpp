@@ -561,7 +561,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
         const MarketSnapshot *sm = FindMarket(markets, s.market_id);
         wisdom::TrackDecision(
             s.market_id, s.question,
-            sm ? sm->category : "", "hold", s.signal,
+            sm ? sm->category : "", "hold", s.signal, model_id,
             s.yes_price, s.confidence, s.edge_bps);
       }
     } else if (!decision.market_id.empty()) {
@@ -580,7 +580,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
       }
       wisdom::TrackDecision(
           decision.market_id, track_question, track_category,
-          decision.type, track_signal, track_yes_price,
+          decision.type, track_signal, model_id, track_yes_price,
           decision.confidence, decision.edge_bps);
     }
   }

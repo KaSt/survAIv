@@ -39,6 +39,10 @@ std::string g_wisdom;
 WisdomStats g_stats;
 SemaphoreHandle_t g_mutex = nullptr;
 
+constexpr int kMaxModels = 8;
+ModelEpoch g_models[kMaxModels];
+int g_model_count = 0;
+
 // ── NVS helpers ────────────────────────────────────────────────────────────────
 
 void LoadFromNvs() {
@@ -67,6 +71,23 @@ void SaveStatsToNvs() {
   nvs_set_blob(h, kStatsKey, &g_stats, sizeof(WisdomStats));
   nvs_commit(h);
   nvs_close(h);
+}
+
+void RecordModelUsage(const std::string &name, int64_t epoch) {
+  if (name.empty()) return;
+  for (int i = 0; i < g_model_count; ++i) {
+    if (std::strncmp(g_models[i].name, name.c_str(), 47) == 0) {
+      ++g_models[i].decision_count;
+      return;
+    }
+  }
+  if (g_model_count < kMaxModels) {
+    auto &m = g_models[g_model_count++];
+    std::strncpy(m.name, name.c_str(), 47);
+    m.name[47] = '\0';
+    m.first_seen = epoch;
+    m.decision_count = 1;
+  }
 }
 
 // ── Category tracking ──────────────────────────────────────────────────────────
@@ -194,6 +215,7 @@ void Init() {
 void TrackDecision(const std::string &market_id, const std::string &question,
                    const std::string &category,
                    const std::string &decision_type, const std::string &signal,
+                   const std::string &model_name,
                    double yes_price, double confidence, double edge_bps) {
   xSemaphoreTake(g_mutex, portMAX_DELAY);
 
@@ -214,6 +236,7 @@ void TrackDecision(const std::string &market_id, const std::string &question,
   d.category = category;
   d.decision_type = decision_type;
   d.signal = signal;
+  d.model_name = model_name;
   d.yes_price_at_decision = yes_price;
   d.confidence = confidence;
   d.edge_bps = edge_bps;
@@ -223,10 +246,12 @@ void TrackDecision(const std::string &market_id, const std::string &question,
   d.checked = false;
   d.last_check_epoch = 0;
 
+  RecordModelUsage(model_name, d.epoch);
+
   xSemaphoreGive(g_mutex);
 
-  ESP_LOGI(kTag, "Track %s %s p=%.2f edge=%.0f", decision_type.c_str(),
-           market_id.c_str(), yes_price, edge_bps);
+  ESP_LOGI(kTag, "Track %s %s p=%.2f edge=%.0f model=%s", decision_type.c_str(),
+           market_id.c_str(), yes_price, edge_bps, model_name.c_str());
 }
 
 void CheckOutcomes() {
@@ -407,10 +432,220 @@ std::string StatsJson() {
        << "\",\"total\":" << g_stats.categories[i].total
        << ",\"correct\":" << g_stats.categories[i].correct << '}';
   }
+
+  ss << "],\"models\":[";
+  first = true;
+  for (int i = 0; i < g_model_count; ++i) {
+    if (!first) ss << ',';
+    first = false;
+    ss << "{\"name\":\"" << JsonEscape(g_models[i].name)
+       << "\",\"first_seen\":" << g_models[i].first_seen
+       << ",\"decisions\":" << g_models[i].decision_count << '}';
+  }
   ss << "]}";
 
   xSemaphoreGive(g_mutex);
   return ss.str();
+}
+
+// ── Export / Import ─────────────────────────────────────────────────────────────
+
+std::string ExportKnowledge() {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+
+  std::ostringstream ss;
+  time_t now;
+  time(&now);
+
+  ss << "{\"format\":\"survaiv-knowledge-v1\",\"exported_at\":" << static_cast<int64_t>(now);
+
+  // Wisdom text + stats.
+  ss << ",\"wisdom_text\":\"" << JsonEscape(g_wisdom) << '"'
+     << ",\"stats\":{\"total\":" << g_stats.total
+     << ",\"correct\":" << g_stats.correct
+     << ",\"holds_total\":" << g_stats.holds_total
+     << ",\"holds_correct\":" << g_stats.holds_correct
+     << ",\"buys_total\":" << g_stats.buys_total
+     << ",\"buys_correct\":" << g_stats.buys_correct
+     << ",\"categories\":[";
+
+  bool first = true;
+  for (int i = 0; i < 8; ++i) {
+    if (g_stats.categories[i].name[0] == '\0') continue;
+    if (!first) ss << ',';
+    first = false;
+    ss << "{\"n\":\"" << JsonEscape(g_stats.categories[i].name)
+       << "\",\"t\":" << g_stats.categories[i].total
+       << ",\"c\":" << g_stats.categories[i].correct << '}';
+  }
+  ss << "]}";
+
+  // Model history.
+  ss << ",\"models\":[";
+  first = true;
+  for (int i = 0; i < g_model_count; ++i) {
+    if (!first) ss << ',';
+    first = false;
+    ss << "{\"name\":\"" << JsonEscape(g_models[i].name)
+       << "\",\"first_seen\":" << g_models[i].first_seen
+       << ",\"decisions\":" << g_models[i].decision_count << '}';
+  }
+  ss << "]";
+
+  // Tracked decisions ring buffer.
+  ss << ",\"decisions\":[";
+  first = true;
+  for (int i = 0; i < g_count; ++i) {
+    int ri = (g_head + i) % kMaxDecisions;
+    const TrackedDecision &d = g_ring[ri];
+    if (!first) ss << ',';
+    first = false;
+    ss << "{\"e\":" << d.epoch
+       << ",\"m\":\"" << JsonEscape(d.market_id) << '"'
+       << ",\"q\":\"" << JsonEscape(d.question) << '"'
+       << ",\"cat\":\"" << JsonEscape(d.category) << '"'
+       << ",\"dt\":\"" << JsonEscape(d.decision_type) << '"'
+       << ",\"sig\":\"" << JsonEscape(d.signal) << '"'
+       << ",\"mdl\":\"" << JsonEscape(d.model_name) << '"'
+       << ",\"yp\":" << d.yes_price_at_decision
+       << ",\"conf\":" << d.confidence
+       << ",\"eb\":" << d.edge_bps
+       << ",\"res\":" << (d.resolved ? "true" : "false")
+       << ",\"oy\":" << (d.outcome_yes ? "true" : "false")
+       << ",\"fp\":" << d.final_yes_price
+       << ",\"chk\":" << (d.checked ? "true" : "false")
+       << ",\"lce\":" << d.last_check_epoch << '}';
+  }
+  ss << "]}";
+
+  xSemaphoreGive(g_mutex);
+  return ss.str();
+}
+
+bool ImportKnowledge(const std::string &json) {
+  cJSON *root = cJSON_Parse(json.c_str());
+  if (!root) {
+    ESP_LOGE(kTag, "Import: invalid JSON");
+    return false;
+  }
+
+  // Validate format marker.
+  cJSON *fmt = cJSON_GetObjectItemCaseSensitive(root, "format");
+  if (!fmt || !cJSON_IsString(fmt) ||
+      std::strncmp(fmt->valuestring, "survaiv-knowledge-v1", 20) != 0) {
+    ESP_LOGE(kTag, "Import: unknown format");
+    cJSON_Delete(root);
+    return false;
+  }
+
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+
+  // Wisdom text.
+  cJSON *wt = cJSON_GetObjectItemCaseSensitive(root, "wisdom_text");
+  if (wt && cJSON_IsString(wt)) {
+    g_wisdom = wt->valuestring;
+    if (g_wisdom.size() > kMaxWisdomBytes) g_wisdom.resize(kMaxWisdomBytes);
+  }
+
+  // Stats.
+  cJSON *stats = cJSON_GetObjectItemCaseSensitive(root, "stats");
+  if (stats) {
+    g_stats = WisdomStats{};
+    g_stats.total = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "total")));
+    g_stats.correct = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "correct")));
+    g_stats.holds_total = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "holds_total")));
+    g_stats.holds_correct = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "holds_correct")));
+    g_stats.buys_total = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "buys_total")));
+    g_stats.buys_correct = static_cast<uint16_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(stats, "buys_correct")));
+
+    cJSON *cats = cJSON_GetObjectItemCaseSensitive(stats, "categories");
+    int ci = 0;
+    cJSON *cat = nullptr;
+    cJSON_ArrayForEach(cat, cats) {
+      if (ci >= 8) break;
+      cJSON *n = cJSON_GetObjectItemCaseSensitive(cat, "n");
+      if (n && cJSON_IsString(n)) {
+        std::strncpy(g_stats.categories[ci].name, n->valuestring, 15);
+        g_stats.categories[ci].name[15] = '\0';
+      }
+      g_stats.categories[ci].total = static_cast<uint16_t>(
+          JsonToDouble(cJSON_GetObjectItemCaseSensitive(cat, "t")));
+      g_stats.categories[ci].correct = static_cast<uint16_t>(
+          JsonToDouble(cJSON_GetObjectItemCaseSensitive(cat, "c")));
+      ++ci;
+    }
+  }
+
+  // Model history.
+  cJSON *models = cJSON_GetObjectItemCaseSensitive(root, "models");
+  g_model_count = 0;
+  cJSON *mdl = nullptr;
+  cJSON_ArrayForEach(mdl, models) {
+    if (g_model_count >= kMaxModels) break;
+    cJSON *nm = cJSON_GetObjectItemCaseSensitive(mdl, "name");
+    if (nm && cJSON_IsString(nm)) {
+      auto &m = g_models[g_model_count];
+      std::strncpy(m.name, nm->valuestring, 47);
+      m.name[47] = '\0';
+      m.first_seen = static_cast<int64_t>(JsonToDouble(
+          cJSON_GetObjectItemCaseSensitive(mdl, "first_seen")));
+      m.decision_count = static_cast<uint16_t>(JsonToDouble(
+          cJSON_GetObjectItemCaseSensitive(mdl, "decisions")));
+      ++g_model_count;
+    }
+  }
+
+  // Decisions ring.
+  cJSON *decs = cJSON_GetObjectItemCaseSensitive(root, "decisions");
+  g_head = 0;
+  g_count = 0;
+  cJSON *dj = nullptr;
+  cJSON_ArrayForEach(dj, decs) {
+    if (g_count >= kMaxDecisions) break;
+    TrackedDecision &d = g_ring[g_count];
+    d.epoch = static_cast<int64_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "e")));
+    d.market_id = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "m"));
+    d.question = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "q"));
+    d.category = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "cat"));
+    d.decision_type = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "dt"));
+    d.signal = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "sig"));
+    d.model_name = JsonToString(cJSON_GetObjectItemCaseSensitive(dj, "mdl"));
+    d.yes_price_at_decision = JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "yp"));
+    d.confidence = JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "conf"));
+    d.edge_bps = JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "eb"));
+    cJSON *res = cJSON_GetObjectItemCaseSensitive(dj, "res");
+    d.resolved = res && cJSON_IsTrue(res);
+    cJSON *oy = cJSON_GetObjectItemCaseSensitive(dj, "oy");
+    d.outcome_yes = oy && cJSON_IsTrue(oy);
+    d.final_yes_price = JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "fp"));
+    cJSON *chk = cJSON_GetObjectItemCaseSensitive(dj, "chk");
+    d.checked = chk && cJSON_IsTrue(chk);
+    d.last_check_epoch = static_cast<int64_t>(JsonToDouble(
+        cJSON_GetObjectItemCaseSensitive(dj, "lce")));
+    ++g_count;
+  }
+
+  // Persist imported data.
+  SaveStatsToNvs();
+  SaveWisdomToNvs();
+
+  ESP_LOGI(kTag, "Imported: %u stats, %d decisions, %d models, %zu B wisdom",
+           g_stats.total, g_count, g_model_count, g_wisdom.size());
+
+  xSemaphoreGive(g_mutex);
+  cJSON_Delete(root);
+  return true;
 }
 
 }  // namespace wisdom

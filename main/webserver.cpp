@@ -77,6 +77,44 @@ static esp_err_t ApiWisdomHandler(httpd_req_t *req) {
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+static esp_err_t ApiKnowledgeExportHandler(httpd_req_t *req) {
+  std::string json = wisdom::ExportKnowledge();
+  httpd_resp_set_type(req, "application/json");
+  httpd_resp_set_hdr(req, "Content-Disposition",
+                     "attachment; filename=\"survaiv-knowledge.json\"");
+  return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
+  if (req->content_len > 16384) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File too large (max 16KB)");
+    return ESP_FAIL;
+  }
+
+  std::string body;
+  body.resize(req->content_len);
+  int received = 0;
+  while (received < req->content_len) {
+    int ret = httpd_req_recv(req, &body[received], req->content_len - received);
+    if (ret <= 0) {
+      if (ret == HTTPD_SOCK_ERR_TIMEOUT) continue;
+      httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Receive error");
+      return ESP_FAIL;
+    }
+    received += ret;
+  }
+
+  if (!wisdom::ImportKnowledge(body)) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                        "Invalid knowledge file");
+    return ESP_FAIL;
+  }
+
+  httpd_resp_set_type(req, "application/json");
+  const char *ok = "{\"ok\":true,\"msg\":\"Knowledge imported successfully\"}";
+  return httpd_resp_send(req, ok, strlen(ok));
+}
+
 // SSE endpoint — keeps connection open and sends events.
 static esp_err_t ApiEventsHandler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/event-stream");
@@ -506,7 +544,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 18;
+  config.max_uri_handlers = 20;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -522,6 +560,8 @@ void StartDashboard(int port) {
   RegisterUri("/api/equity", HTTP_GET, ApiEquityHandler);
   RegisterUri("/api/scouted", HTTP_GET, ApiScoutedHandler);
   RegisterUri("/api/wisdom", HTTP_GET, ApiWisdomHandler);
+  RegisterUri("/api/knowledge", HTTP_GET, ApiKnowledgeExportHandler);
+  RegisterUri("/api/knowledge", HTTP_POST, ApiKnowledgeImportHandler);
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);

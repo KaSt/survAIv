@@ -131,7 +131,13 @@ canvas{width:100%!important;height:100%!important}
     <div class="wisdom-stat"><div class="val" id="w-buys">–</div><div class="lbl">Buy Acc</div></div>
     <div class="wisdom-stat"><div class="val" id="w-holds">–</div><div class="lbl">Hold Acc</div></div>
   </div>
+  <div id="w-models" style="font-size:10px;color:var(--dim);margin-bottom:8px"></div>
   <div class="wisdom-rules" id="w-rules">No learned rules yet…</div>
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+    <button onclick="downloadKnowledge()" style="background:var(--green);color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬇ Export Knowledge</button>
+    <label style="background:var(--border);color:var(--fg);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬆ Import Knowledge<input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)"></label>
+    <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
+  </div>
 </div>
 
 <div class="section">
@@ -382,6 +388,46 @@ function updateWisdom(w) {
   const ha = w.hold_resolved > 0 ? ((w.hold_correct / w.hold_resolved) * 100).toFixed(0) + '%' : '–';
   el('w-holds').textContent = ha;
   el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
+  // Model history.
+  if (w.models && w.models.length > 0) {
+    el('w-models').innerHTML = '🧠 Models: ' + w.models.map(m =>
+      '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
+    ).join(' → ');
+  }
+}
+
+function downloadKnowledge() {
+  const a = document.createElement('a');
+  a.href = '/api/knowledge';
+  a.download = 'survaiv-knowledge.json';
+  a.click();
+}
+
+function importKnowledge(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('kb-status');
+  status.textContent = 'Uploading…';
+  status.style.color = 'var(--dim)';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    fetch('/api/knowledge', {method:'POST', body:e.target.result,
+      headers:{'Content-Type':'application/json'}})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          status.textContent = '✓ ' + d.msg;
+          status.style.color = 'var(--green)';
+          poll();
+        } else {
+          status.textContent = '✗ Import failed';
+          status.style.color = 'var(--red)';
+        }
+      })
+      .catch(() => { status.textContent = '✗ Upload error'; status.style.color = 'var(--red)'; });
+  };
+  reader.readAsText(file);
+  input.value = '';
 }
 
 function poll() {
