@@ -10,6 +10,7 @@
 #include "web_assets.h"
 #include "wisdom.h"
 
+#include "esp_app_desc.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
 #if CONFIG_SURVAIV_ENABLE_OTA
