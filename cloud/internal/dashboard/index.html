@@ -1,0 +1,683 @@
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>survaiv</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
+--green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2;
+--overlay:rgba(0,0,0,.45);--modal:#fff;--input-bg:#fff}
+[data-theme="dark"]{--bg:#121212;--card:#1e1e1e;--border:#333;--text:#e0e0e0;--dim:#777;
+--green:#4caf50;--red:#ef5350;--blue:#42a5f5;--yellow:#ffca28;--purple:#ab47bc;
+--overlay:rgba(0,0,0,.7);--modal:#1e1e1e;--input-bg:#2a2a2a}
+body{font-family:'SF Mono',Monaco,'Fira Code',monospace;background:var(--bg);color:var(--text);
+font-size:13px;line-height:1.5;max-width:960px;margin:0 auto}
+.error-banner{display:none;border:1px solid var(--red);color:var(--red);
+border-radius:6px;padding:10px 16px;margin:8px 20px;font-size:12px;font-weight:600;
+background:color-mix(in srgb, var(--red) 10%, var(--card))}
+.error-banner.visible{display:block}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
+border-bottom:1px solid var(--border);background:var(--card)}
+.top h1{font-size:16px;font-weight:600;letter-spacing:2px;color:var(--green)}
+.top .status{display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.dot.err{background:var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin-r{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin-r .8s linear infinite;vertical-align:middle;margin-right:6px}
+.meta{color:var(--dim);font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px 20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.card .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:4px}
+.card .value{font-size:22px;font-weight:700}
+.card .sub{font-size:11px;color:var(--dim);margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.section{padding:0 20px 16px}
+.section h2{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);
+margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--dim);font-weight:400;padding:6px 8px;
+border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.log{max-height:300px;overflow-y:auto;background:var(--card);border:1px solid var(--border);
+border-radius:8px;padding:10px 14px;font-size:11px}
+.log-entry{padding:4px 0;border-bottom:1px solid #1a1a24}
+.log-entry:last-child{border:none}
+.log-time{color:var(--dim);margin-right:8px}
+.log-type{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+margin-right:6px}
+.log-type.hold{background:#f0f0f0;color:#888}
+.log-type.buy{background:#e8f5e9;color:var(--green)}
+.log-type.close{background:#ffebee;color:var(--red)}
+.log-type.tool{background:#e3f2fd;color:var(--blue)}
+.scout-grid{display:grid;grid-template-columns:1fr;gap:6px;max-height:320px;overflow-y:auto}
+.scout-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;
+display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.scout-signal{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.scout-signal.bullish{background:var(--green)}.scout-signal.bearish{background:var(--red)}
+.scout-signal.neutral{background:var(--yellow)}.scout-signal.skip{background:var(--dim)}
+.scout-q{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scout-meta{font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap}
+.scout-right{text-align:right;white-space:nowrap}
+.scout-price{font-size:14px;font-weight:700}
+.wisdom-section{margin-top:16px}
+.wisdom-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.wisdom-stat{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.wisdom-stat .val{font-size:20px;font-weight:700;color:var(--green)}
+.wisdom-stat .lbl{font-size:10px;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.wisdom-rules{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;
+font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--fg);max-height:200px;overflow-y:auto}
+.freeze-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer;float:right;margin-top:-2px}
+.freeze-toggle input{accent-color:var(--blue);cursor:pointer}
+.frozen-badge{display:inline-block;background:var(--blue);color:#fff;font-size:9px;padding:1px 6px;
+border-radius:3px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
+.scout-conf{font-size:10px;color:var(--dim)}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;
+height:120px;position:relative}
+canvas{width:100%!important;height:100%!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge.live{background:#e8f5e9;color:var(--green);border:1px solid var(--green)}
+.badge.paper{background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow)}
+.empty{text-align:center;padding:20px;color:var(--dim);font-style:italic}
+.top-icons{display:flex;align-items:center;gap:6px}
+.icon-btn{background:none;border:none;cursor:pointer;font-size:18px;padding:4px;line-height:1;
+color:var(--dim);border-radius:4px;transition:color .2s}
+.icon-btn:hover{color:var(--text)}
+.modal-overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:100;
+justify-content:center;align-items:flex-start;padding-top:60px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--modal);border:1px solid var(--border);border-radius:10px;
+width:90%;max-width:560px;max-height:80vh;overflow-y:auto;padding:20px 24px;
+box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:20px;
+cursor:pointer;color:var(--dim);line-height:1}
+.modal-close:hover{color:var(--red)}
+.modal h2{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);
+margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.modal .setting-group{margin-bottom:16px}
+.modal .setting-group label{font-size:10px;color:var(--dim)}
+</style>
+</head>
+<body>
+<div class="top">
+  <h1>⟁ SURVAIV</h1>
+  <div class="status">
+    <span class="badge" id="mode">PAPER</span>
+    <span class="dot" id="dot"></span>
+    <span class="meta" id="status-text">connecting…</span>
+    <div class="top-icons">
+      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
+    </div>
+  </div>
+</div>
+
+<div class="error-banner" id="error-banner"></div>
+
+<div class="grid" id="cards">
+  <div class="card"><div class="label">Cash</div><div class="value" id="v-cash">—</div>
+    <div class="sub">USDC available</div></div>
+  <div class="card"><div class="label">Equity</div><div class="value" id="v-equity">—</div>
+    <div class="sub">Cash + positions</div></div>
+  <div class="card"><div class="label">P&amp;L</div><div class="value" id="v-pnl">—</div>
+    <div class="sub">Realized profit/loss</div></div>
+  <div class="card"><div class="label">LLM Spend</div><div class="value" id="v-spend">—</div>
+    <div class="sub">Cumulative inference</div></div>
+  <div class="card"><div class="label">Daily Loss</div><div class="value" id="v-dloss">—</div>
+    <div class="sub">Today's drawdown</div></div>
+  <div class="card"><div class="label">Cycles</div><div class="value" id="v-cycles">—</div>
+    <div class="sub" id="v-uptime">—</div></div>
+</div>
+
+<div class="section">
+  <h2>Equity Chart</h2>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+</div>
+
+<div class="section">
+  <h2>Open Positions</h2>
+  <table>
+    <thead><tr><th>Market</th><th>Side</th><th>Entry</th><th>Current</th><th>P&amp;L</th><th>Stake</th><th>Type</th></tr></thead>
+    <tbody id="pos-body"><tr><td colspan="7" class="empty">No open positions</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Market Scanner</h2>
+  <div class="scout-grid" id="scout-body"><div class="empty">Waiting for first scan…</div></div>
+</div>
+
+<div class="section wisdom-section">
+  <h2>Learning <span id="w-frozen-badge" class="frozen-badge" style="display:none">FROZEN</span>
+    <label class="freeze-toggle"><input type="checkbox" id="w-freeze" onchange="toggleFreeze(this.checked)"> Freeze learning</label>
+  </h2>
+  <div class="wisdom-stats" id="wisdom-stats">
+    <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Decisions</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-resolved">–</div><div class="lbl">Resolved</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-accuracy">–</div><div class="lbl">Accuracy</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-buys">–</div><div class="lbl">Buy Acc</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-holds">–</div><div class="lbl">Hold Acc</div></div>
+  </div>
+  <div id="w-models" style="font-size:10px;color:var(--dim);margin-bottom:8px"></div>
+  <div class="wisdom-rules" id="w-rules">No learned rules yet…</div>
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+    <button onclick="downloadKnowledge()" style="background:var(--green);color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬇ Export Knowledge</button>
+    <label style="background:var(--border);color:var(--fg);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬆ Import Knowledge<input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)"></label>
+    <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Decision Log</h2>
+  <div class="log" id="log"><div class="empty">Waiting for first cycle…</div></div>
+</div>
+
+<div class="section">
+  <h2>Wallet</h2>
+  <div class="card">
+    <div class="label">Address</div>
+    <div class="value" id="v-wallet" style="font-size:13px;word-break:break-all">—</div>
+    <div class="sub">USDC.e balance: <span id="v-balance">—</span></div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="sub">
+    Firmware: <span id="v-fw">—</span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSettings()">&times;</button>
+    <h2>Settings</h2>
+
+    <div class="setting-group">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup Config</a>
+        <label class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">
+          ⬆ Restore Config
+          <input type="file" id="restore-file" accept=".json" style="display:none"
+            onchange="restoreConfig(this.files[0])">
+        </label>
+        <span class="badge" style="padding:6px 14px;background:#f5f5f5;color:var(--dim);border:1px solid var(--dim)">
+          ⚡ OTA N/A (cloud)
+        </span>
+      </div>
+      <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
+    </div>
+
+    <div class="setting-group" id="llm-cfg" style="display:none">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--dim)">URL<br>
+          <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="https://…">
+        </label>
+        <label style="font-size:10px;color:var(--dim)">Model<br>
+          <input id="cfg-model" style="width:140px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="model-id">
+        </label>
+        <label style="font-size:10px;color:var(--dim)">API Key<br>
+          <input id="cfg-key" type="password" style="width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="sk-…">
+        </label>
+        <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
+      </div>
+      <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (n, d=4) => n < 0 ? n.toFixed(d) : n.toFixed(d);
+const fmtUsd = n => '$' + Math.abs(n).toFixed(2);
+const cls = n => n >= 0 ? 'pos' : 'neg';
+
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') !== 'dark';
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('theme-btn').textContent = dark ? '🌙' : '☀';
+  try { localStorage.setItem('survaiv-theme', dark ? 'dark' : 'light'); } catch(e) {}
+}
+(function initTheme() {
+  try {
+    const saved = localStorage.getItem('survaiv-theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme','dark');
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.textContent = '🌙';
+    }
+  } catch(e) {}
+})();
+
+// Settings modal
+function openSettings() { $('settings-overlay').classList.add('open'); }
+function closeSettings() { $('settings-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+
+let equityData = [];
+
+function drawChart() {
+  const canvas = $('chart');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 24;
+  const w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  if (equityData.length < 2) {
+    ctx.fillStyle = '#999';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Collecting data…', w/2, h/2);
+    return;
+  }
+
+  const vals = equityData.map(d => d[1]);
+  const mn = Math.min(...vals) * 0.995;
+  const mx = Math.max(...vals) * 1.005;
+  const range = mx - mn || 1;
+
+  // Grid lines.
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = h * i / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Line.
+  const startVal = vals[0];
+  ctx.beginPath();
+  for (let i = 0; i < vals.length; i++) {
+    const x = (i / (vals.length - 1)) * w;
+    const y = h - ((vals[i] - mn) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  const lastVal = vals[vals.length - 1];
+  ctx.strokeStyle = lastVal >= startVal ? '#0d9e50' : '#d32f2f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Fill gradient.
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  if (lastVal >= startVal) {
+    grad.addColorStop(0, 'rgba(13,158,80,0.12)');
+    grad.addColorStop(1, 'rgba(13,158,80,0)');
+  } else {
+    grad.addColorStop(0, 'rgba(211,47,47,0.12)');
+    grad.addColorStop(1, 'rgba(211,47,47,0)');
+  }
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Labels.
+  ctx.fillStyle = '#999';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(mx.toFixed(2), 4, 12);
+  ctx.fillText(mn.toFixed(2), 4, h - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText(lastVal.toFixed(2), w - 4, 12);
+}
+
+function updateState(s) {
+  $('v-cash').textContent = fmtUsd(s.budget.cash);
+  $('v-equity').textContent = fmtUsd(s.budget.equity);
+
+  const pnlEl = $('v-pnl');
+  pnlEl.textContent = (s.budget.realized_pnl >= 0 ? '+' : '') + fmtUsd(s.budget.realized_pnl);
+  pnlEl.className = 'value ' + cls(s.budget.realized_pnl);
+
+  $('v-spend').textContent = fmtUsd(s.budget.llm_spend);
+  if (s.inference_spent_usdc !== undefined && s.inference_spent_usdc > 0) {
+    $('v-spend').textContent += ' (' + fmtUsd(s.inference_spent_usdc) + ' x402)';
+  }
+
+  const dlEl = $('v-dloss');
+  dlEl.textContent = fmtUsd(s.budget.daily_loss);
+  dlEl.className = 'value ' + (s.budget.daily_loss > 0 ? 'neg' : '');
+
+  $('v-cycles').textContent = s.cycle_count;
+  const hrs = Math.floor(s.uptime_seconds / 3600);
+  const mins = Math.floor((s.uptime_seconds % 3600) / 60);
+  $('v-uptime').textContent = `Uptime: ${hrs}h ${mins}m`;
+
+  const dot = $('dot');
+  const statusText = $('status-text');
+  statusText.textContent = s.status;
+  dot.className = s.status === 'error' ? 'dot err' : 'dot';
+
+  const modeEl = $('mode');
+  if (s.live_mode) {
+    modeEl.textContent = 'LIVE';
+    modeEl.className = 'badge live';
+  } else {
+    modeEl.textContent = 'PAPER';
+    modeEl.className = 'badge paper';
+  }
+
+  if (s.wallet) {
+    $('v-wallet').textContent = s.wallet || '—';
+    $('v-balance').textContent = s.usdc_balance >= 0 ? fmtUsd(s.usdc_balance) : '—';
+  }
+  if (s.firmware) {
+    $('v-fw').textContent = s.firmware;
+  }
+  if (s.active_model) {
+    $('v-model').textContent = s.active_model;
+    $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
+  }
+
+  // Show LLM config panel in paper mode
+  const llmCfg = $('llm-cfg');
+  if (llmCfg) {
+    llmCfg.style.display = s.live_mode ? 'none' : 'block';
+    if (!s.live_mode && s.oai_url && !$('cfg-url').dataset.touched) {
+      $('cfg-url').value = s.oai_url || '';
+      $('cfg-model').value = s.oai_model || '';
+    }
+  }
+
+  // Error banner
+  const errEl = $('error-banner');
+  if (s.last_error) {
+    const retry = s.next_retry_sec > 0 ? ` · retrying in ${s.next_retry_sec}s` : '';
+    errEl.textContent = '⚠ ' + s.last_error + retry;
+    errEl.classList.add('visible');
+  } else {
+    errEl.classList.remove('visible');
+  }
+}
+
+function updatePositions(positions) {
+  const body = $('pos-body');
+  if (!positions || positions.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">No open positions</td></tr>';
+    return;
+  }
+  body.innerHTML = positions.map(p => {
+    const pnlCls = p.unrealized_pnl >= 0 ? 'pos' : 'neg';
+    const sign = p.unrealized_pnl >= 0 ? '+' : '';
+    const q = p.question.length > 50 ? p.question.substring(0, 47) + '…' : p.question;
+    return `<tr>
+      <td title="${p.question}">${q}</td>
+      <td>${p.side.toUpperCase()}</td>
+      <td>${p.entry_price.toFixed(2)}</td>
+      <td>${p.current_price.toFixed(2)}</td>
+      <td class="${pnlCls}">${sign}${fmtUsd(p.unrealized_pnl)}</td>
+      <td>${fmtUsd(p.stake_usdc)}</td>
+      <td>${p.is_live ? '<span class="badge live">LIVE</span>' : '<span class="badge paper">PAPER</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateDecisions(decisions) {
+  const log = $('log');
+  if (!decisions || decisions.length === 0) {
+    log.innerHTML = '<div class="empty">Waiting for first cycle…</div>';
+    return;
+  }
+  log.innerHTML = decisions.slice(0, 30).map(d => {
+    const dt = new Date(d.epoch * 1000);
+    const time = dt.toLocaleTimeString();
+    let typeCls = 'hold';
+    if (d.type.includes('buy')) typeCls = 'buy';
+    else if (d.type.includes('close')) typeCls = 'close';
+    else if (d.type === 'tool_call') typeCls = 'tool';
+    const q = d.question ? (d.question.length > 40 ? d.question.substring(0, 37) + '…' : d.question) : '';
+    return `<div class="log-entry">
+      <span class="log-time">${time}</span>
+      <span class="log-type ${typeCls}">${d.type}</span>
+      ${q ? '<span>' + q + '</span>' : ''}
+      ${d.confidence ? ' <span style="color:var(--blue)">' + (d.confidence*100).toFixed(0) + '%</span>' : ''}
+      ${d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function updateScouted(list) {
+  const el = $('scout-body');
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="empty">No markets scanned yet</div>';
+    return;
+  }
+  el.innerHTML = list.map(s => {
+    const q = s.question ? (s.question.length > 60 ? s.question.substring(0, 57) + '…' : s.question) : s.market_id;
+    const sig = s.signal || 'neutral';
+    const edge = s.edge_bps ? s.edge_bps.toFixed(0) + 'bp' : '—';
+    const conf = s.confidence ? (s.confidence * 100).toFixed(0) + '%' : '—';
+    const vol = s.volume > 1000 ? (s.volume / 1000).toFixed(0) + 'k' : s.volume.toFixed(0);
+    const liq = s.liquidity > 1000 ? (s.liquidity / 1000).toFixed(0) + 'k' : s.liquidity.toFixed(0);
+    const note = s.note ? s.note.substring(0, 80) : '';
+    return `<div class="scout-card">
+      <span class="scout-signal ${sig}" title="${sig}"></span>
+      <div>
+        <div class="scout-q" title="${s.question || ''}">${q}</div>
+        <div class="scout-meta">
+          <span>Edge: ${edge}</span>
+          <span>Vol: $${vol}</span>
+          <span>Liq: $${liq}</span>
+          ${note ? '<span>— ' + note + '</span>' : ''}
+        </div>
+      </div>
+      <div class="scout-right">
+        <div class="scout-price">${s.yes_price ? (s.yes_price * 100).toFixed(0) + '¢' : '—'}</div>
+        <div class="scout-conf">${conf}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateWisdom(w) {
+  const el = (id) => document.getElementById(id);
+  el('w-total').textContent = w.total_tracked || 0;
+  el('w-resolved').textContent = w.total_resolved || 0;
+  const acc = w.total_resolved > 0 ? ((w.total_correct / w.total_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-accuracy').textContent = acc;
+  const ba = w.buy_resolved > 0 ? ((w.buy_correct / w.buy_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-buys').textContent = ba;
+  const ha = w.hold_resolved > 0 ? ((w.hold_correct / w.hold_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-holds').textContent = ha;
+  el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
+  // Frozen state.
+  el('w-freeze').checked = !!w.frozen;
+  el('w-frozen-badge').style.display = w.frozen ? 'inline-block' : 'none';
+  // Model history.
+  if (w.models && w.models.length > 0) {
+    el('w-models').innerHTML = '🧠 Models: ' + w.models.map(m =>
+      '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
+    ).join(' → ');
+  }
+}
+
+function toggleFreeze(frozen) {
+  fetch('/api/wisdom/freeze', {method:'POST', body:JSON.stringify({frozen:frozen}),
+    headers:{'Content-Type':'application/json'}})
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('w-frozen-badge').style.display = d.frozen ? 'inline-block' : 'none';
+    })
+    .catch(() => {});
+}
+
+function downloadKnowledge() {
+  const a = document.createElement('a');
+  a.href = '/api/knowledge';
+  a.download = 'survaiv-knowledge.json';
+  a.click();
+}
+
+function importKnowledge(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('kb-status');
+  status.textContent = 'Uploading…';
+  status.style.color = 'var(--dim)';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    fetch('/api/knowledge', {method:'POST', body:e.target.result,
+      headers:{'Content-Type':'application/json'}})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          status.textContent = '✓ ' + d.msg;
+          status.style.color = 'var(--green)';
+          poll();
+        } else {
+          status.textContent = '✗ Import failed';
+          status.style.color = 'var(--red)';
+        }
+      })
+      .catch(() => { status.textContent = '✗ Upload error'; status.style.color = 'var(--red)'; });
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function poll() {
+  fetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
+  fetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
+  fetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
+  fetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
+  fetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
+  fetch('/api/equity').then(r => r.json()).then(data => {
+    equityData = data;
+    drawChart();
+  }).catch(() => {});
+}
+
+// SSE for real-time updates.
+function connectSSE() {
+  const es = new EventSource('/api/events');
+  es.onmessage = function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.budget) updateState(data);
+    } catch(err) {}
+  };
+  es.addEventListener('state', function(e) {
+    try { updateState(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('positions', function(e) {
+    try { updatePositions(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('scouted', function(e) {
+    try { updateScouted(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('wisdom', function(e) {
+    try { updateWisdom(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('decision', function(e) {
+    try {
+      const d = JSON.parse(e.data);
+      // Prepend to log.
+      const log = $('log');
+      if (log.querySelector('.empty')) log.innerHTML = '';
+      const dt = new Date(d.epoch * 1000);
+      let typeCls = 'hold';
+      if (d.type.includes('buy')) typeCls = 'buy';
+      else if (d.type.includes('close')) typeCls = 'close';
+      else if (d.type === 'tool_call') typeCls = 'tool';
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `<span class="log-time">${dt.toLocaleTimeString()}</span>
+        <span class="log-type ${typeCls}">${d.type}</span>
+        ${d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : ''}`;
+      log.prepend(entry);
+    } catch(err) {}
+  });
+  es.onerror = function() {
+    $('dot').className = 'dot err';
+    $('status-text').textContent = 'disconnected';
+    es.close();
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+function restoreConfig(file) {
+  if (!file) return;
+  const msg = $('settings-msg');
+  msg.textContent = 'Restoring…';
+  msg.style.color = 'var(--blue)';
+  file.text().then(text => {
+    return fetch('/api/restore', {method:'POST', headers:{'Content-Type':'application/json'}, body:text});
+  }).then(r => {
+    if (!r.ok) throw new Error('Restore failed');
+    msg.textContent = 'Restored! Rebooting…';
+    msg.style.color = 'var(--green)';
+  }).catch(e => {
+    msg.textContent = 'Error: ' + e.message;
+    msg.style.color = 'var(--red)';
+  });
+}
+
+function saveLlmConfig() {
+  const msg = $('llm-cfg-msg');
+  const body = {};
+  const url = $('cfg-url').value.trim();
+  const model = $('cfg-model').value.trim();
+  const key = $('cfg-key').value.trim();
+  if (url) body.oai_url = url;
+  if (model) body.oai_model = model;
+  if (key) body.api_key = key;
+  if (!Object.keys(body).length) { msg.textContent = 'Nothing to change'; return; }
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/llm-config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        msg.textContent = 'Applied: ' + d.oai_model + ' @ ' + d.oai_url;
+        msg.style.color = 'var(--green)';
+        $('cfg-url').value = d.oai_url;
+        $('cfg-model').value = d.oai_model;
+        $('cfg-key').value = '';
+        $('cfg-url').dataset.touched = '1';
+      } else {
+        msg.textContent = 'Error: ' + (d.error || 'unknown');
+        msg.style.color = 'var(--red)';
+      }
+    }).catch(e => {
+      msg.textContent = 'Error: ' + e.message;
+      msg.style.color = 'var(--red)';
+    });
+}
+
+function otaUpdate(file) {
+  if (!file) return;
+  if (!confirm('Flash ' + file.name + ' (' + (file.size/1024).toFixed(0) + ' KB)? Device will reboot.')) return;
+  const msg = $('settings-msg');
+  msg.textContent = 'Uploading firmware… 0%';
+  msg.style.color = 'var(--blue)';
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/ota');
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable) msg.textContent = 'Uploading firmware… ' + Math.round(e.loaded/e.total*100) + '%';
+  };
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      msg.textContent = 'OTA success! Rebooting…';
+      msg.style.color = 'var(--green)';
+    } else {
+      msg.textContent = 'OTA failed: ' + xhr.responseText;
+      msg.style.color = 'var(--red)';
+    }
+  };
+  xhr.onerror = () => { msg.textContent = 'Upload failed'; msg.style.color = 'var(--red)'; };
+  xhr.send(file);
+}
+
+// Initial load.
+poll();
+connectSSE();
+setInterval(poll, 15000);
+window.addEventListener('resize', drawChart);
+</script>
+</body>
