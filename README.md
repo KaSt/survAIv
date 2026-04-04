@@ -1,10 +1,10 @@
 # Survaiv
 
-> **⚠️ Disclaimer** — This project is a **research experiment in autonomous AI behaviour**, not financial advice and not a scheme to make money. Survaiv exists to explore how a resource-constrained AI agent behaves when it must pay for its own reasoning and face real-world consequences for its decisions. Any real-money mode is **intentionally capped at tiny amounts** ($15–25 USDC) to keep stakes trivial. You should expect to **lose your entire bankroll**. Do not fund this agent with money you cannot afford to lose. The authors make no claims about profitability, and nothing in this repository constitutes a recommendation to trade, invest, or speculate.
+> **⚠️** This is a research experiment, not financial advice. Expect to lose your bankroll. [Full disclaimer ↓](#disclaimer)
 
 **An autonomous agent that pays for its own LLM inference via [x402](https://x402.org) micropayments and bets on [Polymarket](https://polymarket.com) prediction markets to survive on a tiny USDC bankroll.**
 
-> Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets. This is a social experiment in AI autonomy, not a trading strategy.
+> Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets. A social experiment in AI autonomy, not a trading strategy.
 
 Three deployment targets, one codebase philosophy:
 
