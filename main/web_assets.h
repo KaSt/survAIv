@@ -215,6 +215,8 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
   <div class="log" id="log"><div class="empty">Waiting for first cycle…</div></div>
 </div>
 
+<div id="sys-stats" style="padding:8px 0;font-size:11px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap"></div>
+
 <div class="section" id="wallet-section" style="display:none">
   <h2>Wallet</h2>
   <div class="card">
@@ -629,6 +631,19 @@ function updateState(s) {
   if (s.active_model) {
     $('v-model').textContent = s.active_model;
     $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
+  }
+
+  // System stats
+  if (s.sys) {
+    var sy = s.sys;
+    function fmtKB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
+    var parts = [];
+    parts.push('🔧 Cores: '+sy.cores);
+    parts.push('🧠 RAM: '+fmtKB(sy.free_heap)+' free / '+fmtKB(sy.total_heap));
+    parts.push('📉 Min free: '+fmtKB(sy.min_free_heap));
+    var pct = sy.total_heap > 0 ? Math.round(100*sy.free_heap/sy.total_heap) : 0;
+    parts.push('Usage: '+(100-pct)+'%');
+    $('sys-stats').innerHTML = parts.map(function(p){return '<span>'+p+'</span>';}).join('');
   }
 
   // Show LLM config panel in paper mode only

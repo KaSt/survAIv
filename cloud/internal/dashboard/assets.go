@@ -217,6 +217,8 @@ canvas { width: 100% !important; height: 100% !important; }
       <div id="wisdomPanel"><div class="no-data">Collecting data...</div></div>
     </div>
   </div>
+
+  <div id="sys-stats" style="padding:8px 16px;font-size:0.8em;color:var(--fg2);display:flex;gap:16px;flex-wrap:wrap"></div>
 </div>
 
 <div class="modal-overlay" id="settingsModal">
@@ -392,6 +394,16 @@ function updateState(d) {
   var presetDiv = document.getElementById('llm-presets');
   if (presetDiv) presetDiv.style.display = d.paper_only ? 'block' : 'none';
   if (d.efficiency) updateEfficiency(d.efficiency);
+  if (d.sys) {
+    var sy = d.sys;
+    function fmtB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
+    var parts = [];
+    parts.push('\u{1F527} Cores: '+sy.cores);
+    parts.push('\u{1F9E0} Mem: '+fmtB(sy.alloc)+' used / '+fmtB(sy.sys)+' sys');
+    parts.push('\u{1F9F5} Goroutines: '+sy.goroutines);
+    parts.push('\u267B\uFE0F GC: '+sy.gc_cycles);
+    document.getElementById('sys-stats').innerHTML = parts.map(function(p){return '<span>'+p+'</span>';}).join('');
+  }
 }
 
 function updateEfficiency(eff) {

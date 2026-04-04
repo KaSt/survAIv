@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"encoding/json"
+	"runtime"
 	"sync"
 	"time"
 
@@ -280,6 +281,19 @@ func (s *State) ToJSON() []byte {
 			"platforms": platforms,
 		}
 	}
+
+	// System stats.
+	var memStats runtime.MemStats
+	runtime.ReadMemStats(&memStats)
+	data["sys"] = map[string]interface{}{
+		"cores":       runtime.NumCPU(),
+		"goroutines":  runtime.NumGoroutine(),
+		"alloc":       memStats.Alloc,
+		"total_alloc": memStats.TotalAlloc,
+		"sys":         memStats.Sys,
+		"gc_cycles":   memStats.NumGC,
+	}
+
 	b, _ := json.Marshal(data)
 	return b
 }
