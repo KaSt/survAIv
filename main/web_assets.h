@@ -779,7 +779,6 @@ function updateWisdom(w) {
       '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
     ).join(' → ');
   }
-  }
 }
 
 function toggleFreeze(frozen) {
