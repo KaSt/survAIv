@@ -14,11 +14,16 @@ static const char kDashboardHtml[] = R"rawhtml(<!DOCTYPE html>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
---green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2}
+--green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2;
+--overlay:rgba(0,0,0,.45);--modal:#fff;--input-bg:#fff}
+[data-theme="dark"]{--bg:#121212;--card:#1e1e1e;--border:#333;--text:#e0e0e0;--dim:#777;
+--green:#4caf50;--red:#ef5350;--blue:#42a5f5;--yellow:#ffca28;--purple:#ab47bc;
+--overlay:rgba(0,0,0,.7);--modal:#1e1e1e;--input-bg:#2a2a2a}
 body{font-family:'SF Mono',Monaco,'Fira Code',monospace;background:var(--bg);color:var(--text);
 font-size:13px;line-height:1.5;max-width:960px;margin:0 auto}
-.error-banner{display:none;background:#fde2e2;border:1px solid var(--red);color:var(--red);
-border-radius:6px;padding:10px 16px;margin:8px 20px;font-size:12px;font-weight:600}
+.error-banner{display:none;border:1px solid var(--red);color:var(--red);
+border-radius:6px;padding:10px 16px;margin:8px 20px;font-size:12px;font-weight:600;
+background:color-mix(in srgb, var(--red) 10%, var(--card))}
 .error-banner.visible{display:block}
 .top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
 border-bottom:1px solid var(--border);background:var(--card)}
@@ -84,6 +89,23 @@ canvas{width:100%!important;height:100%!important}
 .badge.live{background:#e8f5e9;color:var(--green);border:1px solid var(--green)}
 .badge.paper{background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow)}
 .empty{text-align:center;padding:20px;color:var(--dim);font-style:italic}
+.top-icons{display:flex;align-items:center;gap:6px}
+.icon-btn{background:none;border:none;cursor:pointer;font-size:18px;padding:4px;line-height:1;
+color:var(--dim);border-radius:4px;transition:color .2s}
+.icon-btn:hover{color:var(--text)}
+.modal-overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:100;
+justify-content:center;align-items:flex-start;padding-top:60px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--modal);border:1px solid var(--border);border-radius:10px;
+width:90%;max-width:560px;max-height:80vh;overflow-y:auto;padding:20px 24px;
+box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:20px;
+cursor:pointer;color:var(--dim);line-height:1}
+.modal-close:hover{color:var(--red)}
+.modal h2{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);
+margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.modal .setting-group{margin-bottom:16px}
+.modal .setting-group label{font-size:10px;color:var(--dim)}
 </style>
 </head>
 <body>
@@ -93,6 +115,10 @@ canvas{width:100%!important;height:100%!important}
     <span class="badge" id="mode">PAPER</span>
     <span class="dot" id="dot"></span>
     <span class="meta" id="status-text">connecting…</span>
+    <div class="top-icons">
+      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
+    </div>
   </div>
 </div>
 
@@ -166,39 +192,50 @@ canvas{width:100%!important;height:100%!important}
 </div>
 
 <div class="section">
-  <h2>Settings</h2>
-  <div style="display:flex;gap:10px;flex-wrap:wrap">
-    <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup Config</a>
-    <label class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">
-      ⬆ Restore Config
-      <input type="file" id="restore-file" accept=".json" style="display:none"
-        onchange="restoreConfig(this.files[0])">
-    </label>
-    <label class="badge" style="padding:6px 14px;background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow);cursor:pointer">
-      ⚡ OTA Update
-      <input type="file" id="ota-file" accept=".bin" style="display:none"
-        onchange="otaUpdate(this.files[0])">
-    </label>
-  </div>
-  <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
-  <div id="llm-cfg" style="margin-top:10px;display:none">
-    <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
-      <label style="font-size:10px;color:var(--dim)">URL<br>
-        <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:220px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="https://…">
-      </label>
-      <label style="font-size:10px;color:var(--dim)">Model<br>
-        <input id="cfg-model" style="width:140px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="model-id">
-      </label>
-      <label style="font-size:10px;color:var(--dim)">API Key<br>
-        <input id="cfg-key" type="password" style="width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="sk-…">
-      </label>
-      <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
-    </div>
-    <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
-  </div>
-  <div class="sub" style="margin-top:8px">
+  <div class="sub">
     Firmware: <span id="v-fw">—</span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeSettings()">&times;</button>
+    <h2>Settings</h2>
+
+    <div class="setting-group">
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup Config</a>
+        <label class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">
+          ⬆ Restore Config
+          <input type="file" id="restore-file" accept=".json" style="display:none"
+            onchange="restoreConfig(this.files[0])">
+        </label>
+        <label class="badge" style="padding:6px 14px;background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow);cursor:pointer">
+          ⚡ OTA Update
+          <input type="file" id="ota-file" accept=".bin" style="display:none"
+            onchange="otaUpdate(this.files[0])">
+        </label>
+      </div>
+      <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
+    </div>
+
+    <div class="setting-group" id="llm-cfg" style="display:none">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--dim)">URL<br>
+          <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="https://…">
+        </label>
+        <label style="font-size:10px;color:var(--dim)">Model<br>
+          <input id="cfg-model" style="width:140px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="model-id">
+        </label>
+        <label style="font-size:10px;color:var(--dim)">API Key<br>
+          <input id="cfg-key" type="password" style="width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="sk-…">
+        </label>
+        <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
+      </div>
+      <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+    </div>
   </div>
 </div>
 
@@ -207,6 +244,30 @@ const $ = id => document.getElementById(id);
 const fmt = (n, d=4) => n < 0 ? n.toFixed(d) : n.toFixed(d);
 const fmtUsd = n => '$' + Math.abs(n).toFixed(2);
 const cls = n => n >= 0 ? 'pos' : 'neg';
+
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') !== 'dark';
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('theme-btn').textContent = dark ? '🌙' : '☀';
+  try { localStorage.setItem('survaiv-theme', dark ? 'dark' : 'light'); } catch(e) {}
+}
+(function initTheme() {
+  try {
+    const saved = localStorage.getItem('survaiv-theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme','dark');
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.textContent = '🌙';
+    }
+  } catch(e) {}
+})();
+
+// Settings modal
+function openSettings() { $('settings-overlay').classList.add('open'); }
+function closeSettings() { $('settings-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
 
 let equityData = [];
 
