@@ -207,6 +207,9 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
 
   std::string url = adapter ? adapter->build_inference_url(base_url, model)
                             : base_url + "/v1/chat/completions";
+  ESP_LOGI(kTag, "LLM call: model=%s url=%s (%u bytes)",
+           model.c_str(), url.c_str(), static_cast<unsigned>(body.str().size()));
+
   HttpResponse response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str());
 
   // x402: handle 402 Payment Required → sign → retry.
@@ -244,19 +247,24 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   }
 
   if (response.err != ESP_OK || response.status_code < 200 || response.status_code >= 300) {
-    ESP_LOGW(kTag, "Chat completion failed: status=%d body=%s", response.status_code,
-             response.body.c_str());
+    ESP_LOGW(kTag, "LLM call failed: status=%d err=%d body=%.200s",
+             response.status_code, response.err, response.body.c_str());
     return false;
   }
 
   cJSON *root = cJSON_Parse(response.body.c_str());
   if (root == nullptr) {
+    ESP_LOGW(kTag, "LLM response: invalid JSON");
     return false;
   }
 
   *usage_out = ParseUsage(root);
   *content_out = StripCodeFence(ExtractMessageContent(root));
   cJSON_Delete(root);
+
+  ESP_LOGI(kTag, "LLM response: %d prompt + %d completion tokens, %u chars",
+           usage_out->prompt_tokens, usage_out->completion_tokens,
+           static_cast<unsigned>(content_out->size()));
   return !content_out->empty();
 }
 
@@ -470,6 +478,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
                                    cash, est_cycles);
     if (sel.model) {
       model_id = sel.model_id;
+      ESP_LOGI(kTag, "Model selected: %s (price=%.6f)", sel.model->name, sel.price);
       dash.SetActiveModel(sel.model->name, sel.price);
     }
   }
