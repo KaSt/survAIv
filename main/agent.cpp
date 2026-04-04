@@ -602,6 +602,10 @@ int RunAgentCycle(BudgetLedger *ledger) {
   }
 
   Decision decision = ParseDecision(response_text);
+  if (decision.rationale == "invalid_json") {
+    ESP_LOGW(kTag, "Failed to parse decision — LLM output (first 400 chars): %.400s",
+             response_text.c_str());
+  }
   double equity = ledger->Equity(ledger->Positions(), markets);
   double max_position_usdc =
       equity * (static_cast<double>(CONFIG_SURVAIV_MAX_POSITION_BPS) / 10000.0);
