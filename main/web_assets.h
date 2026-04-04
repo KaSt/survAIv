@@ -159,10 +159,8 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
 <div class="error-banner" id="error-banner"></div>
 
 <div class="grid" id="cards">
-  <div class="card"><div class="label">Cash</div><div class="value" id="v-cash">—</div>
-    <div class="sub">USDC available</div></div>
-  <div class="card"><div class="label">Equity</div><div class="value" id="v-equity">—</div>
-    <div class="sub">Cash + positions</div></div>
+  <div class="card"><div class="label">Portfolio</div><div class="value" id="v-equity">—</div>
+    <div class="sub"><span id="v-cash">—</span> cash · rest in positions</div></div>
   <div class="card"><div class="label">P&amp;L</div><div class="value" id="v-pnl">—</div>
     <div class="sub">Realized profit/loss</div></div>
   <div class="card"><div class="label">LLM Spend</div><div class="value" id="v-spend">—</div>
@@ -594,8 +592,8 @@ function drawPnlChart() {
 }
 
 function updateState(s) {
-  $('v-cash').textContent = fmtUsd(s.budget.cash);
   $('v-equity').textContent = fmtUsd(s.budget.equity);
+  $('v-cash').textContent = fmtUsd(s.budget.cash);
 
   const pnlEl = $('v-pnl');
   pnlEl.textContent = (s.budget.realized_pnl >= 0 ? '+' : '') + fmtUsd(s.budget.realized_pnl);

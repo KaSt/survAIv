@@ -172,8 +172,7 @@ canvas { width: 100% !important; height: 100% !important; }
   <div id="errorBanner" style="display:none;border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;font-size:0.85em;font-weight:600;background:rgba(248,81,73,0.08)"></div>
 
   <div class="cards" id="budgetCards">
-    <div class="card"><div class="card-label">Cash</div><div class="card-value" id="cardCash">$0.00</div><div class="card-sub">USDC available</div></div>
-    <div class="card"><div class="card-label">Equity</div><div class="card-value v-accent" id="cardEquity">$0.00</div><div class="card-sub">Cash + positions</div></div>
+    <div class="card"><div class="card-label">Portfolio</div><div class="card-value v-accent" id="cardEquity">$0.00</div><div class="card-sub"><span id="cardCash">$0.00</span> cash · rest in positions</div></div>
     <div class="card"><div class="card-label">P&L</div><div class="card-value" id="cardPnl">$0.00</div><div class="card-sub">Realized</div></div>
     <div class="card"><div class="card-label">LLM Spend</div><div class="card-value v-yellow" id="cardLlm">$0.0000</div><div class="card-sub">Inference cost</div></div>
     <div class="card"><div class="card-label">Daily Loss</div><div class="card-value v-red" id="cardLoss">$0.0000</div><div class="card-sub">Today&#39;s drawdown</div></div>
@@ -387,8 +386,8 @@ function fmtDuration(sec) {
 
 function updateState(d) {
   var b = d.budget || {};
-  $('#cardCash').textContent = fmtUsd(b.cash || 0);
   $('#cardEquity').textContent = fmtUsd(b.equity || 0);
+  $('#cardCash').textContent = fmtUsd(b.cash || 0);
   var pnl = b.realized_pnl || 0;
   var pe = $('#cardPnl');
   pe.textContent = (pnl >= 0 ? '+' : '') + fmtUsd4(pnl);
