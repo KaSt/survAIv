@@ -156,6 +156,7 @@ canvas { width: 100% !important; height: 100% !important; }
     <div style="display:flex;align-items:center;gap:12px">
       <span class="logo" id="agent-title">⟁ SURVAIV</span>
       <span id="statusBadge" class="status-badge status-ok">running</span>
+      <span id="countdown" style="font-size:0.8em;opacity:0.6"></span>
     </div>
     <div class="header-meta">
       <span>Model: <strong id="modelName">—</strong></span>
@@ -376,6 +377,7 @@ function updateState(d) {
   var sb = $('#statusBadge');
   sb.textContent = st;
   sb.className = 'status-badge ' + (st === 'error' || st === 'llm_error' ? 'status-err' : 'status-ok');
+  if (d.next_cycle_epoch) window._nextCycleEpoch = d.next_cycle_epoch;
   $('#modelName').textContent = d.active_model || '\u2014';
   $('#uptime').textContent = fmtDuration(d.uptime_seconds || 0);
   $('#cycles').textContent = d.cycle_count || 0;
@@ -878,6 +880,14 @@ function startDashboard() {
   loadAll();
   connectSSE();
   setInterval(loadAll, 10000);
+  setInterval(function() {
+    var el = document.getElementById('countdown');
+    if (!el || !window._nextCycleEpoch) { if (el) el.textContent = ''; return; }
+    var rem = window._nextCycleEpoch - Math.floor(Date.now() / 1000);
+    if (rem <= 0) { el.textContent = ''; return; }
+    var m = Math.floor(rem / 60), s = rem % 60;
+    el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
 }
 
 // ── Auth ──

@@ -190,6 +190,12 @@ void DashboardState::SetNextRetrySec(int seconds) {
   xSemaphoreGive(mutex_);
 }
 
+void DashboardState::SetNextCycleEpoch(int64_t epoch) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  next_cycle_epoch_ = epoch;
+  xSemaphoreGive(mutex_);
+}
+
 void DashboardState::ClearError() {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   last_error_.clear();
@@ -229,6 +235,10 @@ std::string DashboardState::ToJson() const {
   if (!last_error_.empty()) {
     o << ",\"last_error\":\"" << JsonEscape(last_error_) << "\""
       << ",\"next_retry_sec\":" << next_retry_sec_;
+  }
+
+  if (next_cycle_epoch_ > 0) {
+    o << ",\"next_cycle_epoch\":" << next_cycle_epoch_;
   }
 
   const esp_app_desc_t *app = esp_app_get_description();

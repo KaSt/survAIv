@@ -43,6 +43,7 @@ type State struct {
 	modelPrice    float64
 	lastError     string
 	nextRetrySec  int
+	nextCycleEpoch int64
 	paperOnly     bool
 	agentName     string
 
@@ -195,6 +196,13 @@ func (s *State) SetNextRetrySec(sec int) {
 	s.nextRetrySec = sec
 }
 
+// SetNextCycleEpoch records when the next agent cycle will start.
+func (s *State) SetNextCycleEpoch(epoch int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.nextCycleEpoch = epoch
+}
+
 // SetPaperOnly sets the paper trading flag.
 func (s *State) SetPaperOnly(v bool) {
 	s.mu.Lock()
@@ -266,6 +274,9 @@ func (s *State) ToJSON() []byte {
 	if s.lastError != "" {
 		data["last_error"] = s.lastError
 		data["next_retry_sec"] = s.nextRetrySec
+	}
+	if s.nextCycleEpoch > 0 {
+		data["next_cycle_epoch"] = s.nextCycleEpoch
 	}
 	if s.efficiency != nil {
 		rc := s.efficiency

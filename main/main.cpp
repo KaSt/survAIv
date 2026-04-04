@@ -167,6 +167,13 @@ extern "C" void app_main(void) {
     // Early retry on LLM failure, otherwise wait the normal loop interval.
     int delay_sec = retry_delay > 0 ? retry_delay
                                     : survaiv::config::LoopSeconds();
+
+    // Tell dashboard when next cycle fires.
+    time_t now;
+    time(&now);
+    survaiv::GetDashboardState().SetNextCycleEpoch(
+        static_cast<int64_t>(now) + delay_sec);
+
     vTaskDelay(pdMS_TO_TICKS(delay_sec * 1000));
   }
 }

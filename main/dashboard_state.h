@@ -55,6 +55,7 @@ class DashboardState {
   void IncrementCycleCount();
   void SetLastError(const std::string &error);
   void SetNextRetrySec(int seconds);
+  void SetNextCycleEpoch(int64_t epoch);
   void ClearError();
 
   // Called by the web server to serialize state as JSON.
@@ -114,6 +115,7 @@ class DashboardState {
   double model_price_ = 0.0;
   std::string last_error_;
   int next_retry_sec_ = 0;
+  int64_t next_cycle_epoch_ = 0;
 };
 
 // Global dashboard state instance.

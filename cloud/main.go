@@ -124,6 +124,8 @@ func main() {
 				delay = time.Duration(retryDelay) * time.Second
 			}
 
+			dashState.SetNextCycleEpoch(time.Now().Unix() + int64(delay.Seconds()))
+
 			select {
 			case <-ctx.Done():
 				return

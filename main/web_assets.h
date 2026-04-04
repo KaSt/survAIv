@@ -148,6 +148,7 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
     <span class="badge" id="mode">PAPER</span>
     <span class="dot" id="dot"></span>
     <span class="meta" id="status-text">connecting…</span>
+    <span class="meta" id="countdown" style="opacity:0.6"></span>
     <div class="top-icons">
       <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
       <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
@@ -596,6 +597,11 @@ function updateState(s) {
   const statusText = $('status-text');
   statusText.textContent = s.status;
   dot.className = s.status === 'error' ? 'dot err' : 'dot';
+
+  // Countdown to next cycle.
+  if (s.next_cycle_epoch) {
+    window._nextCycleEpoch = s.next_cycle_epoch;
+  }
 
   const modeEl = $('mode');
   if (s.live_mode) {
@@ -1072,6 +1078,16 @@ function initDashboard() {
   connectSSE();
   setInterval(poll, 15000);
   window.addEventListener('resize', () => { drawChart(); drawPnlChart(); });
+
+  // Tick countdown every second.
+  setInterval(function() {
+    var el = $('countdown');
+    if (!el || !window._nextCycleEpoch) { if (el) el.textContent = ''; return; }
+    var rem = window._nextCycleEpoch - Math.floor(Date.now() / 1000);
+    if (rem <= 0) { el.textContent = ''; return; }
+    var m = Math.floor(rem / 60), s = rem % 60;
+    el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }, 1000);
 }
 
 // Start with auth check.
