@@ -48,7 +48,11 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
                                          const std::string &order) {
   // Each market is ~7 KB in the API response; cap fetch to keep response
   // under ~42 KB so it fits comfortably in heap alongside TLS buffers.
-  int fetch_limit = std::min(limit, 6);
+#if CONFIG_IDF_TARGET_ESP32S3
+  int fetch_limit = std::min(limit, 50);  // S3: PSRAM allows more
+#else
+  int fetch_limit = std::min(limit, 6);   // C3: ~42 KB budget
+#endif
   std::ostringstream url;
   url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
 

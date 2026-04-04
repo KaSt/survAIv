@@ -17,10 +17,13 @@ namespace survaiv {
 
 namespace {
 constexpr const char *kTag = "survaiv_http";
-constexpr size_t kMaxBodySize = 64 * 1024;
-// Minimum free heap to maintain while accumulating response body.
-// Covers TLS internal buffers (~16 KB) plus headroom for other allocations.
+#if CONFIG_IDF_TARGET_ESP32S3
+constexpr size_t kMaxBodySize = 512 * 1024;   // S3: 8MB PSRAM
+constexpr size_t kMinFreeHeap = 40 * 1024;
+#else
+constexpr size_t kMaxBodySize = 64 * 1024;    // C3: 400KB SRAM
 constexpr size_t kMinFreeHeap = 20 * 1024;
+#endif
 
 // ─── Lightweight mDNS A-record resolver ─────────────────────────
 // Sends an mDNS query for hostname.local and listens for the unicast

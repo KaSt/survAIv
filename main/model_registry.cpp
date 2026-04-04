@@ -185,7 +185,11 @@ static constexpr int kModelCount =
 
 // ── Dynamic model list ──────────────────────────────────────────────
 
+#if CONFIG_IDF_TARGET_ESP32S3
+static constexpr int kMaxDynamic = 200;
+#else
 static constexpr int kMaxDynamic = 40;
+#endif
 static std::mutex g_dyn_mutex;
 static std::vector<DynamicModel> g_dynamic;       // guarded by g_dyn_mutex
 static std::vector<ModelInfo> g_dynamic_views;     // parallel array of ModelInfo
@@ -572,7 +576,11 @@ void RefreshRegistry() {
   entries.reserve(kMaxDynamic);
 
   // Scratch buffer: static to avoid blowing the stack (~124 bytes each).
+#if CONFIG_IDF_TARGET_ESP32S3
+  static constexpr int kCatalogBuf = 200;
+#else
   static constexpr int kCatalogBuf = 40;
+#endif
   static providers::CatalogModel catalog[kCatalogBuf];
 
   // Iterate over all registered LLM adapters that have a catalog URL.
