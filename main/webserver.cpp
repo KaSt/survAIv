@@ -115,6 +115,24 @@ static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
   return httpd_resp_send(req, ok, strlen(ok));
 }
 
+static esp_err_t ApiWisdomFreezeHandler(httpd_req_t *req) {
+  char buf[64] = {};
+  int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+  if (received <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+    return ESP_FAIL;
+  }
+  buf[received] = '\0';
+
+  // Expect {"frozen":true} or {"frozen":false}
+  bool freeze = (strstr(buf, "true") != nullptr);
+  wisdom::SetFrozen(freeze);
+
+  httpd_resp_set_type(req, "application/json");
+  std::string resp = std::string("{\"ok\":true,\"frozen\":") + (freeze ? "true" : "false") + "}";
+  return httpd_resp_send(req, resp.c_str(), resp.size());
+}
+
 // SSE endpoint — keeps connection open and sends events.
 static esp_err_t ApiEventsHandler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/event-stream");
@@ -544,7 +562,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 20;
+  config.max_uri_handlers = 22;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -562,6 +580,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/wisdom", HTTP_GET, ApiWisdomHandler);
   RegisterUri("/api/knowledge", HTTP_GET, ApiKnowledgeExportHandler);
   RegisterUri("/api/knowledge", HTTP_POST, ApiKnowledgeImportHandler);
+  RegisterUri("/api/wisdom/freeze", HTTP_POST, ApiWisdomFreezeHandler);
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);

@@ -16,7 +16,7 @@ static const char kDashboardHtml[] = R"rawhtml(<!DOCTYPE html>
 :root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
 --green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2}
 body{font-family:'SF Mono',Monaco,'Fira Code',monospace;background:var(--bg);color:var(--text);
-font-size:13px;line-height:1.5}
+font-size:13px;line-height:1.5;max-width:960px;margin:0 auto}
 .top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
 border-bottom:1px solid var(--border);background:var(--card)}
 .top h1{font-size:16px;font-weight:600;letter-spacing:2px;color:var(--green)}
@@ -69,6 +69,10 @@ display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .wisdom-stat .lbl{font-size:10px;color:var(--dim);text-transform:uppercase;margin-top:2px}
 .wisdom-rules{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;
 font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--fg);max-height:200px;overflow-y:auto}
+.freeze-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer;float:right;margin-top:-2px}
+.freeze-toggle input{accent-color:var(--blue);cursor:pointer}
+.frozen-badge{display:inline-block;background:var(--blue);color:#fff;font-size:9px;padding:1px 6px;
+border-radius:3px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
 .scout-conf{font-size:10px;color:var(--dim)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;
 height:120px;position:relative}
@@ -123,7 +127,9 @@ canvas{width:100%!important;height:100%!important}
 </div>
 
 <div class="section wisdom-section">
-  <h2>Learning</h2>
+  <h2>Learning <span id="w-frozen-badge" class="frozen-badge" style="display:none">FROZEN</span>
+    <label class="freeze-toggle"><input type="checkbox" id="w-freeze" onchange="toggleFreeze(this.checked)"> Freeze learning</label>
+  </h2>
   <div class="wisdom-stats" id="wisdom-stats">
     <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Decisions</div></div>
     <div class="wisdom-stat"><div class="val" id="w-resolved">–</div><div class="lbl">Resolved</div></div>
@@ -388,12 +394,25 @@ function updateWisdom(w) {
   const ha = w.hold_resolved > 0 ? ((w.hold_correct / w.hold_resolved) * 100).toFixed(0) + '%' : '–';
   el('w-holds').textContent = ha;
   el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
+  // Frozen state.
+  el('w-freeze').checked = !!w.frozen;
+  el('w-frozen-badge').style.display = w.frozen ? 'inline-block' : 'none';
   // Model history.
   if (w.models && w.models.length > 0) {
     el('w-models').innerHTML = '🧠 Models: ' + w.models.map(m =>
       '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
     ).join(' → ');
   }
+}
+
+function toggleFreeze(frozen) {
+  fetch('/api/wisdom/freeze', {method:'POST', body:JSON.stringify({frozen:frozen}),
+    headers:{'Content-Type':'application/json'}})
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('w-frozen-badge').style.display = d.frozen ? 'inline-block' : 'none';
+    })
+    .catch(() => {});
 }
 
 function downloadKnowledge() {

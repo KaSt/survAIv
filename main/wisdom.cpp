@@ -38,6 +38,7 @@ int g_count = 0;
 std::string g_wisdom;
 WisdomStats g_stats;
 SemaphoreHandle_t g_mutex = nullptr;
+bool g_frozen = false;
 
 constexpr int kMaxModels = 8;
 ModelEpoch g_models[kMaxModels];
@@ -57,6 +58,11 @@ void LoadFromNvs() {
 
   size_t blob_sz = sizeof(WisdomStats);
   nvs_get_blob(h, kStatsKey, &g_stats, &blob_sz);
+
+  int8_t frz = 0;
+  if (nvs_get_i8(h, "wis_freeze", &frz) == ESP_OK) {
+    g_frozen = (frz != 0);
+  }
 
   nvs_close(h);
 }
@@ -393,10 +399,14 @@ void EvaluateAndUpdateWisdom() {
   }
 
   if (any) {
-    RegenerateWisdom();
     SaveStatsToNvs();
-    SaveWisdomToNvs();
-    ESP_LOGI(kTag, "Wisdom updated (%zu B)", g_wisdom.size());
+    if (!g_frozen) {
+      RegenerateWisdom();
+      SaveWisdomToNvs();
+      ESP_LOGI(kTag, "Wisdom updated (%zu B)", g_wisdom.size());
+    } else {
+      ESP_LOGI(kTag, "Stats updated (wisdom frozen)");
+    }
   }
 
   xSemaphoreGive(g_mutex);
@@ -407,6 +417,21 @@ std::string GetWisdom() {
   std::string result = g_wisdom;
   xSemaphoreGive(g_mutex);
   return result;
+}
+
+bool IsFrozen() {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+  bool f = g_frozen;
+  xSemaphoreGive(g_mutex);
+  return f;
+}
+
+void SetFrozen(bool frozen) {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+  g_frozen = frozen;
+  xSemaphoreGive(g_mutex);
+  config::SetInt("wis_freeze", frozen ? 1 : 0);
+  ESP_LOGI(kTag, "Learning %s", frozen ? "frozen" : "resumed");
 }
 
 std::string StatsJson() {
@@ -420,9 +445,9 @@ std::string StatsJson() {
      << ",\"hold_correct\":" << g_stats.holds_correct
      << ",\"buy_resolved\":" << g_stats.buys_total
      << ",\"buy_correct\":" << g_stats.buys_correct
+     << ",\"frozen\":" << (g_frozen ? "true" : "false")
      << ",\"wisdom_text\":\"" << JsonEscape(g_wisdom)
      << "\",\"categories\":[";
-
   bool first = true;
   for (int i = 0; i < 8; ++i) {
     if (g_stats.categories[i].name[0] == '\0') continue;

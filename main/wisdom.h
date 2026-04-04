@@ -58,6 +58,9 @@ void EvaluateAndUpdateWisdom();
 std::string GetWisdom();
 std::string StatsJson();
 
+bool IsFrozen();
+void SetFrozen(bool frozen);
+
 // Export/import the full knowledge base as a single JSON blob.
 std::string ExportKnowledge();
 bool ImportKnowledge(const std::string &json);
