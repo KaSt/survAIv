@@ -75,8 +75,9 @@ Every cycle the agent:
 
 ### Cloud Specific
 - **Bubbletea TUI** — full terminal UI with budget cards, positions, market scanner, decision log, wisdom stats. Dark/light themes.
+- **Docker & Compose** — `Dockerfile` + `docker-compose.yml` with optional PostgreSQL profile.
+- **SQLite or PostgreSQL** — SQLite by default (zero config), PostgreSQL via `SURVAIV_DATABASE_URL`. Auto-detected from DSN.
 - **Heroku-ready** — auto-detects via `DYNO` env, runs headless with dashboard HTTP only.
-- **SQLite persistence** — config, positions, decisions, equity snapshots, wisdom.
 - **4 LLM providers** — tx402, x402engine, claw402, custom (all via provider adapter interface).
 
 ## Quick Start
@@ -141,6 +142,19 @@ go build -o survaiv .
 ```
 
 Dashboard at `http://localhost:8080`. See [cloud/README.md](cloud/README.md) for full env var reference and build options.
+
+### Docker
+
+```bash
+cd cloud
+
+# SQLite (zero config):
+docker compose up --build
+
+# With PostgreSQL:
+docker compose --profile pg up --build
+# Set SURVAIV_DATABASE_URL in .env to connect survaiv to the Postgres container
+```
 
 ### Generate a Wallet
 
@@ -217,7 +231,7 @@ cycle N+K+1: wisdom injected into system prompt → better decisions
 2. **Resolve** — periodically checks Polymarket for final outcomes on tracked markets.
 3. **Evaluate** — computes accuracy by category (crypto, politics, sports…), buy vs hold performance, edge calibration.
 4. **Generate rules** — distills verified outcomes into concise trading rules injected into the system prompt.
-5. **Persist** — wisdom survives reboots (NVS on ESP32, SQLite on cloud).
+5. **Persist** — wisdom survives reboots (NVS on ESP32, SQLite/PostgreSQL on cloud).
 
 ### Custom Rules
 
@@ -353,8 +367,8 @@ cloud/
 ├── internal/dashboard/   — Thread-safe state, HTTP handlers, embedded HTML
 ├── internal/wisdom/      — Outcome tracking, rule generation, import/export
 ├── internal/tui/         — Bubbletea terminal UI (8 files)
-├── internal/config/      — Env vars + SQLite config
-├── internal/db/          — SQLite open + migrations
+├── internal/config/      — Env vars + DB-backed config
+├── internal/db/          — SQLite + PostgreSQL (auto-detected), migrations, compat layer
 ├── internal/httpclient/  — HTTP client with LLM retry (120s timeout, 3 retries)
 ├── internal/ledger/      — Budget & position accounting
 ├── internal/models/      — LLM model registry + selection
@@ -377,9 +391,9 @@ cloud/
 | Model registry | 40 dynamic | 80 dynamic | 200 dynamic | unlimited |
 | OTA updates | ✅ | — | ✅ | N/A |
 | x402 providers | tx402 only* | tx402 only* | all 4 | all 4 |
-| Persistence | NVS flash | NVS flash | NVS flash | SQLite |
+| Persistence | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
 | UI | Web dashboard | Web dashboard | Web dashboard | TUI + web |
-| Deployment | USB flash | USB flash | USB flash | `go build` / Heroku |
+| Deployment | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
 
 \* x402engine catalog too large for C3's 400 KB SRAM.
 
