@@ -29,6 +29,7 @@ var Version = "dev"
 
 func main() {
 	headless := flag.Bool("headless", false, "Run without TUI (dashboard only)")
+	configFile := flag.String("config", "", "Path to config file (default: auto-detect survaiv.toml)")
 	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
 
@@ -46,7 +47,7 @@ func main() {
 	defer database.Close()
 
 	// 2. Load config.
-	cfg := config.Load(database)
+	cfg := config.Load(database, *configFile)
 	if *headless {
 		cfg.Headless = true
 	}

@@ -37,31 +37,38 @@ type Config struct {
 	Headless         bool
 }
 
-// Load reads configuration from environment variables, falling back to defaults.
-// If a database is provided, stored overrides are applied on top.
-func Load(db *sql.DB) *Config {
+// Load reads configuration with the following precedence (highest wins):
+//
+//	hardcoded defaults → config file → environment variables → SQLite overrides
+//
+// The configFile parameter is an explicit path; if empty, standard locations
+// are searched: ./survaiv.toml, then ~/.config/survaiv/config.toml.
+func Load(db *sql.DB, configFile string) *Config {
 	c := &Config{db: db}
 
-	c.OaiURL = envStr("SURVAIV_OAI_URL", "https://tx402.ai/v1")
-	c.OaiModel = envStr("SURVAIV_OAI_MODEL", "deepseek/deepseek-v3.2")
-	c.ApiKey = envStr("SURVAIV_API_KEY", "")
-	c.WalletKey = envStr("SURVAIV_WALLET_KEY", "")
-	c.PolygonRPC = envStr("SURVAIV_POLYGON_RPC", "https://polygon-rpc.com")
-	c.ClobURL = envStr("SURVAIV_CLOB_URL", "https://clob.polymarket.com")
-	c.PaperOnly = envBool("SURVAIV_PAPER_ONLY", true)
-	c.LoopSeconds = envInt("SURVAIV_LOOP_SECONDS", 900)
-	c.StartingBankroll = envFloat("SURVAIV_STARTING_BANKROLL", 25.0)
-	c.Reserve = envFloat("SURVAIV_RESERVE", 5.0)
-	c.MaxPositions = envInt("SURVAIV_MAX_POSITIONS", 3)
-	c.MarketLimit = envInt("SURVAIV_MARKET_LIMIT", 10)
-	c.DailyLossLimit = envFloat("SURVAIV_DAILY_LOSS_LIMIT", 5.0)
-	c.DBPath = envStr("SURVAIV_DB_PATH", "survaiv.db")
+	// Parse config file (may be nil if no file found).
+	file := parseConfigFile(findConfigFile(configFile))
 
-	// Port: prefer PORT (Heroku), then SURVAIV_PORT, then 8080.
+	c.OaiURL = resolve("SURVAIV_OAI_URL", "oai_url", file, "https://tx402.ai/v1")
+	c.OaiModel = resolve("SURVAIV_OAI_MODEL", "oai_model", file, "deepseek/deepseek-v3.2")
+	c.ApiKey = resolve("SURVAIV_API_KEY", "api_key", file, "")
+	c.WalletKey = resolve("SURVAIV_WALLET_KEY", "wallet_key", file, "")
+	c.PolygonRPC = resolve("SURVAIV_POLYGON_RPC", "polygon_rpc", file, "https://polygon-rpc.com")
+	c.ClobURL = resolve("SURVAIV_CLOB_URL", "clob_url", file, "https://clob.polymarket.com")
+	c.PaperOnly = resolveBool("SURVAIV_PAPER_ONLY", "paper_only", file, true)
+	c.LoopSeconds = resolveInt("SURVAIV_LOOP_SECONDS", "loop_seconds", file, 900)
+	c.StartingBankroll = resolveFloat("SURVAIV_STARTING_BANKROLL", "starting_bankroll", file, 25.0)
+	c.Reserve = resolveFloat("SURVAIV_RESERVE", "reserve", file, 5.0)
+	c.MaxPositions = resolveInt("SURVAIV_MAX_POSITIONS", "max_positions", file, 3)
+	c.MarketLimit = resolveInt("SURVAIV_MARKET_LIMIT", "market_limit", file, 10)
+	c.DailyLossLimit = resolveFloat("SURVAIV_DAILY_LOSS_LIMIT", "daily_loss_limit", file, 5.0)
+	c.DBPath = resolve("SURVAIV_DB_PATH", "db_path", file, "survaiv.db")
+
+	// Port: prefer PORT (Heroku), then config file / SURVAIV_PORT, then 8080.
 	if p := os.Getenv("PORT"); p != "" {
 		c.Port = envIntFromStr(p, 8080)
 	} else {
-		c.Port = envInt("SURVAIV_PORT", 8080)
+		c.Port = resolveInt("SURVAIV_PORT", "port", file, 8080)
 	}
 
 	// Headless mode: auto-detect Heroku or explicit flag.
@@ -170,17 +177,65 @@ func (c *Config) loadOverrides() {
 	}
 }
 
-// ── Environment helpers ─────────────────────────────────────────
+// ── Resolve helpers (env > file > default) ──────────────────────
 
-func envStr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
+// resolve returns the first non-empty value: env var → config file → fallback.
+func resolve(envKey, fileKey string, file map[string]string, fallback string) string {
+	if v := os.Getenv(envKey); v != "" {
 		return v
+	}
+	if file != nil {
+		if v, ok := file[fileKey]; ok && v != "" {
+			return v
+		}
 	}
 	return fallback
 }
 
-func envInt(key string, fallback int) int {
-	return envIntFromStr(os.Getenv(key), fallback)
+func resolveInt(envKey, fileKey string, file map[string]string, fallback int) int {
+	if v := os.Getenv(envKey); v != "" {
+		return envIntFromStr(v, fallback)
+	}
+	if file != nil {
+		if v, ok := file[fileKey]; ok && v != "" {
+			return envIntFromStr(v, fallback)
+		}
+	}
+	return fallback
+}
+
+func resolveFloat(envKey, fileKey string, file map[string]string, fallback float64) float64 {
+	parse := func(s string) float64 {
+		f, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return fallback
+		}
+		return f
+	}
+	if v := os.Getenv(envKey); v != "" {
+		return parse(v)
+	}
+	if file != nil {
+		if v, ok := file[fileKey]; ok && v != "" {
+			return parse(v)
+		}
+	}
+	return fallback
+}
+
+func resolveBool(envKey, fileKey string, file map[string]string, fallback bool) bool {
+	parse := func(s string) bool {
+		return strings.EqualFold(s, "true") || s == "1"
+	}
+	if v := os.Getenv(envKey); v != "" {
+		return parse(v)
+	}
+	if file != nil {
+		if v, ok := file[fileKey]; ok && v != "" {
+			return parse(v)
+		}
+	}
+	return fallback
 }
 
 func envIntFromStr(s string, fallback int) int {
@@ -194,33 +249,16 @@ func envIntFromStr(s string, fallback int) int {
 	return v
 }
 
-func envFloat(key string, fallback float64) float64 {
-	s := os.Getenv(key)
-	if s == "" {
-		return fallback
-	}
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return fallback
-	}
-	return v
-}
-
-func envBool(key string, fallback bool) bool {
-	s := os.Getenv(key)
-	if s == "" {
-		return fallback
-	}
-	return strings.EqualFold(s, "true") || s == "1"
-}
-
 // NewsAPIKey returns the Tavily or Brave Search API key.
 func (c *Config) NewsAPIKey() string {
 	v := c.Get("news_api_key")
 	if v != "" {
 		return v
 	}
-	return envStr("SURVAIV_NEWS_API_KEY", "")
+	if v := os.Getenv("SURVAIV_NEWS_API_KEY"); v != "" {
+		return v
+	}
+	return ""
 }
 
 // NewsProvider returns the news search provider ("tavily" or "brave").
@@ -229,7 +267,10 @@ func (c *Config) NewsProvider() string {
 	if v != "" {
 		return v
 	}
-	return envStr("SURVAIV_NEWS_PROVIDER", "tavily")
+	if v := os.Getenv("SURVAIV_NEWS_PROVIDER"); v != "" {
+		return v
+	}
+	return "tavily"
 }
 
 // ── Agent identity & PIN helpers ────────────────────────────────

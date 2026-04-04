@@ -1,0 +1,75 @@
+# survaiv — autonomous prediction agent configuration
+#
+# Place this file as:
+#   ./survaiv.toml              (next to the binary)
+#   ~/.config/survaiv/config.toml
+#   or pass explicitly: survaiv --config /path/to/config.toml
+#
+# Precedence (highest wins):
+#   hardcoded defaults → config file → environment variables → dashboard overrides
+#
+# Environment variables use the SURVAIV_ prefix (e.g., SURVAIV_OAI_URL)
+# and always override values set here.
+
+# ── LLM Provider ─────────────────────────────────────────────────
+
+# OpenAI-compatible endpoint URL.
+# oai_url = "https://tx402.ai/v1"
+
+# Model identifier (provider-specific).
+# oai_model = "deepseek/deepseek-v3.2"
+
+# API key for the LLM provider (leave empty for x402 auto-pay).
+# api_key = ""
+
+# ── Wallet & Blockchain ─────────────────────────────────────────
+
+# Hex-encoded secp256k1 private key (64 chars, no 0x prefix).
+# wallet_key = ""
+
+# Polygon RPC endpoint for on-chain queries.
+# polygon_rpc = "https://polygon-rpc.com"
+
+# Polymarket CLOB API base URL.
+# clob_url = "https://clob.polymarket.com"
+
+# ── Trading ──────────────────────────────────────────────────────
+
+# Paper trading mode (true = no real orders, false = live).
+# paper_only = true
+
+# Starting bankroll in USDC.
+# starting_bankroll = 25.0
+
+# Reserve amount in USDC (agent won't trade below this).
+# reserve = 5.0
+
+# Maximum concurrent positions.
+# max_positions = 3
+
+# Maximum markets to scout per cycle.
+# market_limit = 10
+
+# Maximum daily loss in USDC before the agent pauses.
+# daily_loss_limit = 5.0
+
+# ── Agent Loop ───────────────────────────────────────────────────
+
+# Seconds between agent decision cycles.
+# loop_seconds = 900
+
+# ── Server ───────────────────────────────────────────────────────
+
+# Dashboard HTTP port.
+# port = 8080
+
+# Database file path.
+# db_path = "survaiv.db"
+
+# ── News Search ──────────────────────────────────────────────────
+
+# News search provider: "tavily" or "brave".
+# news_provider = "tavily"
+
+# API key for the news search provider.
+# news_api_key = ""
