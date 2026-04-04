@@ -4,19 +4,35 @@ set -euo pipefail
 # ── Parse arguments ───────────────────────────────────────────
 WALLET_KEY=""
 MONITOR=false
+TARGET="esp32c3"
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --wallet) WALLET_KEY="$2"; shift 2 ;;
     --wallet=*) WALLET_KEY="${1#*=}"; shift ;;
     -m|--monitor) MONITOR=true; shift ;;
+    --s3|--S3) TARGET="esp32s3"; shift ;;
+    --c3|--C3) TARGET="esp32c3"; shift ;;
+    --target) TARGET="$2"; shift 2 ;;
+    --target=*) TARGET="${1#*=}"; shift ;;
+    -h|--help)
+      echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
+      echo ""
+      echo "Options:"
+      echo "  --c3             Target ESP32-C3 (default)"
+      echo "  --s3             Target ESP32-S3 N16R8"
+      echo "  --target <chip>  Explicit target (esp32c3, esp32s3)"
+      echo "  --wallet <hex>   Provision wallet private key (64 hex chars)"
+      echo "  -m, --monitor    Open serial monitor after flash"
+      echo "  -h, --help       Show this help"
+      exit 0
+      ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
 done
 
 PORT="${POSITIONAL[0]:-/dev/ttyUSB0}"
 BAUD="${POSITIONAL[1]:-460800}"
-TARGET="esp32c3"
 
 # Auto-detect port on macOS.
 if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
