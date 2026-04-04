@@ -7,6 +7,7 @@ var IndexHTML = []byte(`<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>⟁ SURVAIV Dashboard</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA9ElEQVR42mNkIBJELPv/n4EEsCKKkZEYdUwMAwxYiPWxwb7VpJmMph9XiAy+EID5HN3HzzTkGBgYGBikbjzCayBMHUaIQc1FD4kBDwFGXD7H5WNKxS84haKkicGbC2AuRvcBuji6elLTzMCnAUpTPSGAyxxYWhj8aQAGWtfmovCrgycTJT/o0wDJDthz4BDDngOHyJYf+iHg4mDH4OJgR7b84C8HqJX/CZUHg7ccwFUHULskHPztAVxge+gyBgYGBgbP1VFEiaODodMewAVgPoT5GF2c5gURzdIAqWmBVIAe94M3BKjVM4L5eND3jBgZRnrvGAAoapLuoUL8fAAAAABJRU5ErkJggg==">
 <style>
 :root {
   --bg: #0d1117; --bg2: #161b22; --bg3: #21262d; --fg: #c9d1d9; --fg2: #8b949e;

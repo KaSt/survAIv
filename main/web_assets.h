@@ -11,7 +11,7 @@ static const char kDashboardHtml[] = R"rawhtml(<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>survaiv</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧠</text></svg>">
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2ElEQVR42qVTOw6DMAx9jnIKBmbGnqCqUBcOgFTlDhyDqyAkxNylqqqegJGZgWukS02NCR+pnmyH94mDCYG4Vd6H+rUj0j0bAp6eDYLxPZdEVoIZOCYxon6YYcck/hFX3jOJkeAxiQEAUT9MuSZkInZrpIoEcq7B2hntWdchv+nSfOkAAMq2QNkWU1/WWsCsKT1e7816l+B6OW/Wixkcub+ew2wG+umODBEATO2IujRfDOieV8FcvkDtiOyaUta4CZg1btURhX7lvWD1GcGRZeKrymWif9f5A1aLiC4N5q46AAAAAElFTkSuQmCC">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
@@ -1056,7 +1056,7 @@ static const char kOnboardHtml[] = R"rawhtml(<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>survaiv setup</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧠</text></svg>">
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2ElEQVR42qVTOw6DMAx9jnIKBmbGnqCqUBcOgFTlDhyDqyAkxNylqqqegJGZgWukS02NCR+pnmyH94mDCYG4Vd6H+rUj0j0bAp6eDYLxPZdEVoIZOCYxon6YYcck/hFX3jOJkeAxiQEAUT9MuSZkInZrpIoEcq7B2hntWdchv+nSfOkAAMq2QNkWU1/WWsCsKT1e7816l+B6OW/Wixkcub+ew2wG+umODBEATO2IujRfDOieV8FcvkDtiOyaUta4CZg1btURhX7lvWD1GcGRZeKrymWif9f5A1aLiC4N5q46AAAAAElFTkSuQmCC">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'SF Mono',Monaco,monospace;background:#fafafa;color:#1a1a1a;
