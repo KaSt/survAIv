@@ -1,0 +1,13 @@
+build/
+sdkconfig.old
+*.bin
+*.elf
+*.map
+managed_components/
+dependencies.lock
+
+# Private keys / credentials — never commit these
+*.pem
+*.key
+nvs_*.csv
+wallet_*.csv

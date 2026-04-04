@@ -1,0 +1,20 @@
+idf_component_register(
+    SRCS "main.cpp"
+         "json_util.cpp"
+         "http.cpp"
+         "wifi.cpp"
+         "polymarket.cpp"
+         "ledger.cpp"
+         "agent.cpp"
+         "crypto.cpp"
+         "wallet.cpp"
+         "clob.cpp"
+         "config.cpp"
+         "dashboard_state.cpp"
+         "webserver.cpp"
+         "onboard.cpp"
+         "x402.cpp"
+         "model_registry.cpp"
+    INCLUDE_DIRS "."
+    REQUIRES app_update esp_event esp_http_client esp_http_server esp_netif esp_wifi json mbedtls nvs_flash
+)

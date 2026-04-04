@@ -1,0 +1,125 @@
+menu "Survaiv Agent"
+
+config SURVAIV_WIFI_SSID
+    string "Wi-Fi SSID"
+    default ""
+
+config SURVAIV_WIFI_PASSWORD
+    string "Wi-Fi password"
+    default ""
+
+config SURVAIV_OPENAI_BASE_URL
+    string "OpenAI-compatible base URL"
+    default "https://devnet.aimo.network/api/v1"
+
+config SURVAIV_OPENAI_MODEL
+    string "Model name"
+    default "openai/gpt-4o"
+
+config SURVAIV_API_KEY
+    string "Managed x402 API key"
+    default ""
+
+config SURVAIV_PAPER_TRADING_ONLY
+    bool "Paper trading only"
+    default y
+
+config SURVAIV_LOOP_SECONDS
+    int "Seconds between agent cycles"
+    range 60 86400
+    default 900
+
+config SURVAIV_STARTING_BANKROLL_CENTS
+    int "Starting bankroll in USDC cents"
+    range 100 10000000
+    default 2500
+
+config SURVAIV_RESERVE_CENTS
+    int "Minimum cash reserve in USDC cents"
+    range 0 10000000
+    default 500
+
+config SURVAIV_MAX_OPEN_POSITIONS
+    int "Maximum paper positions"
+    range 0 16
+    default 3
+
+config SURVAIV_MARKET_LIMIT
+    int "Top markets per scan"
+    range 1 32
+    default 6
+
+config SURVAIV_MAX_TOOL_CALLS_PER_CYCLE
+    int "Maximum Polymarket tool calls per cycle"
+    range 0 4
+    default 1
+
+config SURVAIV_EST_PROMPT_TOKENS
+    int "Estimated prompt tokens per LLM call"
+    range 64 32768
+    default 1800
+
+config SURVAIV_EST_COMPLETION_TOKENS
+    int "Estimated completion tokens per LLM call"
+    range 16 8192
+    default 300
+
+config SURVAIV_INPUT_PRICE_MICROUSDC_PER_1M
+    int "Input token price in micro-USDC per 1M tokens"
+    range 1 1000000000
+    default 150000
+
+config SURVAIV_OUTPUT_PRICE_MICROUSDC_PER_1M
+    int "Output token price in micro-USDC per 1M tokens"
+    range 1 1000000000
+    default 600000
+
+config SURVAIV_MAX_POSITION_BPS
+    int "Maximum paper position size in basis points of equity"
+    range 1 10000
+    default 200
+
+menu "Live Trading (CLOB)"
+
+config SURVAIV_WALLET_PRIVATE_KEY
+    string "Wallet private key (hex, 64 chars)"
+    default ""
+    help
+        Hex-encoded 32-byte secp256k1 private key for Polygon wallet.
+        Used for EIP-712 order signing and CLOB authentication.
+        Leave empty to disable live trading even if paper_trading_only is off.
+
+config SURVAIV_POLYGON_RPC_URL
+    string "Polygon JSON-RPC URL"
+    default "https://polygon-rpc.com"
+
+config SURVAIV_CLOB_BASE_URL
+    string "Polymarket CLOB base URL"
+    default "https://clob.polymarket.com"
+
+config SURVAIV_DAILY_LOSS_LIMIT_CENTS
+    int "Daily loss limit in USDC cents"
+    range 10 10000000
+    default 500
+    help
+        Agent refuses new live trades once cumulative daily realized loss
+        exceeds this amount. Reset each calendar day (UTC).
+
+config SURVAIV_LIVE_CONFIDENCE_THRESHOLD
+    int "Minimum confidence for live trades (percent)"
+    range 50 99
+    default 75
+
+config SURVAIV_LIVE_MIN_EDGE_BPS
+    int "Minimum edge for live trades (basis points)"
+    range 50 5000
+    default 200
+
+config SURVAIV_COOLDOWN_AFTER_LOSS_SECONDS
+    int "Cooldown after a losing trade (seconds)"
+    range 0 86400
+    default 1800
+
+endmenu
+
+endmenu
