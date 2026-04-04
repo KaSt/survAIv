@@ -1,0 +1,203 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [dev, nightly, master]
+  workflow_dispatch:
+
+concurrency:
+  group: firmware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-esp32:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: esp32c3-ota
+            target: esp32c3
+            build_dir: .
+            sdkconfig_defaults: sdkconfig.defaults
+            artifact: survaiv-esp32c3-ota
+          - name: esp32c3-no-ota
+            target: esp32c3
+            build_dir: .
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-esp32c3-no-ota
+          - name: esp32s3
+            target: esp32s3
+            build_dir: s3
+            sdkconfig_defaults: sdkconfig.defaults
+            artifact: survaiv-esp32s3
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ESP-IDF build
+        uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.5.2
+          target: ${{ matrix.target }}
+          path: ${{ matrix.build_dir }}
+          command: >-
+            idf.py
+            -D SDKCONFIG_DEFAULTS="${{ matrix.sdkconfig_defaults }}"
+            build
+
+      - name: Prepare artifacts
+        run: |
+          BUILD=${{ matrix.build_dir }}/build
+          OUT=artifacts/${{ matrix.artifact }}
+          mkdir -p "$OUT"
+          cp "$BUILD"/bootloader/bootloader.bin "$OUT/"
+          cp "$BUILD"/partition_table/partition-table.bin "$OUT/"
+          cp "$BUILD"/ota_data_initial.bin "$OUT/" 2>/dev/null || true
+          # Copy app binary (named *.bin in build root, exclude sub-binaries)
+          for f in "$BUILD"/*.bin; do
+            [ -f "$f" ] && cp "$f" "$OUT/"
+          done
+          # Generate manifest for ESP Web Tools
+          python3 - "$BUILD/flash_args" "$OUT" "${{ matrix.name }}" "${{ matrix.target }}" <<'PYEOF'
+          import json, sys, os
+
+          flash_args_path, out_dir, name, target = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+
+          chip_family = {
+              "esp32c3": "ESP32-C3",
+              "esp32s3": "ESP32-S3",
+              "esp32":   "ESP32",
+          }.get(target, target.upper())
+
+          parts = []
+          with open(flash_args_path) as f:
+              for line in f:
+                  line = line.strip()
+                  if not line or line.startswith("--"):
+                      continue
+                  tokens = line.split()
+                  if len(tokens) == 2 and tokens[0].startswith("0x"):
+                      offset = int(tokens[0], 16)
+                      fname = os.path.basename(tokens[1])
+                      if os.path.exists(os.path.join(out_dir, fname)):
+                          parts.append({"offset": offset, "path": fname})
+
+          manifest = {
+              "name": f"survaiv ({name})",
+              "builds": [{
+                  "chipFamily": chip_family,
+                  "parts": sorted(parts, key=lambda p: p["offset"])
+              }]
+          }
+          with open(os.path.join(out_dir, "manifest.json"), "w") as f:
+              json.dump(manifest, f, indent=2)
+          print(json.dumps(manifest, indent=2))
+          PYEOF
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: artifacts/${{ matrix.artifact }}
+          retention-days: 90
+
+  build-cloud:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: cloud/go.sum
+
+      - name: Build
+        working-directory: cloud
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: |
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo dev)
+          EXT=""
+          [ "$GOOS" = "windows" ] && EXT=".exe"
+          go build -ldflags "-s -w -X main.Version=${VERSION}" \
+            -o "survaiv-${GOOS}-${GOARCH}${EXT}" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: survaiv-cloud-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: cloud/survaiv-*
+          retention-days: 90
+
+  # Collect all artifacts into a single release-ready bundle
+  bundle:
+    needs: [build-esp32, build-cloud]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+
+      - name: List artifacts
+        run: find all-artifacts -type f | sort
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: survaiv-all-${{ github.sha }}
+          path: all-artifacts
+          retention-days: 90
+
+  # Deploy web flasher to GitHub Pages on master/nightly
+  deploy-pages:
+    needs: [build-esp32]
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/nightly'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: firmware
+
+      - name: Assemble pages site
+        run: |
+          mkdir -p site/firmware
+          # Copy firmware artifacts
+          for dir in firmware/survaiv-esp32*; do
+            name=$(basename "$dir")
+            cp -r "$dir" "site/firmware/$name"
+          done
+          # Copy docs/ as site root
+          cp docs/index.html site/
+          cp docs/style.css site/ 2>/dev/null || true
+          ls -laR site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

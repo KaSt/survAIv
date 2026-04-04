@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>survaiv — Autonomous AI Agent on ESP32</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA3klEQVQ4y62TzQ3CMBCE3yYFUAIlUAodmBK2BEqgBC6cEHfuwIkLJUAJlOCS8EfihEXyKnJiJ5GQRhrt7Ow3u7YB/EdKAJYA9gCOAB7OBwBXACcAWwAbAHv3BIA7+gTghn8wUXfpDcA5eP6Mmqh7QMNEPU3t2BDvGmh+pENVx4hbFMg+xp8DDxH3U6WqGcDc6d8CkKhrauQlKjdrQJK8TiF5z6gAyf+B9m6DmEfaBmxbkPxOFRb7BpLP9AAkOSLr5Wql77dyH8CT/hAAfMb+O0GSaP4M2ueVtH+S/oCbVVfrEpq9XgAAAAASUVORK5CYII=">
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+    --fg: #e6edf3; --fg2: #8b949e;
+    --accent: #58a6ff; --green: #3fb950; --orange: #d29922; --red: #f85149;
+    --border: #30363d; --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--fg); line-height: 1.6; min-height: 100vh; }
+
+  .hero { text-align: center; padding: 60px 20px 40px; }
+  .hero h1 { font-size: 3em; margin-bottom: 8px; }
+  .hero h1 span { color: var(--accent); }
+  .hero .tagline { color: var(--fg2); font-size: 1.2em; max-width: 600px; margin: 0 auto; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 20px 60px; }
+
+  .what-is { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px; margin-bottom: 40px; }
+  .what-is h2 { color: var(--accent); margin-bottom: 12px; font-size: 1.3em; }
+  .what-is p { color: var(--fg2); margin-bottom: 10px; }
+  .what-is ul { list-style: none; padding: 0; }
+  .what-is li { padding: 4px 0; color: var(--fg2); }
+  .what-is li::before { content: "▸ "; color: var(--green); }
+
+  .flash-section { margin-bottom: 40px; }
+  .flash-section h2 { font-size: 1.5em; margin-bottom: 20px; text-align: center; }
+
+  .flash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
+
+  .flash-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 24px; text-align: center; transition: border-color 0.2s; }
+  .flash-card:hover { border-color: var(--accent); }
+  .flash-card .chip { font-size: 2em; margin-bottom: 8px; }
+  .flash-card h3 { font-size: 1.1em; margin-bottom: 4px; }
+  .flash-card .desc { color: var(--fg2); font-size: 0.88em; margin-bottom: 16px; min-height: 40px; }
+  .flash-card .specs { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .flash-card .spec { background: var(--bg3); border-radius: 6px; padding: 3px 10px; font-size: 0.78em; color: var(--fg2); }
+
+  esp-web-install-button { display: block; }
+  esp-web-install-button button,
+  esp-web-install-button::part(button) {
+    background: var(--accent); color: #000; border: none; border-radius: 8px;
+    padding: 10px 28px; font-size: 1em; font-weight: 600; cursor: pointer;
+    transition: background 0.2s;
+  }
+  esp-web-install-button button:hover,
+  esp-web-install-button::part(button):hover { background: #79c0ff; }
+
+  .note { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; margin-top: 40px; color: var(--fg2); font-size: 0.9em; }
+  .note h3 { color: var(--fg); margin-bottom: 8px; }
+  .note code { background: var(--bg3); padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+  .note a { color: var(--accent); text-decoration: none; }
+  .note a:hover { text-decoration: underline; }
+
+  .cloud-section { margin-top: 40px; }
+  .cloud-section h2 { font-size: 1.5em; margin-bottom: 16px; text-align: center; }
+  .cloud-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .cloud-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; text-align: center; }
+  .cloud-card .os { font-size: 1.5em; margin-bottom: 4px; }
+  .cloud-card h4 { font-size: 0.95em; margin-bottom: 4px; }
+  .cloud-card .arch { color: var(--fg2); font-size: 0.82em; }
+  .cloud-card a { display: inline-block; margin-top: 10px; background: var(--bg3); border: 1px solid var(--border);
+    color: var(--accent); text-decoration: none; padding: 6px 16px; border-radius: 6px; font-size: 0.85em; }
+  .cloud-card a:hover { background: var(--accent); color: #000; }
+
+  .footer { text-align: center; padding: 40px 20px; color: var(--fg2); font-size: 0.85em; }
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2em; }
+    .flash-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>🧠 <span>survaiv</span></h1>
+  <p class="tagline">An autonomous AI agent running on a microcontroller, paying for its own LLM inference with x402 micropayments, betting on Polymarket to survive.</p>
+</div>
+
+<div class="container">
+
+  <div class="what-is">
+    <h2>What is this?</h2>
+    <p>
+      <strong>survaiv</strong> is a fully autonomous agent that lives on an ESP32 microcontroller (or in the cloud).
+      It's given $15–25 USDC and must survive by making smart prediction market bets.
+      Every LLM call costs real money via the <a href="https://www.x402.org" style="color:var(--accent)">x402 payment protocol</a> — so the agent must be frugal.
+    </p>
+    <ul>
+      <li>Runs on ESP32-C3 (400 KB RAM) or ESP32-S3 (8 MB PSRAM)</li>
+      <li>Pays for GPT/DeepSeek/Llama inference with x402 micropayments ($0.0001–$0.002/call)</li>
+      <li>Bets on Polymarket prediction markets via on-chain CLOB</li>
+      <li>Learns from outcomes — builds trading rules through a "wisdom" system</li>
+      <li>Exports knowledge between boards and cloud instances</li>
+      <li>Web dashboard for live monitoring: P&amp;L, positions, decision log</li>
+    </ul>
+  </div>
+
+  <div class="flash-section">
+    <h2>⚡ Flash Firmware</h2>
+    <p style="text-align:center;color:var(--fg2);margin-bottom:20px;font-size:0.9em">
+      Connect your board via USB and click Install. Works in Chrome/Edge (Web Serial API).
+    </p>
+
+    <div class="flash-grid">
+      <div class="flash-card">
+        <div class="chip">📡</div>
+        <h3>ESP32-C3 (OTA)</h3>
+        <div class="desc">Standard build with over-the-air updates. Recommended for most users.</div>
+        <div class="specs">
+          <span class="spec">4 MB flash</span>
+          <span class="spec">OTA ✓</span>
+          <span class="spec">6 markets</span>
+        </div>
+        <esp-web-install-button manifest="firmware/survaiv-esp32c3-ota/manifest.json">
+          <button slot="activate">Install C3 (OTA)</button>
+          <span slot="unsupported">Use Chrome or Edge</span>
+          <span slot="not-allowed">HTTPS required</span>
+        </esp-web-install-button>
+      </div>
+
+      <div class="flash-card">
+        <div class="chip">💾</div>
+        <h3>ESP32-C3 (Full Flash)</h3>
+        <div class="desc">No OTA — uses entire 4 MB flash. More resources, larger prompt budgets.</div>
+        <div class="specs">
+          <span class="spec">4 MB flash</span>
+          <span class="spec">No OTA</span>
+          <span class="spec">12 markets</span>
+        </div>
+        <esp-web-install-button manifest="firmware/survaiv-esp32c3-no-ota/manifest.json">
+          <button slot="activate">Install C3 (Full)</button>
+          <span slot="unsupported">Use Chrome or Edge</span>
+          <span slot="not-allowed">HTTPS required</span>
+        </esp-web-install-button>
+      </div>
+
+      <div class="flash-card">
+        <div class="chip">🚀</div>
+        <h3>ESP32-S3</h3>
+        <div class="desc">Maximum performance: 8 MB PSRAM, dual-core, 16 MB flash. Full model support.</div>
+        <div class="specs">
+          <span class="spec">16 MB flash</span>
+          <span class="spec">8 MB PSRAM</span>
+          <span class="spec">OTA ✓</span>
+          <span class="spec">50 markets</span>
+        </div>
+        <esp-web-install-button manifest="firmware/survaiv-esp32s3/manifest.json">
+          <button slot="activate">Install S3</button>
+          <span slot="unsupported">Use Chrome or Edge</span>
+          <span slot="not-allowed">HTTPS required</span>
+        </esp-web-install-button>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <h3>After flashing</h3>
+    <p>
+      The board creates a Wi-Fi access point named <code>survaiv-XXXX</code>. Connect to it
+      and open <code>http://192.168.4.1</code> to configure your Wi-Fi, LLM endpoint, and agent settings.
+      Once configured, the agent starts autonomously. Monitor it via the web dashboard on your network.
+    </p>
+  </div>
+
+  <div class="cloud-section">
+    <h2>☁️ Cloud Builds</h2>
+    <p style="text-align:center;color:var(--fg2);margin-bottom:16px;font-size:0.9em">
+      Pre-built binaries from the latest CI run. Download from
+      <a href="https://github.com/anthropos-labs/survaiv/actions" style="color:var(--accent)">GitHub Actions</a>.
+    </p>
+    <div class="cloud-grid">
+      <div class="cloud-card">
+        <div class="os">🐧</div>
+        <h4>Linux</h4>
+        <div class="arch">amd64 · arm64</div>
+      </div>
+      <div class="cloud-card">
+        <div class="os">🍎</div>
+        <h4>macOS</h4>
+        <div class="arch">Intel · Apple Silicon</div>
+      </div>
+      <div class="cloud-card">
+        <div class="os">🪟</div>
+        <h4>Windows</h4>
+        <div class="arch">amd64</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top: 40px;">
+    <h3>Build from source</h3>
+    <p>
+      <strong>ESP32:</strong> Install <a href="https://docs.espressif.com/projects/esp-idf/en/v5.5.2/esp32c3/get-started/">ESP-IDF v5.5.2</a>,
+      then <code>idf.py build</code>. For S3: <code>cd s3 && idf.py build</code>.<br>
+      <strong>Cloud:</strong> <code>cd cloud && ./build.sh</code> (Go 1.25+) or use the <code>Dockerfile</code>.
+    </p>
+  </div>
+</div>
+
+<div class="footer">
+  <p>
+    <a href="https://github.com/anthropos-labs/survaiv">GitHub</a> ·
+    <a href="https://www.x402.org">x402 Protocol</a> ·
+    MIT License
+  </p>
+</div>
+
+</body>
+</html>
