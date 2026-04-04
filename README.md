@@ -62,7 +62,8 @@ Every cycle the agent:
 - **API authentication** — PIN-based claim system with session tokens. All API endpoints (including GET and SSE) are auth-guarded once claimed. First user to enter the PIN displayed on serial console owns the agent.
 
 ### Dashboard
-- **Real-time web UI** — equity chart, P&L chart (profit/loss over cycles), positions table, market scanner, decision log.
+- **Real-time web UI** — equity chart, P&L chart (profit/loss over cycles), positions table, market scanner, decision log, system stats.
+- **System stats** — per-core CPU usage with color-coded bar graphs, RAM usage bar, minimum free heap. CPU measured via FreeRTOS idle hooks (ESP32) or `getrusage` (cloud).
 - **SSE streaming** — live updates without polling.
 - **Dark / light theme** — toggle with persistence.
 - **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter, agent efficiency score with platform comparison.
@@ -71,6 +72,7 @@ Every cycle the agent:
 - **Platform badge** — shows firmware version with OTA/NO-OTA indicator on ESP32 builds.
 
 ### ESP32 Specific
+- **Startup banner** — logs firmware version, build date, IDF version, chip model, core count, OTA status, and free heap to serial on boot.
 - **On-device wallet** — secp256k1 key generation with hardware RNG, stored in NVS flash.
 - **Captive portal onboarding** — wizard guides through WiFi, trading mode, provider, wallet setup.
 - **OTA firmware updates** — dual-partition layout, upload via dashboard.
@@ -78,7 +80,9 @@ Every cycle the agent:
 
 ### Cloud Specific
 - **Bubbletea TUI** — full terminal UI with budget cards, positions, market scanner, decision log, wisdom stats. Dark/light themes.
+- **Config file support** — TOML-style `survaiv.toml` with auto-detection (`./survaiv.toml` → `~/.config/survaiv/config.toml`), explicit `--config` flag, or env vars. See `survaiv.toml.example`.
 - **Dynamic runtime config** — auto-adapts prompt budget, completion limits, and market limit based on detected model context window and host hardware.
+- **Bind address control** — `--listen 127.0.0.1` for local-only, `--port 9090` for custom port. Also settable via config file or env vars.
 - **Parallel execution** — on ≥4 CPU cores, independent tasks (geoblock + market fetch, tool calls + wisdom checks) run concurrently.
 - **Docker & Compose** — `Dockerfile` + `docker-compose.yml` with optional PostgreSQL profile.
 - **SQLite or PostgreSQL** — SQLite by default (zero config), PostgreSQL via `SURVAIV_DATABASE_URL`. Auto-detected from DSN.
@@ -126,6 +130,9 @@ Same firmware, higher limits: 50 markets (vs 6), 512 KB HTTP bodies, full provid
 cd cloud
 cp .env.example .env
 # Edit .env — at minimum set SURVAIV_OAI_URL and SURVAIV_OAI_MODEL
+# Or use a config file:
+cp survaiv.toml.example survaiv.toml
+# Edit survaiv.toml
 
 # macOS / Linux:
 ./build.sh build       # compile
@@ -141,9 +148,12 @@ make run
 
 # Or manually:
 go build -o survaiv .
-./survaiv              # TUI + dashboard
-./survaiv --headless   # dashboard only (for servers)
-./survaiv --version    # print version
+./survaiv                              # TUI + dashboard on 0.0.0.0:8080
+./survaiv --headless                   # dashboard only (for servers)
+./survaiv --listen 127.0.0.1           # local-only access
+./survaiv --port 9090                  # custom port
+./survaiv --config /path/to/config.toml
+./survaiv --version                    # print version
 ```
 
 Dashboard at `http://localhost:8080`. See [cloud/README.md](cloud/README.md) for full env var reference and build options.
@@ -390,7 +400,7 @@ Protected endpoints include all state, positions, history, equity, scouted marke
 
 ```
 main/
-├── main.cpp              — Boot → NVS → WiFi → SNTP → wallet → x402 → agent loop
+├── main.cpp              — Boot → banner → NVS → WiFi → SNTP → wallet → x402 → agent loop
 ├── agent.cpp/.h          — LLM prompts, decision parsing, trade execution, retry logic
 ├── model_registry.cpp/.h — 20+ model catalog, dynamic selection, price lookup
 ├── wisdom.cpp/.h         — Decision tracking, outcome verification, rule generation
@@ -421,13 +431,13 @@ s3/                       — ESP32-S3 build variant (shares main/ source)
 
 ```
 cloud/
-├── main.go               — Entry point, signal handling, agent loop
+├── main.go               — Entry point, flags (--config, --listen, --port), signal handling
 ├── internal/agent/       — LLM prompts, parsing, cycle orchestration, parallel fetch
 ├── internal/dashboard/   — Thread-safe state, HTTP handlers, embedded HTML
 ├── internal/dynconfig/   — Dynamic runtime config, efficiency scoring
 ├── internal/wisdom/      — Outcome tracking, rule generation, import/export
 ├── internal/tui/         — Bubbletea terminal UI (8 files)
-├── internal/config/      — Env vars + DB-backed config
+├── internal/config/      — Config file (TOML) + env vars + DB-backed overrides
 ├── internal/db/          — SQLite + PostgreSQL (auto-detected), migrations, compat layer
 ├── internal/httpclient/  — HTTP client with LLM retry (120s timeout, 3 retries)
 ├── internal/ledger/      — Budget & position accounting
