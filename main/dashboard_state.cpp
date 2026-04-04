@@ -205,7 +205,7 @@ std::string DashboardState::ToJson() const {
   // System stats.
   esp_chip_info_t chip;
   esp_chip_info(&chip);
-  o << ",\"sys\":{\"cores\":" << chip.cores
+  o << ",\"sys\":{\"cores\":" << static_cast<int>(chip.cores)
     << ",\"free_heap\":" << esp_get_free_heap_size()
     << ",\"min_free_heap\":" << esp_get_minimum_free_heap_size()
     << ",\"total_heap\":" << heap_caps_get_total_size(MALLOC_CAP_DEFAULT)
