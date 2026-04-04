@@ -185,6 +185,8 @@ The agent uses the [x402 protocol](https://x402.org) to pay for LLM inference �
 | [x402engine.app](https://x402engine.app) | `https://x402-gateway-production.up.railway.app` | $0.002–$0.09/req | More models (GPT-5.x, Claude, Gemini). |
 | [claw402.org](https://claw402.org) | `https://claw402.org/v1` | varies | Additional provider option. |
 
+> **Note:** Prices shown are approximate at the time of writing. Refer to each provider's official page for current pricing.
+
 **Payment flow:**
 1. Agent sends inference request → provider returns HTTP 402 with payment details
 2. Firmware signs an EIP-3009 `transferWithAuthorization` for the exact USDC amount
@@ -461,7 +463,7 @@ cloud/
 
 ## Budget Assessment
 
-Using tx402.ai with DeepSeek V3.2 ($0.0005/request):
+Using tx402.ai with DeepSeek V3.2 ($0.0005/request, as of April 2025 — check [tx402.ai](https://tx402.ai) for current prices):
 
 | Bankroll | LLM Rounds | Days at 96 cycles/day |
 |----------|------------|----------------------|
