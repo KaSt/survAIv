@@ -54,7 +54,7 @@ func FetchMarkets(ctx context.Context, client *httpclient.Client, limit, offset 
 	var markets []types.MarketSnapshot
 	for _, r := range raw {
 		desc := r.Description
-		const maxDescLen = 500
+		const maxDescLen = 2000
 		if len(desc) > maxDescLen {
 			desc = desc[:maxDescLen]
 		}

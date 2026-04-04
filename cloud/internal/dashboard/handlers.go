@@ -1,10 +1,15 @@
 package dashboard
 
 import (
+	crand "crypto/rand"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
+	"sync"
 
 	"survaiv/internal/config"
 	"survaiv/internal/wisdom"
@@ -12,9 +17,64 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
+// ── Auth state ──────────────────────────────────────────────────
+
+var (
+	authMu      sync.RWMutex
+	pendingPin  string
+	activeToken string
+)
+
+func cryptoRandIntn(max int) int {
+	var buf [8]byte
+	crand.Read(buf[:])
+	return int(binary.LittleEndian.Uint64(buf[:]) % uint64(max))
+}
+
+func generateToken() string {
+	b := make([]byte, 32)
+	crand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func extractToken(r *http.Request) string {
+	auth := r.Header.Get("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return auth[7:]
+	}
+	return ""
+}
+
+// authMiddleware protects POST endpoints (except /api/auth) with token validation.
+// GET/SSE endpoints are left open (read-only). If no owner has claimed the agent yet,
+// POST endpoints are also open.
+func authMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" && r.URL.Path != "/api/auth" {
+				if cfg.OwnerPin() != "" {
+					token := extractToken(r)
+					authMu.RLock()
+					valid := activeToken != "" && token == activeToken
+					authMu.RUnlock()
+					if !valid {
+						w.Header().Set("Content-Type", "application/json")
+						w.WriteHeader(http.StatusUnauthorized)
+						w.Write([]byte(`{"error":"unauthorized"}`))
+						return
+					}
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // NewRouter creates the HTTP router for the dashboard.
 func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r := chi.NewRouter()
+
+	r.Use(authMiddleware(cfg))
 
 	r.Get("/", serveIndex)
 	r.Get("/api/state", handleState(state))
@@ -24,6 +84,9 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Get("/api/scouted", handleScouted(state))
 	r.Get("/api/wisdom", handleWisdom)
 	r.Get("/api/events", handleSSE(state))
+	r.Get("/api/auth", handleAuthGet(cfg))
+	r.Post("/api/auth", handleAuthPost(cfg))
+	r.Post("/api/config", handleConfig(cfg, state))
 	r.Post("/api/llm-config", handleLLMConfig(cfg, state))
 	r.Get("/api/backup", handleBackup(cfg))
 	r.Post("/api/restore", handleRestore(cfg))
@@ -162,6 +225,139 @@ func handleRestore(cfg *config.Config) http.HandlerFunc {
 		for k, v := range data {
 			cfg.Set(k, v)
 		}
+		w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+// ── Auth handlers ───────────────────────────────────────────────
+
+func handleAuthGet(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		pin := cfg.OwnerPin()
+		if pin == "" {
+			// Not yet claimed — generate a pending PIN.
+			authMu.Lock()
+			if pendingPin == "" {
+				pendingPin = config.GeneratePin()
+			}
+			displayPin := pendingPin
+			authMu.Unlock()
+
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"claimed":     false,
+				"display_pin": displayPin,
+			})
+			return
+		}
+
+		// Claimed — check if caller has valid token.
+		token := extractToken(r)
+		authMu.RLock()
+		valid := activeToken != "" && token == activeToken
+		authMu.RUnlock()
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"claimed":   true,
+			"needs_pin": !valid,
+		})
+	}
+}
+
+func handleAuthPost(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		var req struct {
+			Action string `json:"action"`
+			Pin    string `json:"pin"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		switch req.Action {
+		case "claim":
+			authMu.Lock()
+			if pendingPin == "" || req.Pin != pendingPin {
+				authMu.Unlock()
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"ok":    false,
+					"error": "Wrong PIN",
+				})
+				return
+			}
+			cfg.Set("owner_pin", req.Pin)
+			pendingPin = ""
+			token := generateToken()
+			activeToken = token
+			authMu.Unlock()
+
+			slog.Info("agent claimed by owner")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":    true,
+				"token": token,
+			})
+
+		case "login":
+			stored := cfg.OwnerPin()
+			if stored == "" || req.Pin != stored {
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"ok":    false,
+					"error": "Wrong PIN",
+				})
+				return
+			}
+			token := generateToken()
+			authMu.Lock()
+			activeToken = token
+			authMu.Unlock()
+
+			slog.Info("owner authenticated")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":    true,
+				"token": token,
+			})
+
+		default:
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"ok":    false,
+				"error": "unknown action",
+			})
+		}
+	}
+}
+
+// ── Config handler ──────────────────────────────────────────────
+
+func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			PaperOnly *int    `json:"paper_only"`
+			AgentName *string `json:"agent_name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		if req.PaperOnly != nil {
+			paper := *req.PaperOnly == 1
+			if paper {
+				cfg.Set("paper_only", "true")
+			} else {
+				cfg.Set("paper_only", "false")
+			}
+			state.SetPaperOnly(paper)
+			slog.Info("trading mode changed", "paper_only", paper)
+		}
+		if req.AgentName != nil && *req.AgentName != "" {
+			cfg.Set("agent_name", *req.AgentName)
+			state.SetAgentName(*req.AgentName)
+			slog.Info("agent name changed", "name", *req.AgentName)
+		}
+		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
 	}
 }

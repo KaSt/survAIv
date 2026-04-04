@@ -126,10 +126,28 @@ canvas { width: 100% !important; height: 100% !important; }
 </style>
 </head>
 <body>
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;align-items:center;justify-content:center">
+  <div style="max-width:380px;padding:24px;text-align:center">
+    <h1 style="font-size:24px;margin-bottom:8px">⟁ SURVAIV</h1>
+    <div id="auth-claim" style="display:none">
+      <p style="font-size:13px;color:var(--fg2);margin-bottom:16px">This is your agent&#39;s secret PIN. Write it down!</p>
+      <div id="auth-pin-display" style="font-size:28px;font-weight:700;letter-spacing:2px;padding:16px;background:var(--bg2);border:2px solid var(--green);border-radius:8px;margin-bottom:16px;font-family:monospace"></div>
+      <input id="auth-confirm-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--fg)" placeholder="Type the PIN above">
+      <button onclick="confirmClaim()" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      <div id="auth-claim-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    </div>
+    <div id="auth-login" style="display:none">
+      <p style="font-size:13px;color:var(--fg2);margin-bottom:16px">Enter your PIN to access the dashboard.</p>
+      <input id="auth-login-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--fg)" placeholder="Enter PIN">
+      <button onclick="loginWithPin()" style="width:100%;margin-top:12px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      <div id="auth-login-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    </div>
+  </div>
+</div>
 <div class="container">
   <header>
     <div style="display:flex;align-items:center;gap:12px">
-      <span class="logo">⟁ SURVAIV</span>
+      <span class="logo" id="agent-title">⟁ SURVAIV</span>
       <span id="statusBadge" class="status-badge status-ok">running</span>
     </div>
     <div class="header-meta">
@@ -188,6 +206,15 @@ canvas { width: 100% !important; height: 100% !important; }
     <input id="settingsModel" placeholder="model-name">
     <label>API Key</label>
     <input id="settingsKey" type="password" placeholder="sk-...">
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Trading Mode</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="mode-paper-btn" onclick="setTradingMode(true)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x1F4DD; Paper</button>
+        <button id="mode-real-btn" onclick="setTradingMode(false)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x27C1; Real</button>
+        <span id="mode-msg" style="font-size:11px;color:var(--fg2)"></span>
+      </div>
+      <div style="font-size:10px;color:var(--fg2);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -196,11 +223,18 @@ canvas { width: 100% !important; height: 100% !important; }
 </div>
 
 <script>
-const $ = s => document.querySelector(s);
-const $$ = s => document.querySelectorAll(s);
-let equityData = [];
-let darkMode = localStorage.getItem('theme') !== 'light';
+var $ = function(s) { return document.querySelector(s); };
+var $$ = function(s) { return document.querySelectorAll(s); };
+var equityData = [];
+var darkMode = localStorage.getItem('theme') !== 'light';
 if (!darkMode) document.body.classList.add('light');
+var authToken = sessionStorage.getItem('survaiv_token') || '';
+
+function authHeaders() {
+  var h = {'Content-Type': 'application/json'};
+  if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+  return h;
+}
 
 function toggleTheme() {
   darkMode = !darkMode;
@@ -212,41 +246,65 @@ function toggleTheme() {
 function openSettings() { $('#settingsModal').classList.add('active'); }
 function closeSettings() { $('#settingsModal').classList.remove('active'); }
 function saveSettings() {
-  const body = {};
-  const u = $('#settingsUrl').value.trim();
-  const m = $('#settingsModel').value.trim();
-  const k = $('#settingsKey').value.trim();
+  var body = {};
+  var u = $('#settingsUrl').value.trim();
+  var m = $('#settingsModel').value.trim();
+  var k = $('#settingsKey').value.trim();
   if (u) body.url = u;
   if (m) body.model = m;
   if (k) body.key = k;
-  fetch('/api/llm-config', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) })
-    .then(r => r.json()).then(() => closeSettings()).catch(console.error);
+  fetch('/api/llm-config', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+    .then(function(r) { return r.json(); }).then(function() { closeSettings(); }).catch(console.error);
+}
+
+function setTradingMode(paper) {
+  fetch('/api/config', {method:'POST', body:JSON.stringify({paper_only: paper ? 1 : 0}),
+    headers: authHeaders()})
+    .then(function(r) { return r.json(); }).then(function(d) {
+      var msg = document.getElementById('mode-msg');
+      msg.textContent = paper ? '\u2713 Paper mode' : '\u2713 Real mode';
+      msg.style.color = 'var(--green)';
+      setTimeout(function() { msg.textContent = ''; }, 3000);
+      loadAll();
+    });
 }
 
 function fmtUsd(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2); }
 function fmtUsd4(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(4); }
 function fmtDuration(sec) {
-  const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
   return h + 'h ' + m + 'm';
 }
 
 function updateState(d) {
-  const b = d.budget || {};
+  var b = d.budget || {};
   $('#cardCash').textContent = fmtUsd(b.cash || 0);
   $('#cardEquity').textContent = fmtUsd(b.equity || 0);
-  const pnl = b.realized_pnl || 0;
-  const pe = $('#cardPnl');
+  var pnl = b.realized_pnl || 0;
+  var pe = $('#cardPnl');
   pe.textContent = (pnl >= 0 ? '+' : '') + fmtUsd4(pnl);
   pe.className = 'card-value ' + (pnl > 0 ? 'v-green' : pnl < 0 ? 'v-red' : '');
   $('#cardLlm').textContent = fmtUsd4(b.llm_spend || 0);
   $('#cardLoss').textContent = fmtUsd4(b.daily_loss || 0);
-  const st = d.status || 'unknown';
-  const sb = $('#statusBadge');
+  var st = d.status || 'unknown';
+  var sb = $('#statusBadge');
   sb.textContent = st;
   sb.className = 'status-badge ' + (st === 'error' || st === 'llm_error' ? 'status-err' : 'status-ok');
-  $('#modelName').textContent = d.active_model || '—';
+  $('#modelName').textContent = d.active_model || '\u2014';
   $('#uptime').textContent = fmtDuration(d.uptime_seconds || 0);
   $('#cycles').textContent = d.cycle_count || 0;
+  if (d.agent_name) document.getElementById('agent-title').textContent = '\u27C1 ' + d.agent_name;
+  var pb = document.getElementById('mode-paper-btn');
+  var rb = document.getElementById('mode-real-btn');
+  if (pb && rb) {
+    if (d.paper_only) {
+      pb.style.background = 'var(--green)'; pb.style.color = '#000';
+      rb.style.background = 'var(--bg3)'; rb.style.color = 'var(--fg)';
+    } else {
+      pb.style.background = 'var(--bg3)'; pb.style.color = 'var(--fg)';
+      rb.style.background = 'var(--accent)'; rb.style.color = '#fff';
+    }
+  }
 }
 
 function renderPositions(arr) {
@@ -380,42 +438,109 @@ function drawChart() {
 }
 
 // SSE
-let evtSource;
+var evtSource;
 function connectSSE() {
   evtSource = new EventSource('/api/events');
-  evtSource.addEventListener('state', e => {
+  evtSource.addEventListener('state', function(e) {
     try { updateState(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
   });
-  evtSource.addEventListener('scouted', e => {
+  evtSource.addEventListener('scouted', function(e) {
     try { renderScouted(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
   });
-  evtSource.onerror = () => { evtSource.close(); setTimeout(connectSSE, 3000); };
+  evtSource.onerror = function() { evtSource.close(); setTimeout(connectSSE, 3000); };
 }
 
 async function loadAll() {
   try {
-    const [state, pos, dec, eq, scouted, wis] = await Promise.all([
-      fetch('/api/state').then(r => r.json()),
-      fetch('/api/positions').then(r => r.json()),
-      fetch('/api/decisions').then(r => r.json()),
-      fetch('/api/equity-history').then(r => r.json()),
-      fetch('/api/scouted').then(r => r.json()),
-      fetch('/api/wisdom').then(r => r.json()),
+    var results = await Promise.all([
+      fetch('/api/state').then(function(r) { return r.json(); }),
+      fetch('/api/positions').then(function(r) { return r.json(); }),
+      fetch('/api/decisions').then(function(r) { return r.json(); }),
+      fetch('/api/equity-history').then(function(r) { return r.json(); }),
+      fetch('/api/scouted').then(function(r) { return r.json(); }),
+      fetch('/api/wisdom').then(function(r) { return r.json(); }),
     ]);
-    updateState(state);
-    renderPositions(pos);
-    renderDecisions(dec);
-    equityData = eq || [];
+    updateState(results[0]);
+    renderPositions(results[1]);
+    renderDecisions(results[2]);
+    equityData = results[3] || [];
     drawChart();
-    renderScouted(scouted);
-    renderWisdom(wis);
+    renderScouted(results[4]);
+    renderWisdom(results[5]);
   } catch(e) { console.error('Load error:', e); }
 }
 
+function startDashboard() {
+  loadAll();
+  connectSSE();
+  setInterval(loadAll, 10000);
+}
+
+// ── Auth ──
+async function checkAuth() {
+  try {
+    var headers = {};
+    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+    var r = await fetch('/api/auth', {headers: headers});
+    var d = await r.json();
+    if (!d.claimed) {
+      document.getElementById('auth-pin-display').textContent = d.display_pin;
+      document.getElementById('auth-claim').style.display = 'block';
+      document.getElementById('auth-login').style.display = 'none';
+      document.getElementById('auth-overlay').style.display = 'flex';
+    } else if (d.needs_pin) {
+      document.getElementById('auth-claim').style.display = 'none';
+      document.getElementById('auth-login').style.display = 'block';
+      document.getElementById('auth-overlay').style.display = 'flex';
+    } else {
+      document.getElementById('auth-overlay').style.display = 'none';
+      startDashboard();
+    }
+  } catch(e) { console.error('Auth check failed:', e); startDashboard(); }
+}
+
+function confirmClaim() {
+  var pin = document.getElementById('auth-confirm-input').value.trim();
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'claim', pin: pin})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      authToken = d.token;
+      sessionStorage.setItem('survaiv_token', authToken);
+      document.getElementById('auth-overlay').style.display = 'none';
+      startDashboard();
+    } else {
+      document.getElementById('auth-claim-err').textContent = d.error || 'Wrong PIN';
+    }
+  });
+}
+
+function loginWithPin() {
+  var pin = document.getElementById('auth-login-input').value.trim();
+  fetch('/api/auth', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({action: 'login', pin: pin})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) {
+      authToken = d.token;
+      sessionStorage.setItem('survaiv_token', authToken);
+      document.getElementById('auth-overlay').style.display = 'none';
+      startDashboard();
+    } else {
+      document.getElementById('auth-login-err').textContent = d.error || 'Wrong PIN';
+    }
+  });
+}
+
 window.addEventListener('resize', drawChart);
-loadAll();
-connectSSE();
-setInterval(loadAll, 10000);
+checkAuth();
 </script>
 </body>
 </html>`)

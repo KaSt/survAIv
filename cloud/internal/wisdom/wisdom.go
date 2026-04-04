@@ -18,7 +18,7 @@ const (
 	maxChecksPerCall  = 3
 	checkCooldownSec  = 3600
 	maxQuestionLen    = 60
-	maxWisdomBytes    = 800
+	maxWisdomBytes    = 8000
 	gammaMarketURL    = "https://gamma-api.polymarket.com/markets/"
 )
 

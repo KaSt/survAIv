@@ -40,6 +40,8 @@ type State struct {
 	modelPrice    float64
 	lastError     string
 	nextRetrySec  int
+	paperOnly     bool
+	agentName     string
 
 	sseClients []chan string
 }
@@ -174,6 +176,20 @@ func (s *State) SetNextRetrySec(sec int) {
 	s.nextRetrySec = sec
 }
 
+// SetPaperOnly sets the paper trading flag.
+func (s *State) SetPaperOnly(v bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.paperOnly = v
+}
+
+// SetAgentName sets the agent display name.
+func (s *State) SetAgentName(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.agentName = name
+}
+
 // SetInferenceSpend sets the inference spend amount.
 func (s *State) SetInferenceSpend(usdc float64) {
 	s.mu.Lock()
@@ -218,6 +234,8 @@ func (s *State) ToJSON() []byte {
 		"active_model":         s.activeModel,
 		"model_price":          s.modelPrice,
 		"open_positions":       len(s.positions),
+		"paper_only":           s.paperOnly,
+		"agent_name":           s.agentName,
 	}
 	if s.lastError != "" {
 		data["last_error"] = s.lastError
@@ -318,6 +336,7 @@ func (s *State) Snapshot() StateSnapshot {
 		Model:     s.activeModel,
 		Uptime:    time.Now().Unix() - s.bootEpoch,
 		Cycles:    s.cycleCount,
+		AgentName: s.agentName,
 	}
 }
 
@@ -362,6 +381,7 @@ type StateSnapshot struct {
 	Model     string
 	Uptime    int64
 	Cycles    int
+	AgentName string
 }
 
 // Snapshot is the legacy TUI snapshot type (backward compat).

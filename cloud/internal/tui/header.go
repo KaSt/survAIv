@@ -9,10 +9,15 @@ import (
 )
 
 func renderHeader(snap dashboard.StateSnapshot, width int) string {
+	title := "⟁ SURVAIV"
+	if snap.AgentName != "" {
+		title = "⟁ " + snap.AgentName
+	}
+
 	logo := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(currentTheme.accent).
-		Render("⟁ SURVAIV")
+		Render(title)
 
 	status := lipgloss.NewStyle().
 		Foreground(currentTheme.green).

@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	estPromptTokens     = 2000
+	estPromptTokens     = 16000
 	estCompletionTokens = 500
 )
 

@@ -1,7 +1,10 @@
 package config
 
 import (
+	crand "crypto/rand"
 	"database/sql"
+	"encoding/binary"
+	"fmt"
 	"log/slog"
 	"os"
 	"strconv"
@@ -75,6 +78,9 @@ func Load(db *sql.DB) *Config {
 		"headless", c.Headless,
 	)
 
+	// Auto-generate agent name on first run.
+	c.EnsureAgentName()
+
 	return c
 }
 
@@ -102,6 +108,13 @@ func (c *Config) Get(key string) string {
 		}
 		return "false"
 	default:
+		// General DB lookup for keys not cached in struct (owner_pin, agent_name, etc.).
+		if c.db != nil {
+			var val string
+			if err := c.db.QueryRow("SELECT value FROM config WHERE key = ?", key).Scan(&val); err == nil {
+				return val
+			}
+		}
 		return ""
 	}
 }
@@ -201,4 +214,55 @@ func envBool(key string, fallback bool) bool {
 		return fallback
 	}
 	return strings.EqualFold(s, "true") || s == "1"
+}
+
+// ── Agent identity & PIN helpers ────────────────────────────────
+
+var (
+	adjectives = []string{"swift", "brave", "calm", "dark", "eager", "fair", "glad", "happy", "keen", "loud", "neat", "proud", "quiet", "rare", "safe", "tall", "vast", "warm", "wise", "young"}
+	animals    = []string{"bear", "crow", "deer", "eagle", "fox", "hawk", "lion", "lynx", "moth", "newt", "orca", "puma", "raven", "seal", "tiger", "viper", "whale", "wolf", "wren", "yak"}
+)
+
+func cryptoRandIntn(max int) int {
+	var buf [8]byte
+	crand.Read(buf[:])
+	return int(binary.LittleEndian.Uint64(buf[:]) % uint64(max))
+}
+
+// OwnerPin returns the stored owner PIN, or empty if unclaimed.
+func (c *Config) OwnerPin() string { return c.Get("owner_pin") }
+
+// AgentName returns the agent's display name from config or env var fallback.
+func (c *Config) AgentName() string {
+	name := c.Get("agent_name")
+	if name == "" {
+		return os.Getenv("SURVAIV_AGENT_NAME")
+	}
+	return name
+}
+
+// GeneratePin generates a memorable PIN like "swift-fox-7492" using crypto/rand.
+func GeneratePin() string {
+	adj := adjectives[cryptoRandIntn(len(adjectives))]
+	animal := animals[cryptoRandIntn(len(animals))]
+	num := cryptoRandIntn(9000) + 1000
+	return fmt.Sprintf("%s-%s-%d", adj, animal, num)
+}
+
+// generateAgentName generates a display name like "swift-fox" using crypto/rand.
+func generateAgentName() string {
+	adj := adjectives[cryptoRandIntn(len(adjectives))]
+	animal := animals[cryptoRandIntn(len(animals))]
+	return fmt.Sprintf("%s-%s", adj, animal)
+}
+
+// EnsureAgentName auto-generates and persists an agent name if none is set.
+func (c *Config) EnsureAgentName() string {
+	name := c.AgentName()
+	if name == "" {
+		name = generateAgentName()
+		c.Set("agent_name", name)
+		slog.Info("agent name generated", "name", name)
+	}
+	return name
 }

@@ -8,21 +8,36 @@ import (
 )
 
 // knowledgeExport is the JSON format for knowledge export/import.
+// Matches the ESP32 survaiv-knowledge-v1 format exactly for cross-platform compatibility.
 type knowledgeExport struct {
 	Format     string              `json:"format"`
 	ExportedAt int64               `json:"exported_at"`
 	WisdomText string              `json:"wisdom_text"`
 	Stats      knowledgeStats      `json:"stats"`
+	Models     []modelExport       `json:"models"`
 	Decisions  []knowledgeDecision `json:"decisions"`
 }
 
 type knowledgeStats struct {
-	Total        int `json:"total"`
-	Correct      int `json:"correct"`
-	HoldsTotal   int `json:"holds_total"`
-	HoldsCorrect int `json:"holds_correct"`
-	BuysTotal    int `json:"buys_total"`
-	BuysCorrect  int `json:"buys_correct"`
+	Total        int              `json:"total"`
+	Correct      int              `json:"correct"`
+	HoldsTotal   int              `json:"holds_total"`
+	HoldsCorrect int              `json:"holds_correct"`
+	BuysTotal    int              `json:"buys_total"`
+	BuysCorrect  int              `json:"buys_correct"`
+	Categories   []categoryExport `json:"categories"`
+}
+
+type categoryExport struct {
+	Name    string `json:"n"`
+	Total   int    `json:"t"`
+	Correct int    `json:"c"`
+}
+
+type modelExport struct {
+	Name      string `json:"name"`
+	FirstSeen int64  `json:"first_seen"`
+	Decisions int    `json:"decisions"`
 }
 
 type knowledgeDecision struct {
@@ -59,7 +74,9 @@ func (t *Tracker) ExportKnowledge() ([]byte, error) {
 			HoldsCorrect: t.stats.HoldsCorrect,
 			BuysTotal:    t.stats.BuysTotal,
 			BuysCorrect:  t.stats.BuysCorrect,
+			Categories:   []categoryExport{},
 		},
+		Models: []modelExport{},
 	}
 
 	for i := 0; i < t.count; i++ {
