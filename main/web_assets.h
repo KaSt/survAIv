@@ -115,15 +115,21 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
     <div id="auth-claim" style="display:none">
       <p style="font-size:13px;color:var(--dim);margin-bottom:16px">This is your agent's secret PIN. Write it down — you'll need it to access this dashboard.</p>
       <div id="auth-pin-display" style="font-size:28px;font-weight:700;letter-spacing:2px;padding:16px;background:var(--card);border:2px solid var(--green);border-radius:8px;margin-bottom:16px;font-family:monospace"></div>
-      <label style="font-size:12px;color:var(--dim)">Confirm PIN to claim ownership</label>
-      <input id="auth-confirm-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;margin-top:6px;background:var(--input-bg);color:var(--text)" placeholder="Type the PIN above">
-      <button onclick="confirmClaim()" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      <form id="claim-form" onsubmit="return confirmClaim()">
+        <label style="font-size:12px;color:var(--dim)">Confirm PIN to claim ownership</label>
+        <input type="hidden" name="username" autocomplete="username" value="survaiv-owner">
+        <input id="auth-confirm-input" type="password" name="password" autocomplete="new-password" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;margin-top:6px;background:var(--input-bg);color:var(--text)" placeholder="Type the PIN above">
+        <button type="submit" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      </form>
       <div id="auth-claim-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
     </div>
     <div id="auth-login" style="display:none">
       <p style="font-size:13px;color:var(--dim);margin-bottom:16px">Enter your PIN to access the dashboard.</p>
-      <input id="auth-login-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text)" placeholder="Enter PIN">
-      <button onclick="loginWithPin()" style="width:100%;margin-top:12px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      <form id="login-form" onsubmit="return loginWithPin()">
+        <input type="hidden" name="username" autocomplete="username" value="survaiv-owner">
+        <input id="auth-login-input" type="password" name="password" autocomplete="current-password" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text)" placeholder="Enter PIN">
+        <button type="submit" style="width:100%;margin-top:12px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      </form>
       <div id="auth-login-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
     </div>
   </div>
@@ -339,10 +345,10 @@ function checkAuth() {
 }
 
 function confirmClaim() {
-  const pin = $('auth-confirm-input').value.trim();
+  var pin = $('auth-confirm-input').value.trim();
   fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'claim',pin:pin}),
     headers:{'Content-Type':'application/json'}})
-    .then(r => r.json()).then(d => {
+    .then(function(r){return r.json()}).then(function(d){
       if (d.ok) {
         authToken = d.token;
         sessionStorage.setItem('survaiv-token', authToken);
@@ -350,13 +356,14 @@ function confirmClaim() {
         initDashboard();
       } else { $('auth-claim-err').textContent = d.error || 'PIN mismatch'; }
     });
+  return false;
 }
 
 function loginWithPin() {
-  const pin = $('auth-login-input').value.trim();
+  var pin = $('auth-login-input').value.trim();
   fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'login',pin:pin}),
     headers:{'Content-Type':'application/json'}})
-    .then(r => r.json()).then(d => {
+    .then(function(r){return r.json()}).then(function(d){
       if (d.ok) {
         authToken = d.token;
         sessionStorage.setItem('survaiv-token', authToken);
@@ -364,6 +371,7 @@ function loginWithPin() {
         initDashboard();
       } else { $('auth-login-err').textContent = d.error || 'Wrong PIN'; }
     });
+  return false;
 }
 
 function setTradingMode(paper) {
