@@ -74,10 +74,31 @@ static std::string GenerateSessionToken() {
 
 static bool ValidateAuthToken(httpd_req_t *req) {
   if (g_session_token.empty()) return true;  // No owner yet — allow all
+  // Check header first.
   char token[64] = {};
-  httpd_req_get_hdr_value_str(req, "X-Auth-Token", token, sizeof(token));
-  return g_session_token == token;
+  if (httpd_req_get_hdr_value_str(req, "X-Auth-Token", token, sizeof(token)) == ESP_OK &&
+      g_session_token == token) {
+    return true;
+  }
+  // Fallback: query param ?token= (for EventSource which can't set headers).
+  char query[80] = {};
+  if (httpd_req_get_url_query_str(req, query, sizeof(query)) == ESP_OK) {
+    char val[64] = {};
+    if (httpd_query_key_value(query, "token", val, sizeof(val)) == ESP_OK &&
+        g_session_token == val) {
+      return true;
+    }
+  }
+  return false;
 }
+
+#define REQUIRE_AUTH(req) \
+  do { \
+    if (!ValidateAuthToken(req)) { \
+      httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized"); \
+      return ESP_FAIL; \
+    } \
+  } while (0)
 
 // ─── Handlers: Dashboard ────────────────────────────────────────
 
@@ -87,42 +108,49 @@ static esp_err_t DashboardGetHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiStateHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = GetDashboardState().ToJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiPositionsHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = GetDashboardState().PositionsJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiHistoryHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = GetDashboardState().DecisionHistoryJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiEquityHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = GetDashboardState().EquityHistoryJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiScoutedHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = GetDashboardState().ScoutedMarketsJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiWisdomHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = wisdom::StatsJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
 static esp_err_t ApiKnowledgeExportHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   std::string json = wisdom::ExportKnowledge();
   httpd_resp_set_type(req, "application/json");
   httpd_resp_set_hdr(req, "Content-Disposition",
@@ -131,10 +159,7 @@ static esp_err_t ApiKnowledgeExportHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   if (req->content_len > 16384) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File too large (max 16KB)");
     return ESP_FAIL;
@@ -165,10 +190,7 @@ static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiWisdomFreezeHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   char buf[64] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
   if (received <= 0) {
@@ -187,10 +209,7 @@ static esp_err_t ApiWisdomFreezeHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiWisdomRulesHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   // Read body (custom rules text).
   int content_len = req->content_len;
   if (content_len <= 0 || content_len > 4096) {
@@ -227,6 +246,7 @@ static esp_err_t ApiWisdomRulesHandler(httpd_req_t *req) {
 
 // SSE endpoint — keeps connection open and sends events.
 static esp_err_t ApiEventsHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   httpd_resp_set_type(req, "text/event-stream");
   httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
   httpd_resp_set_hdr(req, "Connection", "keep-alive");
@@ -397,6 +417,7 @@ static esp_err_t ApiSaveHandler(httpd_req_t *req) {
 
 // Generate wallet on-device using hardware RNG.
 static esp_err_t ApiGenerateWalletHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   // Check if a wallet already exists.
   bool exists = wallet::HasStoredKey();
 
@@ -439,6 +460,7 @@ static esp_err_t ApiGenerateWalletHandler(httpd_req_t *req) {
 // ─── Handlers: Backup / Restore / OTA ───────────────────────────
 
 static esp_err_t ApiBackupHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
   // Check for ?full=1 query param to include sensitive keys.
   char query[32] = {};
   bool full = false;
@@ -486,10 +508,7 @@ static esp_err_t ApiBackupHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiRestoreHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   char buf[2048] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
   if (received <= 0) {
@@ -565,10 +584,7 @@ static esp_err_t ApiRestoreHandler(httpd_req_t *req) {
 
 #if CONFIG_SURVAIV_ENABLE_OTA
 static esp_err_t ApiOtaHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   ESP_LOGI(kTag, "OTA update started, size=%d", req->content_len);
 
   const esp_partition_t *update_partition = esp_ota_get_next_update_partition(nullptr);
@@ -650,10 +666,7 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
 // Body: {"oai_url":"…","oai_model":"…","api_key":"…"}
 // All fields optional — only provided fields are updated.
 static esp_err_t ApiLlmConfigHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
   if (!config::PaperTradingOnly()) {
     httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
                         "LLM config changes disabled in live mode");
@@ -778,10 +791,7 @@ static esp_err_t ApiAuthPostHandler(httpd_req_t *req) {
 // ─── POST /api/config ───────────────────────────────────────────
 // Partial config update (e.g. paper_only toggle) without reboot.
 static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
-  if (!ValidateAuthToken(req)) {
-    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
-    return ESP_FAIL;
-  }
+  REQUIRE_AUTH(req);
 
   char buf[512] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);

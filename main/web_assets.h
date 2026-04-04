@@ -859,22 +859,27 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 
+function authFetch(url) {
+  return fetch(url, {headers: authHeaders()});
+}
+
 function poll() {
-  fetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
-  fetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
-  fetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
-  fetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
-  fetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
-  fetch('/api/equity').then(r => r.json()).then(data => {
+  authFetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
+  authFetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
+  authFetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
+  authFetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
+  authFetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
+  authFetch('/api/equity').then(r => r.json()).then(data => {
     equityData = data;
     drawChart();
     drawPnlChart();
   }).catch(() => {});
 }
 
-// SSE for real-time updates.
+// SSE for real-time updates (EventSource can't set headers, pass token via query).
 function connectSSE() {
-  const es = new EventSource('/api/events');
+  const url = authToken ? '/api/events?token=' + encodeURIComponent(authToken) : '/api/events';
+  const es = new EventSource(url);
   es.onmessage = function(e) {
     try {
       const data = JSON.parse(e.data);

@@ -39,33 +39,47 @@ func generateToken() string {
 }
 
 func extractToken(r *http.Request) string {
+	// Check Authorization header first.
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		return auth[7:]
 	}
+	// Fallback: query param ?token= (for EventSource which can't set headers).
+	if t := r.URL.Query().Get("token"); t != "" {
+		return t
+	}
 	return ""
 }
 
-// authMiddleware protects POST endpoints (except /api/auth) with token validation.
-// GET/SSE endpoints are left open (read-only). If no owner has claimed the agent yet,
-// POST endpoints are also open.
+// authMiddleware protects all API endpoints (except /api/auth and /) with token validation.
+// If no owner has claimed the agent yet, all endpoints are open.
 func authMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Method == "POST" && r.URL.Path != "/api/auth" {
-				if cfg.OwnerPin() != "" {
-					token := extractToken(r)
-					authMu.RLock()
-					valid := activeToken != "" && token == activeToken
-					authMu.RUnlock()
-					if !valid {
-						w.Header().Set("Content-Type", "application/json")
-						w.WriteHeader(http.StatusUnauthorized)
-						w.Write([]byte(`{"error":"unauthorized"}`))
-						return
-					}
-				}
+			// Always allow dashboard page and auth endpoint.
+			if r.URL.Path == "/" || r.URL.Path == "/api/auth" {
+				next.ServeHTTP(w, r)
+				return
 			}
+
+			// If no owner claimed yet, allow all.
+			if cfg.OwnerPin() == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Validate token.
+			token := extractToken(r)
+			authMu.RLock()
+			valid := activeToken != "" && token == activeToken
+			authMu.RUnlock()
+			if !valid {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error":"unauthorized"}`))
+				return
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

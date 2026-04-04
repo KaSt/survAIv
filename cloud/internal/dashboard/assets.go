@@ -611,10 +611,15 @@ function setLlmPreset(name) {
   document.getElementById('settingsKey').value = p.key;
 }
 
-// SSE
+function authFetch(url) {
+  return fetch(url, {headers: authHeaders()});
+}
+
+// SSE (EventSource can't set headers, pass token via query).
 var evtSource;
 function connectSSE() {
-  evtSource = new EventSource('/api/events');
+  var url = authToken ? '/api/events?token=' + encodeURIComponent(authToken) : '/api/events';
+  evtSource = new EventSource(url);
   evtSource.addEventListener('state', function(e) {
     try { updateState(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
   });
@@ -630,7 +635,7 @@ function saveCustomRules() {
   var rules = editor.value;
   fetch('/api/wisdom/rules', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: authHeaders(),
     body: JSON.stringify({rules: rules})
   })
   .then(function(r) { return r.json(); })
@@ -643,12 +648,12 @@ function saveCustomRules() {
 async function loadAll() {
   try {
     var results = await Promise.all([
-      fetch('/api/state').then(function(r) { return r.json(); }),
-      fetch('/api/positions').then(function(r) { return r.json(); }),
-      fetch('/api/decisions').then(function(r) { return r.json(); }),
-      fetch('/api/equity-history').then(function(r) { return r.json(); }),
-      fetch('/api/scouted').then(function(r) { return r.json(); }),
-      fetch('/api/wisdom').then(function(r) { return r.json(); }),
+      authFetch('/api/state').then(function(r) { return r.json(); }),
+      authFetch('/api/positions').then(function(r) { return r.json(); }),
+      authFetch('/api/decisions').then(function(r) { return r.json(); }),
+      authFetch('/api/equity-history').then(function(r) { return r.json(); }),
+      authFetch('/api/scouted').then(function(r) { return r.json(); }),
+      authFetch('/api/wisdom').then(function(r) { return r.json(); }),
     ]);
     updateState(results[0]);
     renderPositions(results[1]);
