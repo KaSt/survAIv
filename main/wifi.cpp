@@ -1,14 +1,15 @@
 #include "wifi.h"
 
 #include <cstdio>
+#include <string>
 
+#include "config.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
-#include "sdkconfig.h"
 
 namespace survaiv {
 
@@ -67,11 +68,13 @@ bool ConnectWifi() {
                                                       &instance_got_ip));
 
   wifi_config_t wifi_config = {};
+  std::string ssid = config::WifiSsid();
+  std::string pass = config::WifiPassword();
   std::snprintf(reinterpret_cast<char *>(wifi_config.sta.ssid), sizeof(wifi_config.sta.ssid),
-                "%s", CONFIG_SURVAIV_WIFI_SSID);
+                "%s", ssid.c_str());
   std::snprintf(reinterpret_cast<char *>(wifi_config.sta.password),
-                sizeof(wifi_config.sta.password), "%s", CONFIG_SURVAIV_WIFI_PASSWORD);
-  wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+                sizeof(wifi_config.sta.password), "%s", pass.c_str());
+  wifi_config.sta.threshold.authmode = pass.empty() ? WIFI_AUTH_OPEN : WIFI_AUTH_WPA2_PSK;
   wifi_config.sta.pmf_cfg.capable = true;
   wifi_config.sta.pmf_cfg.required = false;
 
