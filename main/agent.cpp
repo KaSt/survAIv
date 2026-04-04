@@ -117,9 +117,18 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
         << "4. Keep size_fraction <= 0.01. This is real capital — be extremely cautious.\n";
   }
 
+  if (paper_only || geoblocked) {
+    prompt
+        << "5. Tool calls (search_news, search_markets) are free in paper mode — use them "
+        << "whenever you need more context to make a good decision. If a market involves "
+        << "sports, politics, or current events, search for recent news before deciding.\n";
+  } else {
+    prompt
+        << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
+        << "LLM round.\n";
+  }
+
   prompt
-      << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
-      << "LLM round.\n"
       << "6. CRITICAL: Return ONLY a single JSON object. No thinking, no analysis, no prose "
       << "before or after. Your entire response must start with { and end with }.\n"
       << "7. Keep \"rationale\" under 20 words. Be terse.\n";
@@ -137,8 +146,13 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
         << "Use paper trades only for exploration or low-confidence ideas.\n";
   }
 
+  if (paper_only || geoblocked) {
+    prompt << "11. Allowed tools (use freely in paper mode):\n";
+  } else {
+    prompt << "11. Allowed tools (prefer zero or one per cycle):\n";
+  }
+
   prompt
-      << "11. Allowed tools (prefer zero or one per cycle):\n"
       << "  a) search_markets: {\"order\":\"volume24hr\",\"limit\":N,\"offset\":N} — fetch Polymarket listings.\n"
       << "  b) search_news: {\"query\":\"<search terms>\"} — web search for recent news/context on a topic. "
       << "Use this when you need current events context to assess a market. Keep queries short and specific.\n"
@@ -586,7 +600,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
       std::vector<MarketSnapshot> tool_markets =
           FetchMarkets(tool_call.limit, tool_call.offset, tool_call.order);
       if (!tool_markets.empty() &&
-          ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets)) {
+          (paper_only || ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets))) {
         std::ostringstream follow_up;
         follow_up << user_prompt << "\n"
                   << "{\"tool_result\":{\"tool\":\"search_markets\",\"markets\":"

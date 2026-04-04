@@ -40,8 +40,14 @@ func BuildSystemPrompt(paperOnly, geoblocked bool, wis *wisdom.Tracker) string {
 		b.WriteString("4. Keep size_fraction <= 0.01. This is real capital — be extremely cautious.\n")
 	}
 
-	b.WriteString("5. Prefer zero or one tool call. Tool calls are expensive because they trigger another ")
-	b.WriteString("LLM round.\n")
+	if paperOnly || geoblocked {
+		b.WriteString("5. Tool calls (search_news, search_markets) are free in paper mode — use them ")
+		b.WriteString("whenever you need more context to make a good decision. If a market involves ")
+		b.WriteString("sports, politics, or current events, search for recent news before deciding.\n")
+	} else {
+		b.WriteString("5. Prefer zero or one tool call. Tool calls are expensive because they trigger another ")
+		b.WriteString("LLM round.\n")
+	}
 	b.WriteString("6. Return JSON only. No markdown.\n")
 
 	if paperOnly || geoblocked {
@@ -55,7 +61,11 @@ func BuildSystemPrompt(paperOnly, geoblocked bool, wis *wisdom.Tracker) string {
 		b.WriteString("Use paper trades only for exploration or low-confidence ideas.\n")
 	}
 
-	b.WriteString("10. Allowed tools (prefer zero or one per cycle):\n")
+	if paperOnly || geoblocked {
+		b.WriteString("10. Allowed tools (use freely in paper mode):\n")
+	} else {
+		b.WriteString("10. Allowed tools (prefer zero or one per cycle):\n")
+	}
 	b.WriteString(`  a) search_markets: {"order":"volume24hr","limit":N,"offset":N} — fetch Polymarket listings.`)
 	b.WriteByte('\n')
 	b.WriteString("  b) search_news: {\"query\":\"<search terms>\"} — web search for recent news/context on a topic. ")
