@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"survaiv/internal/dynconfig"
 	"survaiv/internal/types"
 )
 
@@ -42,6 +43,8 @@ type State struct {
 	nextRetrySec  int
 	paperOnly     bool
 	agentName     string
+
+	efficiency *dynconfig.RuntimeConfig
 
 	sseClients []chan string
 }
@@ -190,6 +193,13 @@ func (s *State) SetAgentName(name string) {
 	s.agentName = name
 }
 
+// SetEfficiency stores the current runtime config for dashboard display.
+func (s *State) SetEfficiency(rc *dynconfig.RuntimeConfig) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.efficiency = rc
+}
+
 // SetInferenceSpend sets the inference spend amount.
 func (s *State) SetInferenceSpend(usdc float64) {
 	s.mu.Lock()
@@ -240,6 +250,35 @@ func (s *State) ToJSON() []byte {
 	if s.lastError != "" {
 		data["last_error"] = s.lastError
 		data["next_retry_sec"] = s.nextRetrySec
+	}
+	if s.efficiency != nil {
+		rc := s.efficiency
+		bd := rc.Breakdown()
+		platforms := map[string]int{
+			"esp32_c3_ota": 12,
+			"esp32_c3":     22,
+			"esp32_s3":     38,
+			"cloud":        rc.EfficiencyScore,
+		}
+		data["efficiency"] = map[string]interface{}{
+			"score":            rc.EfficiencyScore,
+			"platform":         rc.Platform,
+			"cpu_cores":        rc.CPUCores,
+			"prompt_budget":    rc.PromptBudget,
+			"max_completion":   rc.MaxCompletion,
+			"market_limit":     rc.MarketLimit,
+			"wisdom_budget":    rc.WisdomBudget,
+			"parallel_workers": rc.ParallelWorkers,
+			"model_context_k":  rc.ModelContextK,
+			"breakdown": map[string]int{
+				"context":     bd.Context,
+				"parallelism": bd.Parallelism,
+				"memory":      bd.Memory,
+				"coverage":    bd.Coverage,
+				"wisdom":      bd.Wisdom,
+			},
+			"platforms": platforms,
+		}
 	}
 	b, _ := json.Marshal(data)
 	return b

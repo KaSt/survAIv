@@ -261,6 +261,20 @@ canvas { width: 100% !important; height: 100% !important; }
       </div>
       <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
     </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Agent Efficiency</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+          <div id="eff-bar" style="height:100%;border-radius:4px;transition:width 0.5s"></div>
+        </div>
+        <span id="eff-score" style="font-size:1.2em;font-weight:700;min-width:40px"></span>
+      </div>
+      <div id="eff-details" style="font-size:10px;color:var(--fg2);line-height:1.6"></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--fg2)">
+        <div style="font-weight:600;margin-bottom:4px">Platform Comparison</div>
+        <div id="eff-compare" style="display:grid;grid-template-columns:1fr auto;gap:2px 8px"></div>
+      </div>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -376,6 +390,47 @@ function updateState(d) {
   }
   var presetDiv = document.getElementById('llm-presets');
   if (presetDiv) presetDiv.style.display = d.paper_only ? 'block' : 'none';
+  if (d.efficiency) updateEfficiency(d.efficiency);
+}
+
+function updateEfficiency(eff) {
+  var score = eff.score || 0;
+  var bar = document.getElementById('eff-bar');
+  var scoreEl = document.getElementById('eff-score');
+  var details = document.getElementById('eff-details');
+  var compare = document.getElementById('eff-compare');
+  if (!bar || !scoreEl) return;
+  bar.style.width = score + '%';
+  bar.style.background = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
+  scoreEl.textContent = score + '/100';
+  scoreEl.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
+  if (details) {
+    var bd = eff.breakdown || {};
+    details.innerHTML =
+      'Context: ' + (bd.context||0) + '/30 · Parallelism: ' + (bd.parallelism||0) + '/20 · ' +
+      'Memory: ' + (bd.memory||0) + '/15 · Coverage: ' + (bd.coverage||0) + '/20 · ' +
+      'Wisdom: ' + (bd.wisdom||0) + '/15' +
+      '<br>CPU: ' + (eff.cpu_cores||0) + ' cores · Prompt: ' + (eff.prompt_budget||0) +
+      ' · MaxComp: ' + (eff.max_completion||0) + ' · Markets: ' + (eff.market_limit||0) +
+      ' · ModelCtxK: ' + (eff.model_context_k||0);
+  }
+  if (compare && eff.platforms) {
+    var html = '';
+    var names = {esp32_c3_ota:'ESP32-C3 OTA',esp32_c3:'ESP32-C3',esp32_s3:'ESP32-S3',cloud:'Cloud'};
+    var keys = ['esp32_c3_ota','esp32_c3','esp32_s3','cloud'];
+    keys.forEach(function(k) {
+      var v = eff.platforms[k] || 0;
+      var c = v >= 70 ? 'var(--green)' : v >= 40 ? 'var(--yellow)' : 'var(--red)';
+      var isCurrent = k === 'cloud';
+      var label = (names[k]||k) + (isCurrent ? ' \u25C0' : '');
+      html += '<div style="display:flex;align-items:center;gap:6px' + (isCurrent ? ';font-weight:600' : '') + '">' +
+        '<span>' + label + '</span>' +
+        '<div style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;min-width:40px">' +
+        '<div style="height:100%;width:' + v + '%;background:' + c + ';border-radius:2px"></div></div></div>' +
+        '<div style="text-align:right' + (isCurrent ? ';font-weight:600' : '') + '">' + v + '</div>';
+    });
+    compare.innerHTML = html;
+  }
 }
 
 function renderPositions(arr) {

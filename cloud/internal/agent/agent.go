@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"survaiv/internal/config"
 	"survaiv/internal/dashboard"
+	"survaiv/internal/dynconfig"
 	"survaiv/internal/httpclient"
 	"survaiv/internal/ledger"
 	"survaiv/internal/models"
@@ -28,15 +30,17 @@ const (
 
 // Agent orchestrates the prediction market analysis cycle.
 type Agent struct {
-	cfg        *config.Config
-	client     *httpclient.Client
-	ledger     *ledger.Ledger
-	x402       *x402.Payment
-	dash       *dashboard.State
-	wisdom     *wisdom.Tracker
-	cycleCount int
-	startTime  time.Time
-	simSpend   float64 // simulated inference spend for paper mode
+	cfg           *config.Config
+	client        *httpclient.Client
+	ledger        *ledger.Ledger
+	x402          *x402.Payment
+	dash          *dashboard.State
+	wisdom        *wisdom.Tracker
+	cycleCount    int
+	startTime     time.Time
+	simSpend      float64 // simulated inference spend for paper mode
+	dynCfg        *dynconfig.RuntimeConfig
+	maxCompletion int
 }
 
 // New creates a new Agent.
@@ -61,11 +65,38 @@ func New(
 
 // RunCycle executes one agent cycle. Returns retry delay in seconds (0 = no retry).
 func (a *Agent) RunCycle(ctx context.Context) int {
-	// 1. Fetch geoblock status.
-	geo := polymarket.FetchGeoblockStatus(ctx, a.client)
+	// Resolve dynamic config for active model.
+	dc := dynconfig.ForModel(a.cfg.OaiModel)
+	a.dynCfg = dc
+	a.maxCompletion = dc.MaxCompletion
+	a.dash.SetEfficiency(dc)
 
-	// 2. Fetch markets.
-	markets := polymarket.FetchMarkets(ctx, a.client, a.cfg.MarketLimit, 0, "volume24hr")
+	marketLimit := a.cfg.MarketLimit
+	if dc.MarketLimit > marketLimit {
+		marketLimit = dc.MarketLimit
+	}
+
+	// 1+2. Fetch geoblock status and markets (parallel when possible).
+	var geo types.GeoblockStatus
+	var markets []types.MarketSnapshot
+
+	if dc.CanParallelize() {
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			geo = polymarket.FetchGeoblockStatus(ctx, a.client)
+		}()
+		go func() {
+			defer wg.Done()
+			markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "volume24hr")
+		}()
+		wg.Wait()
+	} else {
+		geo = polymarket.FetchGeoblockStatus(ctx, a.client)
+		markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "volume24hr")
+	}
+
 	if len(markets) == 0 {
 		slog.Warn("no markets fetched this cycle")
 		return 0
@@ -152,10 +183,32 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				}
 			}
 			followUpPrompt := BuildFollowUpPrompt(userPrompt, toolMarkets)
-			if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUpPrompt, followModel); ok2 {
-				a.spendForUsage(u2)
-				responseText = text
-				markets = toolMarkets
+			if dc.CanParallelize() && a.wisdom != nil {
+				var wg sync.WaitGroup
+				var text string
+				var u2 types.UsageStats
+				var ok2 bool
+				wg.Add(2)
+				go func() {
+					defer wg.Done()
+					text, u2, ok2 = a.ChatCompletion(ctx, systemPrompt, followUpPrompt, followModel)
+				}()
+				go func() {
+					defer wg.Done()
+					a.wisdom.CheckOutcomes(ctx)
+				}()
+				wg.Wait()
+				if ok2 {
+					a.spendForUsage(u2)
+					responseText = text
+					markets = toolMarkets
+				}
+			} else {
+				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUpPrompt, followModel); ok2 {
+					a.spendForUsage(u2)
+					responseText = text
+					markets = toolMarkets
+				}
 			}
 		}
 	} else if toolCall.Valid && toolCall.Tool == "search_news" && toolCall.Query != "" {
@@ -172,9 +225,30 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				}
 			}
 			followUp := BuildNewsFollowUp(userPrompt, news.BuildNewsJSON(results))
-			if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUp, followModel); ok2 {
-				a.spendForUsage(u2)
-				responseText = text
+			if dc.CanParallelize() && a.wisdom != nil {
+				var wg sync.WaitGroup
+				var text string
+				var u2 types.UsageStats
+				var ok2 bool
+				wg.Add(2)
+				go func() {
+					defer wg.Done()
+					text, u2, ok2 = a.ChatCompletion(ctx, systemPrompt, followUp, followModel)
+				}()
+				go func() {
+					defer wg.Done()
+					a.wisdom.CheckOutcomes(ctx)
+				}()
+				wg.Wait()
+				if ok2 {
+					a.spendForUsage(u2)
+					responseText = text
+				}
+			} else {
+				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUp, followModel); ok2 {
+					a.spendForUsage(u2)
+					responseText = text
+				}
 			}
 		}
 	}
@@ -251,7 +325,7 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 	adapter := provider.FindByURL(baseURL)
 
 	// Build request body.
-	reqBody := buildLLMRequestBody(adapter, model, systemPrompt, userPrompt)
+	reqBody := buildLLMRequestBody(adapter, model, systemPrompt, userPrompt, a.maxCompletion)
 
 	headers := map[string]string{
 		"Content-Type": "application/json",
@@ -421,10 +495,13 @@ func (a *Agent) trackWisdom(
 	}
 }
 
-func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userPrompt string) []byte {
+func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userPrompt string, maxTokens int) []byte {
+	if maxTokens <= 0 {
+		maxTokens = maxCompletionTokens
+	}
 	body := map[string]interface{}{
 		"temperature":      0.2,
-		"max_tokens":       maxCompletionTokens,
+		"max_tokens":       maxTokens,
 		"reasoning_effort": "low",
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
@@ -432,7 +509,6 @@ func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userProm
 		},
 	}
 
-	// Include model in body unless the adapter says not to.
 	if adapter == nil || adapter.ModelInBody() {
 		body["model"] = model
 	}
