@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -23,9 +24,18 @@ import (
 	"survaiv/internal/x402"
 )
 
+// Version is set at build time via -ldflags.
+var Version = "dev"
+
 func main() {
 	headless := flag.Bool("headless", false, "Run without TUI (dashboard only)")
+	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
+
+	if *version {
+		fmt.Println("survaiv", Version)
+		return
+	}
 
 	// 1. Open database.
 	database, err := db.Open(envOr("SURVAIV_DB_PATH", "survaiv.db"))

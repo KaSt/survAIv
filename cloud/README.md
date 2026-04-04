@@ -4,28 +4,56 @@ Cloud port of the survaiv autonomous prediction market agent. Originally firmwar
 
 ## Prerequisites
 
-- **Go 1.23+**
+- **Go 1.24+**
 - **GCC** (for `mattn/go-sqlite3` CGO compilation)
+  - macOS: included with Xcode Command Line Tools (`xcode-select --install`)
+  - Linux: `sudo apt install build-essential` (Debian/Ubuntu) or `sudo dnf groupinstall 'Development Tools'` (Fedora)
+  - Windows: install [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) or [MSYS2](https://www.msys2.org/) (`pacman -S mingw-w64-x86_64-gcc`)
 
-## Setup
+## Quick Start
 
 ```bash
-cp .env.example .env
-# Edit .env with your LLM endpoint and optional wallet key
+cp .env.example .env   # edit with your LLM endpoint
 ```
 
-## Run
+### macOS / Linux
 
 ```bash
-cd cloud
-go build -o survaiv .
-./survaiv
+./build.sh build       # compile
+./build.sh run         # build + run (TUI mode)
+./build.sh headless    # build + run (dashboard only)
+./build.sh test        # run tests
+./build.sh clean       # remove binaries
 ```
 
-### Headless mode (no TUI, dashboard only)
+### Windows
+
+```bat
+build.bat build        & REM compile
+build.bat run          & REM build + run (TUI mode)
+build.bat headless     & REM build + run (dashboard only)
+build.bat test         & REM run tests
+build.bat clean        & REM remove binaries
+```
+
+### Make (any platform with GNU Make)
 
 ```bash
-./survaiv --headless
+make              # build
+make run          # build + run (TUI)
+make headless     # build + run (dashboard only)
+make test         # run tests
+make cross        # cross-compile for linux/darwin amd64+arm64
+make clean        # remove binaries
+```
+
+### Manual
+
+```bash
+CGO_ENABLED=1 go build -o survaiv .
+./survaiv              # TUI mode
+./survaiv --headless   # dashboard only
+./survaiv --version    # print version
 ```
 
 ### Heroku
