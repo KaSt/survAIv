@@ -170,11 +170,6 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
   </div>
   <div id="w-models" style="font-size:10px;color:var(--dim);margin-bottom:8px"></div>
   <div class="wisdom-rules" id="w-rules">No learned rules yet…</div>
-  <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
-    <button onclick="downloadKnowledge()" style="background:var(--green);color:#000;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬇ Export Knowledge</button>
-    <label style="background:var(--border);color:var(--fg);padding:6px 14px;border-radius:4px;cursor:pointer;font-size:12px">⬆ Import Knowledge<input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)"></label>
-    <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
-  </div>
 </div>
 
 <div class="section">
@@ -218,6 +213,18 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
         </label>
       </div>
       <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
+    </div>
+
+    <div class="setting-group">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Knowledge</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button onclick="downloadKnowledge()" class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">⬇ Export Knowledge</button>
+        <label class="badge" style="padding:6px 14px;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">
+          ⬆ Import Knowledge
+          <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
+        </label>
+        <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
+      </div>
     </div>
 
     <div class="setting-group" id="llm-cfg" style="display:none">
