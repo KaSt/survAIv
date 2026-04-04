@@ -14,6 +14,7 @@
 #include "json_util.h"
 #include "model_registry.h"
 #include "polymarket.h"
+#include "provider.h"
 #include "sdkconfig.h"
 #include "webserver.h"
 #include "wisdom.h"
@@ -183,13 +184,12 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   std::string api_key = config::ApiKey();
   bool use_x402 = x402::IsConfigured();
 
-  bool is_engine_api =
-      (base_url.find("x402-gateway") != std::string::npos ||
-       base_url.find("x402engine") != std::string::npos);
+  // Resolve provider adapter from the configured base URL.
+  const providers::LlmAdapter *adapter = providers::FindLlmAdapter(base_url);
 
   std::ostringstream body;
   body << "{";
-  if (!is_engine_api) {
+  if (!adapter || adapter->model_in_body) {
     body << "\"model\":\"" << JsonEscape(model) << "\",";
   }
   body << "\"temperature\":0.2,"
@@ -205,12 +205,8 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
     headers.emplace_back("Authorization", "Bearer " + api_key);
   }
 
-  std::string url;
-  if (is_engine_api) {
-    url = base_url + "/api/llm/" + model;
-  } else {
-    url = base_url + "/chat/completions";
-  }
+  std::string url = adapter ? adapter->build_inference_url(base_url, model)
+                            : base_url + "/v1/chat/completions";
   HttpResponse response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str());
 
   // x402: handle 402 Payment Required → sign → retry.

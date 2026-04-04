@@ -16,6 +16,7 @@ idf_component_register(
          "x402.cpp"
          "model_registry.cpp"
           "claw402.cpp"
+          "provider.cpp"
          "wisdom.cpp"
     INCLUDE_DIRS "."
     REQUIRES app_update esp_event esp_http_client esp_http_server esp_netif esp_wifi json mbedtls nvs_flash

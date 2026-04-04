@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "http.h"
 #include "json_util.h"
+#include "provider.h"
 #include "types.h"
 
 namespace survaiv {
@@ -324,13 +325,8 @@ double LookupPrice(const std::string &model_name) {
   return 0.0;
 }
 
-static bool IsEngineUrl(const std::string &url) {
-  return url.find("x402-gateway") != std::string::npos ||
-         url.find("x402engine") != std::string::npos;
-}
-
-static bool IsClaw402Url(const std::string &url) {
-  return url.find("claw402") != std::string::npos;
+static bool IsEngineAdapter(const providers::LlmAdapter *a) {
+  return a && strcmp(a->name, "x402engine") == 0;
 }
 
 // Internal helper: run selection scoring on a list of ModelInfo entries.
@@ -385,11 +381,13 @@ static void FindCheapest(const ModelInfo *list, int count, bool use_engine,
 ModelSelection SelectModel(const std::string &provider_url,
                            TaskComplexity task, double remaining_usdc,
                            int estimated_cycles) {
-  bool use_engine = IsEngineUrl(provider_url);
+  // Resolve adapter from URL.
+  const providers::LlmAdapter *adapter = providers::FindLlmAdapter(provider_url);
+  bool use_engine = IsEngineAdapter(adapter);
 
-  // claw402 is data-only, not LLM — don't select models for it.
-  if (IsClaw402Url(provider_url)) {
-    ESP_LOGW(kTag, "claw402 is data-only, not LLM provider");
+  // Data-only providers (like claw402) can't do LLM inference.
+  if (providers::FindDataAdapter(provider_url)) {
+    ESP_LOGW(kTag, "Data-only provider URL — cannot select LLM model");
     return {};
   }
 
@@ -447,15 +445,6 @@ ModelSelection SelectModel(const std::string &provider_url,
 
 // ── Dynamic registry refresh ────────────────────────────────────────
 
-// Parse "$0.001234" -> 0.001234.
-static double ParseDollarString(const char *s) {
-  if (!s || !*s) return 0.0;
-  if (*s == '$') ++s;
-  char *end = nullptr;
-  double v = strtod(s, &end);
-  return (end != s) ? v : 0.0;
-}
-
 // Heuristic reasoning score from model name.
 static uint8_t EstimateReasoning(const std::string &n) {
   if (ContainsCI(n, "r1") || ContainsCI(n, "o1") || ContainsCI(n, "o4"))
@@ -488,7 +477,6 @@ static uint8_t EstimateSpeed(const std::string &n) {
   return 3;
 }
 
-// Safe strncpy that always null-terminates.
 static void SafeCopy(char *dst, size_t dst_sz, const char *src) {
   if (!src) { dst[0] = '\0'; return; }
   size_t len = strlen(src);
@@ -497,7 +485,6 @@ static void SafeCopy(char *dst, size_t dst_sz, const char *src) {
   dst[len] = '\0';
 }
 
-// Temporary struct for merging entries from both providers.
 struct MergeEntry {
   std::string norm_key;
   DynamicModel dm;
@@ -507,7 +494,6 @@ static std::string MakeNormKey(const std::string &id) {
   return NormalizeName(StripLlmPrefix(StripOrgPrefix(id)));
 }
 
-// Check if a dynamic model duplicates a hardcoded one.
 static bool DuplicatesHardcoded(const std::string &norm_key) {
   for (int i = 0; i < kModelCount; ++i) {
     if (kModels[i].tx402_id) {
@@ -520,149 +506,98 @@ static bool DuplicatesHardcoded(const std::string &norm_key) {
   return false;
 }
 
+// Ingest CatalogModel entries from one adapter into the merge list.
+// `adapter_idx` is 0-based index among LLM adapters; used to assign
+// the model ID to the correct field (tx402_id for adapter 0, engine_id
+// for adapter 1).  For adapters beyond the two built-ins, we store the
+// ID in tx402_id (first available slot) and price in tx402_price.
+static void IngestCatalog(const providers::LlmAdapter *adapter, int adapter_idx,
+                          const providers::CatalogModel *models, int count,
+                          std::vector<MergeEntry> &entries) {
+  bool is_engine = (strcmp(adapter->name, "x402engine") == 0);
+  for (int i = 0; i < count && static_cast<int>(entries.size()) < kMaxDynamic; ++i) {
+    const providers::CatalogModel &cm = models[i];
+    std::string norm_key = MakeNormKey(cm.id);
+    if (DuplicatesHardcoded(norm_key)) continue;
+
+    // Try to merge into an existing entry.
+    bool found = false;
+    for (auto &e : entries) {
+      if (e.norm_key == norm_key) {
+        if (is_engine) {
+          SafeCopy(e.dm.engine_id, sizeof(e.dm.engine_id), cm.id);
+          e.dm.engine_price = cm.price_per_req;
+          SafeCopy(e.dm.notes, sizeof(e.dm.notes), "Dynamic (both)");
+        } else {
+          SafeCopy(e.dm.tx402_id, sizeof(e.dm.tx402_id), cm.id);
+          e.dm.tx402_price = cm.price_per_req;
+        }
+        found = true;
+        break;
+      }
+    }
+    if (found) continue;
+
+    // New entry.
+    MergeEntry me;
+    me.norm_key = norm_key;
+    memset(&me.dm, 0, sizeof(me.dm));
+
+    SafeCopy(me.dm.name, sizeof(me.dm.name), cm.display_name);
+    if (is_engine) {
+      SafeCopy(me.dm.engine_id, sizeof(me.dm.engine_id), cm.id);
+      me.dm.engine_price = cm.price_per_req;
+      SafeCopy(me.dm.notes, sizeof(me.dm.notes),
+               (std::string("Dynamic (") + adapter->name + ")").c_str());
+    } else {
+      SafeCopy(me.dm.tx402_id, sizeof(me.dm.tx402_id), cm.id);
+      me.dm.tx402_price = cm.price_per_req;
+      SafeCopy(me.dm.notes, sizeof(me.dm.notes),
+               (std::string("Dynamic (") + adapter->name + ")").c_str());
+    }
+
+    me.dm.context_k = static_cast<uint16_t>(
+        cm.context_k > 0xFFFF ? 0xFFFF : cm.context_k);
+    me.dm.reasoning = EstimateReasoning(norm_key);
+    me.dm.speed = EstimateSpeed(norm_key);
+
+    entries.push_back(me);
+  }
+}
+
 void RefreshRegistry() {
   ESP_LOGI(kTag, "Refreshing dynamic model registry...");
 
   std::vector<MergeEntry> entries;
   entries.reserve(kMaxDynamic);
 
-  // ── Fetch tx402.ai catalog ────────────────────────────────────
-  {
-    HttpResponse resp = HttpRequest("https://tx402.ai/v1/models", HTTP_METHOD_GET, {});
-    if (resp.err == ESP_OK && resp.status_code == 200 && !resp.body.empty()) {
-      cJSON *root = cJSON_Parse(resp.body.c_str());
-      cJSON *data = root ? cJSON_GetObjectItemCaseSensitive(root, "data") : nullptr;
-      if (cJSON_IsArray(data)) {
-        int n = cJSON_GetArraySize(data);
-        ESP_LOGI(kTag, "tx402: %d models in catalog", n);
-        for (int i = 0; i < n && static_cast<int>(entries.size()) < kMaxDynamic; ++i) {
-          cJSON *item = cJSON_GetArrayItem(data, i);
-          cJSON *jid = cJSON_GetObjectItemCaseSensitive(item, "id");
-          if (!cJSON_IsString(jid)) continue;
+  // Scratch buffer for catalog parsing (stack-allocated, reused per adapter).
+  static constexpr int kCatalogBuf = 60;
+  providers::CatalogModel catalog[kCatalogBuf];
 
-          std::string full_id = jid->valuestring;
-          std::string norm_key = MakeNormKey(full_id);
-          if (DuplicatesHardcoded(norm_key)) continue;
+  // Iterate over all registered LLM adapters that have a catalog URL.
+  for (int ai = 0; ai < providers::LlmAdapterCount(); ++ai) {
+    const providers::LlmAdapter *adapter = providers::GetLlmAdapter(ai);
+    if (!adapter || !adapter->catalog_url || !adapter->parse_catalog) continue;
 
-          // Check for existing merge entry.
-          bool found = false;
-          for (auto &e : entries) {
-            if (e.norm_key == norm_key) {
-              SafeCopy(e.dm.tx402_id, sizeof(e.dm.tx402_id), full_id.c_str());
-              cJSON *pricing = cJSON_GetObjectItemCaseSensitive(item, "pricing");
-              if (pricing) {
-                cJSON *est = cJSON_GetObjectItemCaseSensitive(pricing, "estimated_per_request");
-                if (cJSON_IsString(est))
-                  e.dm.tx402_price = ParseDollarString(est->valuestring);
-              }
-              found = true;
-              break;
-            }
-          }
-          if (found) continue;
+    ESP_LOGI(kTag, "Fetching catalog: %s (%s)", adapter->display_name,
+             adapter->catalog_url);
 
-          MergeEntry me;
-          me.norm_key = norm_key;
-          memset(&me.dm, 0, sizeof(me.dm));
-
-          std::string short_name = StripOrgPrefix(full_id);
-          SafeCopy(me.dm.name, sizeof(me.dm.name), short_name.c_str());
-          SafeCopy(me.dm.tx402_id, sizeof(me.dm.tx402_id), full_id.c_str());
-
-          cJSON *pricing = cJSON_GetObjectItemCaseSensitive(item, "pricing");
-          if (pricing) {
-            cJSON *est = cJSON_GetObjectItemCaseSensitive(pricing, "estimated_per_request");
-            if (cJSON_IsString(est))
-              me.dm.tx402_price = ParseDollarString(est->valuestring);
-          }
-
-          cJSON *ctx = cJSON_GetObjectItemCaseSensitive(item, "context_window");
-          if (cJSON_IsNumber(ctx))
-            me.dm.context_k = static_cast<uint16_t>(ctx->valueint / 1000);
-          else
-            me.dm.context_k = 128;
-
-          me.dm.reasoning = EstimateReasoning(norm_key);
-          me.dm.speed = EstimateSpeed(norm_key);
-          SafeCopy(me.dm.notes, sizeof(me.dm.notes), "Dynamic (tx402)");
-
-          entries.push_back(me);
-        }
-      }
-      if (root) cJSON_Delete(root);
-    } else {
-      ESP_LOGW(kTag, "tx402 catalog fetch failed: status=%d", resp.status_code);
+    HttpResponse resp =
+        HttpRequest(adapter->catalog_url, HTTP_METHOD_GET, {});
+    if (resp.err != ESP_OK || resp.status_code != 200 || resp.body.empty()) {
+      ESP_LOGW(kTag, "%s catalog fetch failed: status=%d",
+               adapter->display_name, resp.status_code);
+      continue;
     }
+
+    int n = adapter->parse_catalog(resp.body, catalog, kCatalogBuf);
+    ESP_LOGI(kTag, "%s: %d models parsed", adapter->display_name, n);
+
+    IngestCatalog(adapter, ai, catalog, n, entries);
   }
 
-  // ── Fetch x402engine.app catalog ──────────────────────────────
-  {
-    HttpResponse resp = HttpRequest(
-        "https://x402engine.app/.well-known/x402.json", HTTP_METHOD_GET, {});
-    if (resp.err == ESP_OK && resp.status_code == 200 && !resp.body.empty()) {
-      cJSON *root = cJSON_Parse(resp.body.c_str());
-      cJSON *categories = root ? cJSON_GetObjectItemCaseSensitive(root, "categories") : nullptr;
-      cJSON *compute = categories ? cJSON_GetObjectItemCaseSensitive(categories, "compute") : nullptr;
-      if (cJSON_IsArray(compute)) {
-        int n = cJSON_GetArraySize(compute);
-        ESP_LOGI(kTag, "x402engine: %d compute items in catalog", n);
-        for (int i = 0; i < n && static_cast<int>(entries.size()) < kMaxDynamic; ++i) {
-          cJSON *item = cJSON_GetArrayItem(compute, i);
-          cJSON *jid = cJSON_GetObjectItemCaseSensitive(item, "id");
-          if (!cJSON_IsString(jid)) continue;
-          std::string eid = jid->valuestring;
-
-          // Only items with "llm-" prefix are LLM models.
-          if (eid.size() < 4 || eid.substr(0, 4) != "llm-") continue;
-
-          std::string engine_short = eid.substr(4);
-          std::string norm_key = NormalizeName(engine_short);
-          if (DuplicatesHardcoded(norm_key)) continue;
-
-          double price = 0.0;
-          cJSON *jprice = cJSON_GetObjectItemCaseSensitive(item, "price");
-          if (cJSON_IsString(jprice))
-            price = ParseDollarString(jprice->valuestring);
-
-          bool found = false;
-          for (auto &e : entries) {
-            if (e.norm_key == norm_key) {
-              SafeCopy(e.dm.engine_id, sizeof(e.dm.engine_id), engine_short.c_str());
-              e.dm.engine_price = price;
-              SafeCopy(e.dm.notes, sizeof(e.dm.notes), "Dynamic (both)");
-              found = true;
-              break;
-            }
-          }
-          if (found) continue;
-
-          MergeEntry me;
-          me.norm_key = norm_key;
-          memset(&me.dm, 0, sizeof(me.dm));
-
-          cJSON *jname = cJSON_GetObjectItemCaseSensitive(item, "name");
-          if (cJSON_IsString(jname))
-            SafeCopy(me.dm.name, sizeof(me.dm.name), jname->valuestring);
-          else
-            SafeCopy(me.dm.name, sizeof(me.dm.name), engine_short.c_str());
-
-          SafeCopy(me.dm.engine_id, sizeof(me.dm.engine_id), engine_short.c_str());
-          me.dm.engine_price = price;
-          me.dm.context_k = 128;
-          me.dm.reasoning = EstimateReasoning(norm_key);
-          me.dm.speed = EstimateSpeed(norm_key);
-          SafeCopy(me.dm.notes, sizeof(me.dm.notes), "Dynamic (engine)");
-
-          entries.push_back(me);
-        }
-      }
-      if (root) cJSON_Delete(root);
-    } else {
-      ESP_LOGW(kTag, "x402engine catalog fetch failed: status=%d", resp.status_code);
-    }
-  }
-
-  // ── Swap into global list ─────────────────────────────────────
+  // Swap into global list under lock.
   {
     std::lock_guard<std::mutex> lock(g_dyn_mutex);
     g_dynamic.clear();

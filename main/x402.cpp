@@ -11,6 +11,7 @@
 #include "esp_log.h"
 #include "esp_random.h"
 #include "mbedtls/base64.h"
+#include "provider.h"
 #include "wallet.h"
 
 namespace survaiv {
@@ -149,8 +150,7 @@ void Init() {
 }
 
 bool IsConfigured() {
-  const std::string &prov = config::LlmProvider();
-  return prov == "x402" || prov == "claw402";
+  return providers::ActiveProviderUsesX402();
 }
 
 double TotalSpentUsdc() { return g_total_spent_usdc; }

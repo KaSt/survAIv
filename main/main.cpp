@@ -8,6 +8,7 @@
 #include "ledger.h"
 #include "model_registry.h"
 #include "onboard.h"
+#include "provider.h"
 #include "wallet.h"
 #include "webserver.h"
 #include "wifi.h"
@@ -66,6 +67,9 @@ extern "C" void app_main(void) {
   // Start the dashboard web server.
   survaiv::webserver::StartDashboard(80);
   ESP_LOGI(kTag, "Dashboard available at http://<device-ip>/");
+
+  // Register provider adapters (must happen before x402::IsConfigured).
+  survaiv::providers::Init();
 
   // Initialise wallet (required for live trading and x402 payments).
   bool live_capable __attribute__((unused)) = false;
