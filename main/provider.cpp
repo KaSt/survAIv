@@ -189,7 +189,10 @@ static const LlmAdapter kEngineAdapter = {
     .name              = "x402engine",
     .display_name      = "x402engine.app",
     .default_base_url  = "https://x402-gateway-production.up.railway.app",
-    .catalog_url       = "https://x402engine.app/.well-known/x402.json",
+    // Catalog disabled: response is ~55 KB (all service categories) which
+    // exceeds what ESP32-C3 can safely fetch alongside TLS overhead.
+    // x402engine models are covered by the hardcoded registry instead.
+    .catalog_url       = nullptr,
     .auth              = AuthMethod::kX402,
     .model_in_body     = false,
     .matches_url       = EngineMatchesUrl,
