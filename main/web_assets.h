@@ -164,6 +164,11 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
 </div>
 
 <div class="section">
+  <h2>P&amp;L per Cycle</h2>
+  <div class="chart-wrap"><canvas id="pnl-chart"></canvas></div>
+</div>
+
+<div class="section">
   <h2>Open Positions</h2>
   <table>
     <thead><tr><th>Market</th><th>Side</th><th>Entry</th><th>Current</th><th>P&amp;L</th><th>Stake</th><th>Type</th></tr></thead>
@@ -466,6 +471,77 @@ function drawChart() {
   ctx.fillText(lastVal.toFixed(2), w - 4, 12);
 }
 
+function drawPnlChart() {
+  const canvas = $('pnl-chart');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 24;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (equityData.length < 2) {
+    ctx.fillStyle = '#999'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('Collecting data…', w/2, h/2);
+    return;
+  }
+
+  const baseline = equityData[0][1];
+  const pnl = equityData.map(d => d[1] - baseline);
+  const mn = Math.min(...pnl, 0);
+  const mx = Math.max(...pnl, 0);
+  const range = (mx - mn) || 0.01;
+  const zeroY = h - ((-mn) / range) * h;
+
+  // Grid + zero line.
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = h * i / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Bars.
+  const barW = Math.max(1, (w / pnl.length) - 1);
+  for (let i = 0; i < pnl.length; i++) {
+    const x = (i / pnl.length) * w;
+    const val = pnl[i];
+    const barH = (Math.abs(val) / range) * h;
+    if (val >= 0) {
+      ctx.fillStyle = 'rgba(13,158,80,0.6)';
+      ctx.fillRect(x, zeroY - barH, barW, barH);
+    } else {
+      ctx.fillStyle = 'rgba(211,47,47,0.6)';
+      ctx.fillRect(x, zeroY, barW, barH);
+    }
+  }
+
+  // Cumulative P&L line.
+  ctx.beginPath();
+  for (let i = 0; i < pnl.length; i++) {
+    const x = (i / (pnl.length - 1)) * w;
+    const y = h - ((pnl[i] - mn) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  const last = pnl[pnl.length - 1];
+  ctx.strokeStyle = last >= 0 ? '#0d9e50' : '#d32f2f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Labels.
+  ctx.fillStyle = '#999'; ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText((mx >= 0 ? '+' : '') + mx.toFixed(2), 4, 12);
+  ctx.fillText((mn >= 0 ? '+' : '') + mn.toFixed(2), 4, h - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText((last >= 0 ? '+' : '') + last.toFixed(2), w - 4, 12);
+  ctx.textAlign = 'center';
+  ctx.fillText('0', 14, zeroY - 3);
+}
+
 function updateState(s) {
   $('v-cash').textContent = fmtUsd(s.budget.cash);
   $('v-equity').textContent = fmtUsd(s.budget.equity);
@@ -711,6 +787,7 @@ function poll() {
   fetch('/api/equity').then(r => r.json()).then(data => {
     equityData = data;
     drawChart();
+    drawPnlChart();
   }).catch(() => {});
 }
 
@@ -877,7 +954,7 @@ function initDashboard() {
   poll();
   connectSSE();
   setInterval(poll, 15000);
-  window.addEventListener('resize', drawChart);
+  window.addEventListener('resize', () => { drawChart(); drawPnlChart(); });
 }
 
 // Start with auth check.
