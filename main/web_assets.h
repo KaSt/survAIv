@@ -633,17 +633,27 @@ function updateState(s) {
     $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
   }
 
-  // System stats
+  // System stats with bar graphs
   if (s.sys) {
     var sy = s.sys;
     function fmtKB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
-    var parts = [];
-    parts.push('🔧 Cores: '+sy.cores);
-    parts.push('🧠 RAM: '+fmtKB(sy.free_heap)+' free / '+fmtKB(sy.total_heap));
-    parts.push('📉 Min free: '+fmtKB(sy.min_free_heap));
-    var pct = sy.total_heap > 0 ? Math.round(100*sy.free_heap/sy.total_heap) : 0;
-    parts.push('Usage: '+(100-pct)+'%');
-    $('sys-stats').innerHTML = parts.map(function(p){return '<span>'+p+'</span>';}).join('');
+    function bar(pct, w) {
+      w = w || 50;
+      var c = pct > 85 ? 'var(--red)' : pct > 60 ? '#d29922' : 'var(--green)';
+      return '<span style="display:inline-block;width:'+w+'px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;vertical-align:middle">'
+        +'<span style="display:block;width:'+pct+'%;height:100%;background:'+c+';border-radius:4px"></span></span>';
+    }
+    var h = '';
+    // Per-core CPU bars
+    var cpus = sy.cpu || [];
+    for (var i = 0; i < cpus.length; i++) {
+      h += '<span>Core '+i+': '+bar(cpus[i])+' '+cpus[i]+'%</span>';
+    }
+    // RAM bar
+    var ramPct = sy.total_heap > 0 ? Math.round(100*(sy.total_heap-sy.free_heap)/sy.total_heap) : 0;
+    h += '<span>RAM: '+bar(ramPct)+' '+ramPct+'% ('+fmtKB(sy.free_heap)+' free)</span>';
+    h += '<span style="color:var(--dim)">Min free: '+fmtKB(sy.min_free_heap)+'</span>';
+    $('sys-stats').innerHTML = h;
   }
 
   // Show LLM config panel in paper mode only

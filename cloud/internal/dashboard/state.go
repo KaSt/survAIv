@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"survaiv/internal/dynconfig"
@@ -47,14 +48,28 @@ type State struct {
 
 	efficiency *dynconfig.RuntimeConfig
 
+	// CPU usage tracking.
+	prevCPUUser int64
+	prevCPUSys  int64
+	prevCPUTime time.Time
+	cpuPercent  float64
+
 	sseClients []chan string
 }
 
 func NewState() *State {
-	return &State{
+	s := &State{
 		agentStatus: "initializing",
 		bootEpoch:   time.Now().Unix(),
+		prevCPUTime: time.Now(),
 	}
+	// Initialize CPU baseline.
+	var ru syscall.Rusage
+	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
+		s.prevCPUUser = ru.Utime.Sec*1e6 + int64(ru.Utime.Usec)
+		s.prevCPUSys = ru.Stime.Sec*1e6 + int64(ru.Stime.Usec)
+	}
+	return s
 }
 
 func (s *State) UpdateBudget(b types.BudgetInfo) {
@@ -282,16 +297,51 @@ func (s *State) ToJSON() []byte {
 		}
 	}
 
-	// System stats.
+	// System stats + CPU sampling.
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
+
+	// Sample process CPU usage.
+	numCPU := runtime.NumCPU()
+	var cpuPcts []int
+	var ru syscall.Rusage
+	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
+		userUs := ru.Utime.Sec*1e6 + int64(ru.Utime.Usec)
+		sysUs := ru.Stime.Sec*1e6 + int64(ru.Stime.Usec)
+		elapsed := time.Since(s.prevCPUTime).Microseconds()
+		if elapsed > 0 {
+			cpuUs := (userUs - s.prevCPUUser) + (sysUs - s.prevCPUSys)
+			totalPct := float64(cpuUs) * 100.0 / float64(elapsed)
+			// Distribute evenly across cores (best we can do without /proc/stat).
+			perCore := int(totalPct / float64(numCPU))
+			if perCore > 100 {
+				perCore = 100
+			}
+			if perCore < 0 {
+				perCore = 0
+			}
+			cpuPcts = make([]int, numCPU)
+			for i := range cpuPcts {
+				cpuPcts[i] = perCore
+			}
+			s.cpuPercent = totalPct
+		}
+		s.prevCPUUser = userUs
+		s.prevCPUSys = sysUs
+		s.prevCPUTime = time.Now()
+	}
+	if cpuPcts == nil {
+		cpuPcts = make([]int, numCPU) // zeros
+	}
+
 	data["sys"] = map[string]interface{}{
-		"cores":       runtime.NumCPU(),
+		"cores":       numCPU,
 		"goroutines":  runtime.NumGoroutine(),
 		"alloc":       memStats.Alloc,
 		"total_alloc": memStats.TotalAlloc,
 		"sys":         memStats.Sys,
 		"gc_cycles":   memStats.NumGC,
+		"cpu":         cpuPcts,
 	}
 
 	b, _ := json.Marshal(data)

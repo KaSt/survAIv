@@ -397,12 +397,24 @@ function updateState(d) {
   if (d.sys) {
     var sy = d.sys;
     function fmtB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
-    var parts = [];
-    parts.push('\u{1F527} Cores: '+sy.cores);
-    parts.push('\u{1F9E0} Mem: '+fmtB(sy.alloc)+' used / '+fmtB(sy.sys)+' sys');
-    parts.push('\u{1F9F5} Goroutines: '+sy.goroutines);
-    parts.push('\u267B\uFE0F GC: '+sy.gc_cycles);
-    document.getElementById('sys-stats').innerHTML = parts.map(function(p){return '<span>'+p+'</span>';}).join('');
+    function bar(pct, w) {
+      w = w || 50;
+      var c = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--yellow,#d29922)' : 'var(--green)';
+      return '<span style="display:inline-block;width:'+w+'px;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;vertical-align:middle">'
+        +'<span style="display:block;width:'+pct+'%;height:100%;background:'+c+';border-radius:4px"></span></span>';
+    }
+    var h = '';
+    // Per-core CPU bars
+    var cpus = sy.cpu || [];
+    for (var i = 0; i < cpus.length; i++) {
+      h += '<span>Core '+i+': '+bar(cpus[i])+' '+cpus[i]+'%</span>';
+    }
+    // Memory bar
+    var memPct = sy.sys > 0 ? Math.round(sy.alloc * 100 / sy.sys) : 0;
+    h += '<span>Mem: '+bar(memPct)+' '+fmtB(sy.alloc)+' / '+fmtB(sy.sys)+'</span>';
+    h += '<span>Goroutines: '+sy.goroutines+'</span>';
+    h += '<span style="color:var(--fg2)">GC: '+sy.gc_cycles+'</span>';
+    document.getElementById('sys-stats').innerHTML = h;
   }
 }
 

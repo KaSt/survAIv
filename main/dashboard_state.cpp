@@ -7,8 +7,59 @@
 #include "config.h"
 #include "esp_app_desc.h"
 #include "esp_chip_info.h"
+#include "esp_freertos_hooks.h"
 #include "esp_heap_caps.h"
+#include "esp_timer.h"
 #include "json_util.h"
+
+// CPU usage monitoring via FreeRTOS idle hook counters.
+// Each core's idle task calls our hook when it has nothing to do.
+// We count calls per sampling window and self-calibrate: the maximum
+// observed count = 0% CPU usage; fewer counts = higher usage.
+namespace {
+
+static volatile uint32_t s_idle_cnt[2] = {0, 0};
+static uint32_t s_prev_cnt[2] = {0, 0};
+static uint32_t s_max_delta[2] = {1, 1};
+static int s_cpu_pct[2] = {0, 0};
+static int64_t s_prev_us = 0;
+static int s_num_cores = 0;
+static bool s_hooks_ready = false;
+
+static bool idle_hook_0(void) { s_idle_cnt[0] = s_idle_cnt[0] + 1; return false; }
+static bool idle_hook_1(void) { s_idle_cnt[1] = s_idle_cnt[1] + 1; return false; }
+
+static void EnsureCpuHooks() {
+  if (s_hooks_ready) return;
+  esp_chip_info_t chip;
+  esp_chip_info(&chip);
+  s_num_cores = chip.cores;
+  esp_register_freertos_idle_hook_for_cpu(idle_hook_0, 0);
+  if (s_num_cores > 1)
+    esp_register_freertos_idle_hook_for_cpu(idle_hook_1, 1);
+  s_prev_us = esp_timer_get_time();
+  s_hooks_ready = true;
+}
+
+static void SampleCpu() {
+  if (!s_hooks_ready) return;
+  int64_t now = esp_timer_get_time();
+  if (now - s_prev_us < 1000000) return;  // ≥1 s between samples.
+  for (int c = 0; c < s_num_cores && c < 2; ++c) {
+    uint32_t cnt = s_idle_cnt[c];
+    uint32_t delta = cnt - s_prev_cnt[c];
+    s_prev_cnt[c] = cnt;
+    if (delta > s_max_delta[c]) s_max_delta[c] = delta;
+    int pct = 100 - static_cast<int>(
+        static_cast<uint64_t>(delta) * 100 / s_max_delta[c]);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    s_cpu_pct[c] = pct;
+  }
+  s_prev_us = now;
+}
+
+}  // namespace
 
 namespace survaiv {
 
@@ -202,14 +253,21 @@ std::string DashboardState::ToJson() const {
   o << ",\"ota_enabled\":false";
 #endif
 
-  // System stats.
+  // System stats + CPU usage.
+  EnsureCpuHooks();
+  SampleCpu();
   esp_chip_info_t chip;
   esp_chip_info(&chip);
   o << ",\"sys\":{\"cores\":" << static_cast<int>(chip.cores)
     << ",\"free_heap\":" << esp_get_free_heap_size()
     << ",\"min_free_heap\":" << esp_get_minimum_free_heap_size()
     << ",\"total_heap\":" << heap_caps_get_total_size(MALLOC_CAP_DEFAULT)
-    << "}";
+    << ",\"cpu\":[";
+  for (int c = 0; c < s_num_cores && c < 2; ++c) {
+    if (c > 0) o << ",";
+    o << s_cpu_pct[c];
+  }
+  o << "]}";
 
   o << "}";
 
