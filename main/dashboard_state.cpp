@@ -124,6 +124,25 @@ void DashboardState::IncrementCycleCount() {
   xSemaphoreGive(mutex_);
 }
 
+void DashboardState::SetLastError(const std::string &error) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  last_error_ = error;
+  xSemaphoreGive(mutex_);
+}
+
+void DashboardState::SetNextRetrySec(int seconds) {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  next_retry_sec_ = seconds;
+  xSemaphoreGive(mutex_);
+}
+
+void DashboardState::ClearError() {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  last_error_.clear();
+  next_retry_sec_ = 0;
+  xSemaphoreGive(mutex_);
+}
+
 std::string DashboardState::ToJson() const {
   xSemaphoreTake(mutex_, portMAX_DELAY);
 
@@ -152,6 +171,11 @@ std::string DashboardState::ToJson() const {
     << ",\"active_model\":\"" << JsonEscape(active_model_) << "\""
     << ",\"model_price\":" << model_price_
     << ",\"open_positions\":" << static_cast<int>(positions_.size());
+
+  if (!last_error_.empty()) {
+    o << ",\"last_error\":\"" << JsonEscape(last_error_) << "\""
+      << ",\"next_retry_sec\":" << next_retry_sec_;
+  }
 
   const esp_app_desc_t *app = esp_app_get_description();
   o << ",\"firmware\":\"" << app->version << " (" << app->date << ")\"";

@@ -17,6 +17,9 @@ static const char kDashboardHtml[] = R"rawhtml(<!DOCTYPE html>
 --green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2}
 body{font-family:'SF Mono',Monaco,'Fira Code',monospace;background:var(--bg);color:var(--text);
 font-size:13px;line-height:1.5;max-width:960px;margin:0 auto}
+.error-banner{display:none;background:#fde2e2;border:1px solid var(--red);color:var(--red);
+border-radius:6px;padding:10px 16px;margin:8px 20px;font-size:12px;font-weight:600}
+.error-banner.visible{display:block}
 .top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
 border-bottom:1px solid var(--border);background:var(--card)}
 .top h1{font-size:16px;font-weight:600;letter-spacing:2px;color:var(--green)}
@@ -92,6 +95,8 @@ canvas{width:100%!important;height:100%!important}
     <span class="meta" id="status-text">connecting…</span>
   </div>
 </div>
+
+<div class="error-banner" id="error-banner"></div>
 
 <div class="grid" id="cards">
   <div class="card"><div class="label">Cash</div><div class="value" id="v-cash">—</div>
@@ -327,6 +332,16 @@ function updateState(s) {
       $('cfg-url').value = s.oai_url || '';
       $('cfg-model').value = s.oai_model || '';
     }
+  }
+
+  // Error banner
+  const errEl = $('error-banner');
+  if (s.last_error) {
+    const retry = s.next_retry_sec > 0 ? ` · retrying in ${s.next_retry_sec}s` : '';
+    errEl.textContent = '⚠ ' + s.last_error + retry;
+    errEl.classList.add('visible');
+  } else {
+    errEl.classList.remove('visible');
   }
 }
 

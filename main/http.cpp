@@ -243,7 +243,7 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
 
 HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method,
                          const std::vector<std::pair<std::string, std::string>> &headers,
-                         const std::string &body) {
+                         const std::string &body, int timeout_ms) {
   HttpResponse response;
   response.body.reserve(4096);  // Pre-allocate to reduce realloc churn.
   HttpContext context{.response = &response};
@@ -256,7 +256,7 @@ HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method
   config.method = method;
   config.event_handler = HttpEventHandler;
   config.user_data = &context;
-  config.timeout_ms = 30000;
+  config.timeout_ms = timeout_ms;
   config.crt_bundle_attach = esp_crt_bundle_attach;
 
   esp_http_client_handle_t client = esp_http_client_init(&config);

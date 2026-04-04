@@ -120,7 +120,7 @@ extern "C" void app_main(void) {
 
   int cycle = 0;
   while (true) {
-    survaiv::RunAgentCycle(&ledger);
+    int retry_delay = survaiv::RunAgentCycle(&ledger);
 
     // Check market outcomes and update wisdom every 4th cycle.
     if (++cycle % 4 == 0) {
@@ -134,6 +134,9 @@ extern "C" void app_main(void) {
       survaiv::models::RefreshRegistry();
     }
 
-    vTaskDelay(pdMS_TO_TICKS(survaiv::config::LoopSeconds() * 1000));
+    // Early retry on LLM failure, otherwise wait the normal loop interval.
+    int delay_sec = retry_delay > 0 ? retry_delay
+                                    : survaiv::config::LoopSeconds();
+    vTaskDelay(pdMS_TO_TICKS(delay_sec * 1000));
   }
 }

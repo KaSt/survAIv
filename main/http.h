@@ -12,6 +12,7 @@ namespace survaiv {
 
 HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method,
                          const std::vector<std::pair<std::string, std::string>> &headers,
-                         const std::string &body = "");
+                         const std::string &body = "",
+                         int timeout_ms = 30000);
 
 }  // namespace survaiv

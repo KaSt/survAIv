@@ -53,6 +53,9 @@ class DashboardState {
   void SetActiveModel(const std::string &model_name, double price_per_req);
   void SetScoutedMarkets(const std::vector<ScoutedMarket> &scouted);
   void IncrementCycleCount();
+  void SetLastError(const std::string &error);
+  void SetNextRetrySec(int seconds);
+  void ClearError();
 
   // Called by the web server to serialize state as JSON.
   std::string ToJson() const;
@@ -109,6 +112,8 @@ class DashboardState {
   double inference_spent_usdc_ = 0.0;
   std::string active_model_;
   double model_price_ = 0.0;
+  std::string last_error_;
+  int next_retry_sec_ = 0;
 };
 
 // Global dashboard state instance.

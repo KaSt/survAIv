@@ -10,6 +10,8 @@
 #include "config.h"
 #include "dashboard_state.h"
 #include "esp_log.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "http.h"
 #include "json_util.h"
 #include "model_registry.h"
@@ -27,6 +29,12 @@ constexpr const char *kTag = "survaiv_agent";
 constexpr int kEstPromptTokens = 2000;
 constexpr int kEstCompletionTokens = 500;
 constexpr double kSimulatedCostPerRequest = 0.0005;
+
+// LLM timeout: 120s to handle cold-start LLM servers (e.g. llama.cpp sleep mode).
+constexpr int kLlmTimeoutMs = 120000;
+// Retry policy for transient LLM failures.
+constexpr int kMaxLlmRetries = 3;
+constexpr int kRetryBaseDelaySec = 15;  // 15s, 30s, 60s backoff
 }
 
 UsageStats ParseUsage(const cJSON *root) {
@@ -210,21 +218,40 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   ESP_LOGI(kTag, "LLM call: model=%s url=%s (%u bytes)",
            model.c_str(), url.c_str(), static_cast<unsigned>(body.str().size()));
 
-  HttpResponse response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str());
-
-  // x402: handle 402 Payment Required → sign → retry.
-  if (response.status_code == 402 && use_x402) {
-    ESP_LOGI(kTag, "x402: received 402, constructing payment...");
-    std::string payment = x402::MakePayment(response);
-    if (payment.empty()) {
-      ESP_LOGE(kTag, "x402 payment construction failed");
-      return false;
+  // Retry loop: handles cold-start LLM servers and transient failures.
+  HttpResponse response;
+  for (int attempt = 0; attempt < kMaxLlmRetries; ++attempt) {
+    if (attempt > 0) {
+      int delay = kRetryBaseDelaySec * (1 << (attempt - 1));
+      ESP_LOGW(kTag, "LLM retry %d/%d in %ds...", attempt + 1, kMaxLlmRetries, delay);
+      GetDashboardState().SetAgentStatus("llm_retry");
+      GetDashboardState().SetNextRetrySec(delay);
+      vTaskDelay(pdMS_TO_TICKS(delay * 1000));
     }
-    headers.emplace_back("X-PAYMENT", payment);
-    response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str());
 
-    // Push updated inference spend to dashboard.
-    GetDashboardState().SetInferenceSpend(x402::TotalSpentUsdc());
+    response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str(), kLlmTimeoutMs);
+
+    // x402: handle 402 Payment Required → sign → retry.
+    if (response.status_code == 402 && use_x402) {
+      ESP_LOGI(kTag, "x402: received 402, constructing payment...");
+      std::string payment = x402::MakePayment(response);
+      if (payment.empty()) {
+        ESP_LOGE(kTag, "x402 payment construction failed");
+        return false;
+      }
+      headers.emplace_back("X-PAYMENT", payment);
+      response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str(), kLlmTimeoutMs);
+      GetDashboardState().SetInferenceSpend(x402::TotalSpentUsdc());
+    }
+
+    // Success — break out of retry loop.
+    if (response.err == ESP_OK && response.status_code >= 200 && response.status_code < 300) {
+      break;
+    }
+
+    ESP_LOGW(kTag, "LLM attempt %d/%d failed: status=%d err=%d body=%.200s",
+             attempt + 1, kMaxLlmRetries, response.status_code, response.err,
+             response.body.c_str());
   }
 
   // Track simulated inference cost in paper mode using real provider pricing.
@@ -234,7 +261,6 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
     s_simulated_spend += (matched_price > 0) ? matched_price : kSimulatedCostPerRequest;
     GetDashboardState().SetInferenceSpend(s_simulated_spend);
     if (matched_price > 0) {
-      // Find the model name for dashboard display.
       for (int i = 0; i < models::ModelCount(); ++i) {
         const auto &m = models::GetModel(i);
         if (models::CheapestPrice(m) == matched_price) {
@@ -247,8 +273,12 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   }
 
   if (response.err != ESP_OK || response.status_code < 200 || response.status_code >= 300) {
-    ESP_LOGW(kTag, "LLM call failed: status=%d err=%d body=%.200s",
-             response.status_code, response.err, response.body.c_str());
+    // All retries exhausted — report to dashboard.
+    char err_buf[128];
+    snprintf(err_buf, sizeof(err_buf), "LLM unreachable (status=%d err=%d) after %d attempts",
+             response.status_code, response.err, kMaxLlmRetries);
+    ESP_LOGE(kTag, "%s", err_buf);
+    GetDashboardState().SetLastError(err_buf);
     return false;
   }
 
@@ -412,16 +442,18 @@ static bool InCooldown() {
   return elapsed < config::CooldownAfterLossSeconds();
 }
 
-void RunAgentCycle(BudgetLedger *ledger) {
+constexpr int kLlmFailRetryDelaySec = 60;  // Retry cycle 60s after LLM failure.
+
+int RunAgentCycle(BudgetLedger *ledger) {
   if (ledger == nullptr) {
-    return;
+    return 0;
   }
 
   GeoblockStatus geoblock = FetchGeoblockStatus();
   std::vector<MarketSnapshot> markets = FetchMarkets(config::MarketLimit());
   if (markets.empty()) {
     ESP_LOGW(kTag, "No markets fetched this cycle.");
-    return;
+    return 0;
   }
   LogLedgerState(*ledger, markets);
 
@@ -441,7 +473,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
   if (!ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), markets)) {
     ESP_LOGW(kTag, "Inference reserve reached. cash=%.4f reserve=%.4f",
              ledger->Cash(), ledger->Reserve());
-    return;
+    return 0;
   }
 
   bool paper_only = config::PaperTradingOnly() || geoblock.blocked;
@@ -454,7 +486,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
   if (equity_check <= ledger->Reserve()) {
     ESP_LOGW(kTag, "HARD STOP: equity (%.4f) <= reserve (%.4f). No new trades.",
              equity_check, ledger->Reserve());
-    return;
+    return 0;
   }
 
   std::string system_prompt = BuildSystemPrompt(paper_only, geoblock.blocked);
@@ -484,8 +516,12 @@ void RunAgentCycle(BudgetLedger *ledger) {
   }
 
   if (!ChatCompletion(system_prompt, user_prompt, &response_text, &usage, model_id)) {
-    return;
+    dash.SetAgentStatus("llm_error");
+    dash.SetNextRetrySec(kLlmFailRetryDelaySec);
+    webserver::PushSseEvent("state", dash.SseStateEvent());
+    return kLlmFailRetryDelaySec;
   }
+  dash.ClearError();
   SpendForUsage(ledger, usage);
 
   // Handle tool calls.
@@ -614,40 +650,40 @@ void RunAgentCycle(BudgetLedger *ledger) {
                  config::CooldownAfterLossSeconds());
       }
     }
-    return;
+    return 0;
   }
 
   // Handle live buy decisions.
   if (IsLiveBuyDecision(decision.type)) {
     if (paper_only) {
       ESP_LOGW(kTag, "Live buy rejected: paper-only mode is active.");
-      return;
+      return 0;
     }
     if (InCooldown()) {
       ESP_LOGW(kTag, "Live buy rejected: in post-loss cooldown.");
-      return;
+      return 0;
     }
     double live_conf_threshold = config::LiveConfidenceThreshold() / 100.0;
     if (decision.market_id.empty() ||
         decision.confidence < live_conf_threshold ||
         decision.edge_bps < static_cast<double>(config::LiveMinEdgeBps())) {
       ESP_LOGI(kTag, "Live buy rejected: thresholds not met.");
-      return;
+      return 0;
     }
     if (daily_loss_exceeded) {
       ESP_LOGW(kTag, "Live buy rejected: daily loss limit reached (%.4f USDC).",
                ledger->DailyLossUsdc());
-      return;
+      return 0;
     }
     if (!clob::IsReady()) {
       ESP_LOGW(kTag, "Live buy rejected: CLOB not authenticated.");
-      return;
+      return 0;
     }
 
     const MarketSnapshot *market = FindMarket(markets, decision.market_id);
     if (market == nullptr) {
       ESP_LOGI(kTag, "Market not found in snapshot for live trade.");
-      return;
+      return 0;
     }
 
     // Determine token ID and price.
@@ -664,7 +700,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
 
     if (token_id.empty() || price <= 0.0 || price >= 1.0) {
       ESP_LOGW(kTag, "Invalid token_id or price for live trade.");
-      return;
+      return 0;
     }
 
     // Compute size (number of outcome tokens).
@@ -675,7 +711,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
 
     if (size_usdc < 0.10) {
       ESP_LOGI(kTag, "Live order too small: %.4f USDC", size_usdc);
-      return;
+      return 0;
     }
 
     std::string order_id = clob::PlaceOrder(token_id, side, price, size_tokens);
@@ -687,24 +723,24 @@ void RunAgentCycle(BudgetLedger *ledger) {
         ledger->MarkPositionLive(decision.market_id, order_id);
       }
     }
-    return;
+    return 0;
   }
 
   // Handle paper buy decisions.
   if (!IsPaperBuyDecision(decision.type) || decision.market_id.empty() ||
       decision.confidence < 0.65 || decision.edge_bps < 150.0) {
-    return;
+    return 0;
   }
 
   if (ledger->OpenPositionCount() >= config::MaxOpenPositions()) {
     ESP_LOGI(kTag, "Skipping paper trade, max open positions reached.");
-    return;
+    return 0;
   }
 
   const MarketSnapshot *market = FindMarket(markets, decision.market_id);
   if (market == nullptr) {
     ESP_LOGI(kTag, "Suggested market not present in current snapshot.");
-    return;
+    return 0;
   }
 
   double size_fraction = std::clamp(decision.size_fraction, 0.0, 0.02);
@@ -715,6 +751,7 @@ void RunAgentCycle(BudgetLedger *ledger) {
     ESP_LOGI(kTag, "Opened paper %s on %s with %.4f USDC", decision.side.c_str(),
              market->question.c_str(), size_usdc);
   }
+  return 0;
 }
 
 }  // namespace survaiv

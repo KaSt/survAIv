@@ -18,7 +18,8 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
 ToolCall ParseToolCall(const std::string &json_text);
 Decision ParseDecision(const std::string &json_text);
 void SpendForUsage(BudgetLedger *ledger, const UsageStats &usage);
-void RunAgentCycle(BudgetLedger *ledger);
+// Returns 0 on success, or a retry delay in seconds if the LLM was unreachable.
+int RunAgentCycle(BudgetLedger *ledger);
 void LogLedgerState(const BudgetLedger &ledger, const std::vector<MarketSnapshot> &markets);
 
 }  // namespace survaiv
