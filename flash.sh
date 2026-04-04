@@ -3,11 +3,13 @@ set -euo pipefail
 
 # ── Parse arguments ───────────────────────────────────────────
 WALLET_KEY=""
+MONITOR=false
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --wallet) WALLET_KEY="$2"; shift 2 ;;
     --wallet=*) WALLET_KEY="${1#*=}"; shift ;;
+    -m|--monitor) MONITOR=true; shift ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
 done
@@ -84,5 +86,10 @@ EOF
 fi
 
 echo ""
-echo "── Monitor (Ctrl+] to quit) ─────"
-idf.py -p "$PORT" monitor
+if $MONITOR; then
+  echo "── Monitor (Ctrl+] to quit) ─────"
+  idf.py -p "$PORT" monitor
+else
+  echo "✅ Flash complete. Run with -m to monitor:"
+  echo "   ./flash.sh -m"
+fi
