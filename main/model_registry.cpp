@@ -210,31 +210,42 @@ static std::string StripOrgPrefix(const std::string &id) {
   return (pos != std::string::npos) ? id.substr(pos + 1) : id;
 }
 
+// Normalize separators so "gpt-oss:20b" matches "gpt-oss-20b".
+static std::string NormalizeName(const std::string &s) {
+  std::string out;
+  out.reserve(s.size());
+  for (char c : s) {
+    out += (c == ':' || c == '_' || c == '.') ? '-'
+                                              : static_cast<char>(tolower(static_cast<unsigned char>(c)));
+  }
+  return out;
+}
+
 double LookupPrice(const std::string &model_name) {
   if (model_name.empty()) return 0.0;
 
-  std::string query = StripOrgPrefix(model_name);
+  std::string query = NormalizeName(StripOrgPrefix(model_name));
 
-  // Pass 1: exact match against stripped IDs.
+  // Pass 1: exact match against normalized stripped IDs.
   for (int i = 0; i < kModelCount; ++i) {
     const ModelInfo &m = kModels[i];
-    if (m.tx402_id && StripOrgPrefix(m.tx402_id) == query)
+    if (m.tx402_id && NormalizeName(StripOrgPrefix(m.tx402_id)) == query)
       return CheapestPrice(m);
-    if (m.engine_id && std::string(m.engine_id) == query)
+    if (m.engine_id && NormalizeName(m.engine_id) == query)
       return CheapestPrice(m);
   }
 
   // Pass 2: the query is a substring of a known ID, or vice versa.
-  // E.g. "deepseek-v3" matches "deepseek-v3.2", "gpt-oss" matches "gpt-oss-20b".
+  // E.g. "deepseek-v3" matches "deepseek-v3.2", "gpt-oss:20b" matches "gpt-oss-20b".
   for (int i = 0; i < kModelCount; ++i) {
     const ModelInfo &m = kModels[i];
     if (m.tx402_id) {
-      std::string stripped = StripOrgPrefix(m.tx402_id);
+      std::string stripped = NormalizeName(StripOrgPrefix(m.tx402_id));
       if (ContainsCI(stripped, query) || ContainsCI(query, stripped))
         return CheapestPrice(m);
     }
     if (m.engine_id) {
-      std::string eid(m.engine_id);
+      std::string eid = NormalizeName(m.engine_id);
       if (ContainsCI(eid, query) || ContainsCI(query, eid))
         return CheapestPrice(m);
     }
@@ -243,8 +254,8 @@ double LookupPrice(const std::string &model_name) {
   // Pass 3: check against the human-readable name (e.g. "DeepSeek V3.2").
   for (int i = 0; i < kModelCount; ++i) {
     const ModelInfo &m = kModels[i];
-    if (ContainsCI(std::string(m.name), query) ||
-        ContainsCI(query, std::string(m.name)))
+    std::string norm_name = NormalizeName(m.name);
+    if (ContainsCI(norm_name, query) || ContainsCI(query, norm_name))
       return CheapestPrice(m);
   }
 
