@@ -8,14 +8,15 @@ import (
 )
 
 // knowledgeExport is the JSON format for knowledge export/import.
-// Matches the ESP32 survaiv-knowledge-v1 format exactly for cross-platform compatibility.
+// Matches the ESP32 survaiv-knowledge-v2 format exactly for cross-platform compatibility.
 type knowledgeExport struct {
-	Format     string              `json:"format"`
-	ExportedAt int64               `json:"exported_at"`
-	WisdomText string              `json:"wisdom_text"`
-	Stats      knowledgeStats      `json:"stats"`
-	Models     []modelExport       `json:"models"`
-	Decisions  []knowledgeDecision `json:"decisions"`
+	Format      string              `json:"format"`
+	ExportedAt  int64               `json:"exported_at"`
+	CustomRules string              `json:"custom_rules,omitempty"`
+	WisdomText  string              `json:"wisdom_text"`
+	Stats       knowledgeStats      `json:"stats"`
+	Models      []modelExport       `json:"models"`
+	Decisions   []knowledgeDecision `json:"decisions"`
 }
 
 type knowledgeStats struct {
@@ -64,9 +65,10 @@ func (t *Tracker) ExportKnowledge() ([]byte, error) {
 	defer t.mu.RUnlock()
 
 	exp := knowledgeExport{
-		Format:     "survaiv-knowledge-v1",
-		ExportedAt: time.Now().Unix(),
-		WisdomText: t.wisdom,
+		Format:      "survaiv-knowledge-v2",
+		ExportedAt:  time.Now().Unix(),
+		CustomRules: t.customRules,
+		WisdomText:  t.wisdom,
 		Stats: knowledgeStats{
 			Total:        t.stats.Total,
 			Correct:      t.stats.Correct,
@@ -111,12 +113,24 @@ func (t *Tracker) ImportKnowledge(data []byte) error {
 		return fmt.Errorf("invalid JSON: %w", err)
 	}
 
-	if exp.Format != "survaiv-knowledge-v1" {
+	if len(exp.Format) < 19 || exp.Format[:19] != "survaiv-knowledge-v" {
 		return fmt.Errorf("unknown format: %s", exp.Format)
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
+
+	// Import custom rules (v2).
+	if exp.CustomRules != "" {
+		t.customRules = exp.CustomRules
+		if len(t.customRules) > maxWisdomBytes {
+			t.customRules = t.customRules[:maxWisdomBytes]
+			if idx := lastIndex(t.customRules, '\n'); idx > 0 {
+				t.customRules = t.customRules[:idx+1]
+			}
+		}
+		t.saveCustomRulesToDB()
+	}
 
 	// Import wisdom text.
 	t.wisdom = exp.WisdomText
@@ -161,12 +175,16 @@ func (t *Tracker) ImportKnowledge(data []byte) error {
 		t.count++
 	}
 
-	// Persist.
+	// Persist and regenerate.
 	t.saveStatsToDB()
+	if !t.frozen {
+		t.regenerateWisdom()
+	}
 	t.saveWisdomToDB()
 
 	slog.Info("wisdom imported",
-		"stats_total", t.stats.Total, "decisions", t.count, "wisdom_len", len(t.wisdom))
+		"stats_total", t.stats.Total, "decisions", t.count,
+		"wisdom_len", len(t.wisdom), "custom_rules_len", len(t.customRules))
 	return nil
 }
 
@@ -185,6 +203,8 @@ func (t *Tracker) StatsJSON() string {
 		"buy_correct":    t.stats.BuysCorrect,
 		"frozen":         t.frozen,
 		"wisdom_text":    t.wisdom,
+		"custom_rules":   t.customRules,
+		"wisdom_budget":  maxWisdomBytes,
 		"categories":     []interface{}{},
 		"models":         []interface{}{},
 	})

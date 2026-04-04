@@ -98,6 +98,12 @@ canvas { width: 100% !important; height: 100% !important; }
 /* Wisdom */
 .wisdom-text { color: var(--fg2); font-size: 0.88em; white-space: pre-wrap;
   background: var(--bg3); padding: 10px; border-radius: 6px; max-height: 140px; overflow-y: auto; }
+.custom-rules-editor textarea { width: 100%; min-height: 80px; font-size: 0.85em; font-family: monospace;
+  line-height: 1.4; background: var(--bg3); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; resize: vertical; }
+.custom-rules-editor .rules-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.custom-rules-editor .rules-footer .char-count { font-size: 0.8em; color: var(--fg2); }
+.custom-rules-editor .rules-footer button { font-size: 0.85em; padding: 4px 12px; background: var(--accent);
+  color: #fff; border: none; border-radius: 4px; cursor: pointer; }
 
 /* Grid layout */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -439,7 +445,27 @@ function renderWisdom(d) {
   if (d.frozen) html += '<span style="color:var(--yellow)">🧊 Frozen</span>';
   html += '</div>';
   html += '<div class="wisdom-text">' + (d.wisdom_text || 'Collecting data...') + '</div>';
+  // Custom rules editor — preserve focus.
+  const existing = el.querySelector('#rules-editor');
+  const isFocused = existing && document.activeElement === existing;
+  html += '<div class="custom-rules-editor" style="margin-top:8px">';
+  html += '<div style="font-size:0.85em;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--fg2)">(LLM-distilled insights injected into prompt)</span></div>';
+  html += '<textarea id="rules-editor" placeholder="AVOID: sports outcomes — no edge vs oddsmakers&#10;EDGE: geopolitical events — markets overreact">';
+  html += (isFocused ? (existing.value || '') : (d.custom_rules || ''));
+  html += '</textarea>';
+  const budget = d.wisdom_budget || 8000;
+  const used = new TextEncoder().encode(d.custom_rules || '').length;
+  html += '<div class="rules-footer">';
+  html += '<span class="char-count">' + used + ' / ' + budget + ' bytes</span>';
+  html += '<button onclick="saveCustomRules()">Save Rules</button>';
+  html += '</div></div>';
+  window._wisdomBudget = budget;
   el.innerHTML = html;
+  // Restore focus if user was editing.
+  if (isFocused) {
+    const newEditor = el.querySelector('#rules-editor');
+    if (newEditor) { newEditor.focus(); newEditor.value = existing.value; }
+  }
 }
 
 // Equity chart
@@ -596,6 +622,22 @@ function connectSSE() {
     try { renderScouted(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
   });
   evtSource.onerror = function() { evtSource.close(); setTimeout(connectSSE, 3000); };
+}
+
+function saveCustomRules() {
+  var editor = document.getElementById('rules-editor');
+  if (!editor) return;
+  var rules = editor.value;
+  fetch('/api/wisdom/rules', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({rules: rules})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.ok) loadAll();
+  })
+  .catch(function(e) { console.error('Save rules error:', e); });
 }
 
 async function loadAll() {

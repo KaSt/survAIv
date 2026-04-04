@@ -61,7 +61,13 @@ std::string StatsJson();
 bool IsFrozen();
 void SetFrozen(bool frozen);
 
+// Custom rules — LLM-distilled or hand-crafted insights that persist
+// across stat regeneration.  These get priority in the wisdom budget.
+std::string GetCustomRules();
+void SetCustomRules(const std::string &rules);
+
 // Export/import the full knowledge base as a single JSON blob.
+// Format v2 includes custom_rules for cross-platform transfer.
 std::string ExportKnowledge();
 bool ImportKnowledge(const std::string &json);
 

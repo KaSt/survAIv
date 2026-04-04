@@ -26,3 +26,41 @@ func StatsJSON() string {
 	}
 	return defaultTracker.StatsJSON()
 }
+
+// GetCustomRules returns the current custom rules from the default tracker.
+func GetCustomRules() string {
+	if defaultTracker == nil {
+		return ""
+	}
+	return defaultTracker.GetCustomRules()
+}
+
+// SetCustomRules updates custom rules on the default tracker.
+func SetCustomRules(rules string) {
+	if defaultTracker != nil {
+		defaultTracker.SetCustomRules(rules)
+	}
+}
+
+// ExportKnowledge exports knowledge from the default tracker.
+func ExportKnowledge() ([]byte, error) {
+	if defaultTracker == nil {
+		return nil, nil
+	}
+	return defaultTracker.ExportKnowledge()
+}
+
+// ImportKnowledge imports knowledge into the default tracker.
+func ImportKnowledge(data []byte) error {
+	if defaultTracker == nil {
+		return nil
+	}
+	return defaultTracker.ImportKnowledge(data)
+}
+
+// SetFrozen enables or disables learning on the default tracker.
+func SetFrozen(frozen bool) {
+	if defaultTracker != nil {
+		defaultTracker.SetFrozen(frozen)
+	}
+}

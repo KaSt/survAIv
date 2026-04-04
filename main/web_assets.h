@@ -77,6 +77,13 @@ display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .wisdom-stat .lbl{font-size:10px;color:var(--dim);text-transform:uppercase;margin-top:2px}
 .wisdom-rules{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;
 font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--fg);max-height:200px;overflow-y:auto}
+.custom-rules-editor{margin-top:10px}
+.custom-rules-editor textarea{width:100%;min-height:80px;font-size:11px;font-family:monospace;line-height:1.4;
+background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;resize:vertical}
+.custom-rules-editor .rules-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.custom-rules-editor .rules-footer .char-count{font-size:10px;color:var(--dim)}
+.custom-rules-editor .rules-footer button{font-size:11px;padding:4px 12px;background:var(--blue);color:#fff;
+border:none;border-radius:4px;cursor:pointer}
 .freeze-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer;float:right;margin-top:-2px}
 .freeze-toggle input{accent-color:var(--blue);cursor:pointer}
 .frozen-badge{display:inline-block;background:var(--blue);color:#fff;font-size:9px;padding:1px 6px;
@@ -254,6 +261,15 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
           <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
         </label>
         <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
+      </div>
+      <div class="custom-rules-editor" style="margin-top:10px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--dim)">(LLM-distilled or hand-crafted insights, injected into prompt)</span></div>
+        <textarea id="rules-editor" placeholder="AVOID: sports match outcomes — no edge vs oddsmakers&#10;EDGE: geopolitical binary events — markets overreact&#10;RULE: >0.85 yes_price = skip, edge too thin"></textarea>
+        <div class="rules-footer">
+          <span class="char-count" id="rules-count">0 / ? bytes</span>
+          <button onclick="saveCustomRules()">Save Rules</button>
+        </div>
+        <div id="rules-status" style="font-size:10px;color:var(--dim);margin-top:2px"></div>
       </div>
     </div>
 
@@ -736,11 +752,22 @@ function updateWisdom(w) {
   // Frozen state.
   el('w-freeze').checked = !!w.frozen;
   el('w-frozen-badge').style.display = w.frozen ? 'inline-block' : 'none';
+  // Custom rules editor — update only if user isn't actively editing.
+  const editor = el('rules-editor');
+  if (editor && document.activeElement !== editor) {
+    editor.value = w.custom_rules || '';
+  }
+  if (w.wisdom_budget) {
+    window._wisdomBudget = w.wisdom_budget;
+    const used = new TextEncoder().encode(editor.value).length;
+    el('rules-count').textContent = used + ' / ' + w.wisdom_budget + ' bytes';
+  }
   // Model history.
   if (w.models && w.models.length > 0) {
     el('w-models').innerHTML = '🧠 Models: ' + w.models.map(m =>
       '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
     ).join(' → ');
+  }
   }
 }
 
@@ -787,6 +814,39 @@ function importKnowledge(input) {
   reader.readAsText(file);
   input.value = '';
 }
+
+function saveCustomRules() {
+  const editor = document.getElementById('rules-editor');
+  const status = document.getElementById('rules-status');
+  const rules = editor.value;
+  status.textContent = 'Saving…';
+  status.style.color = 'var(--dim)';
+  fetch('/api/wisdom/rules', {method:'POST', body:JSON.stringify({rules:rules}),
+    headers: authHeaders()})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        status.textContent = '✓ Saved (' + d.size + ' bytes)';
+        status.style.color = 'var(--green)';
+        poll();
+      } else {
+        status.textContent = '✗ Save failed';
+        status.style.color = 'var(--red)';
+      }
+    })
+    .catch(() => { status.textContent = '✗ Error'; status.style.color = 'var(--red)'; });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const editor = document.getElementById('rules-editor');
+  if (editor) {
+    editor.addEventListener('input', function() {
+      const used = new TextEncoder().encode(editor.value).length;
+      const counter = document.getElementById('rules-count');
+      if (counter) counter.textContent = used + ' / ' + (window._wisdomBudget || '?') + ' bytes';
+    });
+  }
+});
 
 function poll() {
   fetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});

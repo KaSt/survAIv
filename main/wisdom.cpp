@@ -44,6 +44,7 @@ int g_head = 0;
 int g_count = 0;
 
 std::string g_wisdom;
+std::string g_custom_rules;  // Hand-crafted or LLM-distilled rules (survive regeneration)
 WisdomStats g_stats;
 SemaphoreHandle_t g_mutex = nullptr;
 bool g_frozen = false;
@@ -62,6 +63,13 @@ void LoadFromNvs() {
   size_t len = sizeof(buf);
   if (nvs_get_str(h, kWisdomKey, buf, &len) == ESP_OK) {
     g_wisdom = buf;
+  }
+
+  // Custom rules (LLM-distilled or hand-crafted insights).
+  char rbuf[kMaxWisdomBytes + 1] = {};
+  size_t rlen = sizeof(rbuf);
+  if (nvs_get_str(h, "wis_rules", rbuf, &rlen) == ESP_OK) {
+    g_custom_rules = rbuf;
   }
 
   size_t blob_sz = sizeof(WisdomStats);
@@ -126,88 +134,94 @@ int FindOrAddCategory(const char *name) {
 
 // ── Wisdom text generation ─────────────────────────────────────────────────────
 
-void RegenerateWisdom() {
+// Compact stat line: "42/60=70% h:75% b:65% best:crypto worst:sports"
+static std::string CompactStats() {
   std::ostringstream ss;
-  int rule = 1;
+  if (g_stats.total == 0) return "";
 
-  // Overall accuracy
-  if (g_stats.total > 0) {
-    int pct = (g_stats.correct * 100) / g_stats.total;
-    ss << rule++ << ". Overall: " << g_stats.correct << "/" << g_stats.total
-       << " correct (" << pct << "%)";
-    if (pct >= 60)
-      ss << " — positive edge confirmed.\n";
-    else if (pct >= 45)
-      ss << " — near breakeven, tighten filters.\n";
-    else
-      ss << " — negative edge, reduce risk.\n";
-  }
+  int pct = (g_stats.correct * 100) / g_stats.total;
+  ss << g_stats.correct << "/" << g_stats.total << "=" << pct << "%";
 
-  // Hold vs buy
-  if (g_stats.holds_total > 0 && g_stats.buys_total > 0) {
-    int hp = (g_stats.holds_correct * 100) / g_stats.holds_total;
-    int bp = (g_stats.buys_correct * 100) / g_stats.buys_total;
-    ss << rule++ << ". Holds " << hp << "% vs Buys " << bp << "% correct";
-    if (hp > bp + 10)
-      ss << " — holding saves capital.\n";
-    else if (bp > hp + 10)
-      ss << " — buying edge is strong.\n";
-    else
-      ss << " — similar performance.\n";
-  } else if (g_stats.holds_total > 0) {
-    int hp = (g_stats.holds_correct * 100) / g_stats.holds_total;
-    ss << rule++ << ". Holds: " << hp << "% correct (" << g_stats.holds_correct
-       << "/" << g_stats.holds_total << ").\n";
-  } else if (g_stats.buys_total > 0) {
-    int bp = (g_stats.buys_correct * 100) / g_stats.buys_total;
-    ss << rule++ << ". Buys: " << bp << "% correct (" << g_stats.buys_correct
-       << "/" << g_stats.buys_total << ").\n";
-  }
+  if (g_stats.holds_total > 0)
+    ss << " h:" << (g_stats.holds_correct * 100 / g_stats.holds_total) << "%";
+  if (g_stats.buys_total > 0)
+    ss << " b:" << (g_stats.buys_correct * 100 / g_stats.buys_total) << "%";
 
-  // Best and worst categories (min 3 samples)
   int best_i = -1, worst_i = -1;
   int best_pct = -1, worst_pct = 101;
   for (int i = 0; i < 8; ++i) {
     auto &c = g_stats.categories[i];
     if (c.total < 3) continue;
-    int pct = (c.correct * 100) / c.total;
-    if (pct > best_pct) {
-      best_pct = pct;
-      best_i = i;
-    }
-    if (pct < worst_pct) {
-      worst_pct = pct;
-      worst_i = i;
-    }
+    int p = (c.correct * 100) / c.total;
+    if (p > best_pct) { best_pct = p; best_i = i; }
+    if (p < worst_pct) { worst_pct = p; worst_i = i; }
   }
-  if (best_i >= 0) {
-    auto &c = g_stats.categories[best_i];
-    ss << rule++ << ". " << c.name << ": " << best_pct << "% (" << c.correct
-       << "/" << c.total << ") — strongest edge.\n";
-  }
-  if (worst_i >= 0 && worst_i != best_i) {
-    auto &c = g_stats.categories[worst_i];
-    ss << rule++ << ". " << c.name << ": " << worst_pct << "% (" << c.correct
-       << "/" << c.total << ") — weakest, reduce size.\n";
+  if (best_i >= 0)
+    ss << " +" << g_stats.categories[best_i].name << ":" << best_pct << "%";
+  if (worst_i >= 0 && worst_i != best_i)
+    ss << " -" << g_stats.categories[worst_i].name << ":" << worst_pct << "%";
+
+  return ss.str();
+}
+
+void RegenerateWisdom() {
+  std::ostringstream ss;
+
+  // Custom rules always come first — they're the high-quality distilled insights.
+  if (!g_custom_rules.empty()) {
+    ss << g_custom_rules;
+    if (g_custom_rules.back() != '\n') ss << '\n';
   }
 
-  // Strong signals in other categories (min 5 samples)
-  for (int i = 0; i < 8; ++i) {
-    if (i == best_i || i == worst_i) continue;
-    auto &c = g_stats.categories[i];
-    if (c.total < 5) continue;
-    int pct = (c.correct * 100) / c.total;
-    if (pct >= 70) {
-      ss << rule++ << ". " << c.name << " at " << pct
-         << "% — reliable, lean in.\n";
-    } else if (pct <= 30) {
-      ss << rule++ << ". " << c.name << " at " << pct
-         << "% — consistently wrong, invert or avoid.\n";
+  // Append compact stats if there's room.
+  std::string stats_line = CompactStats();
+  if (!stats_line.empty()) {
+    size_t used = ss.str().size();
+    std::string stat_entry = "S:" + stats_line + "\n";
+    if (used + stat_entry.size() <= static_cast<size_t>(kMaxWisdomBytes)) {
+      ss << stat_entry;
     }
+  }
+
+  // If no custom rules, add verbose stat-derived rules for backward compat.
+  if (g_custom_rules.empty()) {
+    int rule = 1;
+    if (g_stats.total > 0) {
+      int pct = (g_stats.correct * 100) / g_stats.total;
+      ss << rule++ << ". " << g_stats.correct << "/" << g_stats.total
+         << " (" << pct << "%)";
+      if (pct >= 60) ss << " edge+\n";
+      else if (pct >= 45) ss << " ~breakeven\n";
+      else ss << " edge- reduce risk\n";
+    }
+    if (g_stats.holds_total > 0 && g_stats.buys_total > 0) {
+      int hp = (g_stats.holds_correct * 100) / g_stats.holds_total;
+      int bp = (g_stats.buys_correct * 100) / g_stats.buys_total;
+      ss << rule++ << ". H:" << hp << "% B:" << bp << "%";
+      if (hp > bp + 10) ss << " hold>buy\n";
+      else if (bp > hp + 10) ss << " buy>hold\n";
+      else ss << " ~equal\n";
+    }
+
+    int best_i = -1, worst_i = -1;
+    int best_pct = -1, worst_pct = 101;
+    for (int i = 0; i < 8; ++i) {
+      auto &c = g_stats.categories[i];
+      if (c.total < 3) continue;
+      int p = (c.correct * 100) / c.total;
+      if (p > best_pct) { best_pct = p; best_i = i; }
+      if (p < worst_pct) { worst_pct = p; worst_i = i; }
+    }
+    if (best_i >= 0)
+      ss << rule++ << ". " << g_stats.categories[best_i].name
+         << " " << best_pct << "% best\n";
+    if (worst_i >= 0 && worst_i != best_i)
+      ss << rule++ << ". " << g_stats.categories[worst_i].name
+         << " " << worst_pct << "% worst\n";
   }
 
   std::string text = ss.str();
-  if (text.size() > kMaxWisdomBytes) {
+  if (text.size() > static_cast<size_t>(kMaxWisdomBytes)) {
     text.resize(kMaxWisdomBytes);
     auto pos = text.rfind('\n');
     if (pos != std::string::npos && pos > 0) text.resize(pos + 1);
@@ -442,6 +456,30 @@ void SetFrozen(bool frozen) {
   ESP_LOGI(kTag, "Learning %s", frozen ? "frozen" : "resumed");
 }
 
+std::string GetCustomRules() {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+  std::string result = g_custom_rules;
+  xSemaphoreGive(g_mutex);
+  return result;
+}
+
+void SetCustomRules(const std::string &rules) {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+  g_custom_rules = rules;
+  if (g_custom_rules.size() > static_cast<size_t>(kMaxWisdomBytes)) {
+    g_custom_rules.resize(kMaxWisdomBytes);
+    auto pos = g_custom_rules.rfind('\n');
+    if (pos != std::string::npos && pos > 0) g_custom_rules.resize(pos + 1);
+  }
+  config::SetString("wis_rules", g_custom_rules);
+  if (!g_frozen) {
+    RegenerateWisdom();
+    SaveWisdomToNvs();
+  }
+  ESP_LOGI(kTag, "Custom rules set (%zu B)", g_custom_rules.size());
+  xSemaphoreGive(g_mutex);
+}
+
 std::string StatsJson() {
   xSemaphoreTake(g_mutex, portMAX_DELAY);
 
@@ -455,7 +493,9 @@ std::string StatsJson() {
      << ",\"buy_correct\":" << g_stats.buys_correct
      << ",\"frozen\":" << (g_frozen ? "true" : "false")
      << ",\"wisdom_text\":\"" << JsonEscape(g_wisdom)
-     << "\",\"categories\":[";
+     << "\",\"custom_rules\":\"" << JsonEscape(g_custom_rules)
+     << "\",\"wisdom_budget\":" << kMaxWisdomBytes
+     << ",\"categories\":[";
   bool first = true;
   for (int i = 0; i < 8; ++i) {
     if (g_stats.categories[i].name[0] == '\0') continue;
@@ -490,7 +530,10 @@ std::string ExportKnowledge() {
   time_t now;
   time(&now);
 
-  ss << "{\"format\":\"survaiv-knowledge-v1\",\"exported_at\":" << static_cast<int64_t>(now);
+  ss << "{\"format\":\"survaiv-knowledge-v2\",\"exported_at\":" << static_cast<int64_t>(now);
+
+  // Custom rules — the high-value LLM-distilled insights.
+  ss << ",\"custom_rules\":\"" << JsonEscape(g_custom_rules) << '"';
 
   // Wisdom text + stats.
   ss << ",\"wisdom_text\":\"" << JsonEscape(g_wisdom) << '"'
@@ -562,10 +605,10 @@ bool ImportKnowledge(const std::string &json) {
     return false;
   }
 
-  // Validate format marker.
+  // Validate format marker (accept v1 and v2).
   cJSON *fmt = cJSON_GetObjectItemCaseSensitive(root, "format");
   if (!fmt || !cJSON_IsString(fmt) ||
-      std::strncmp(fmt->valuestring, "survaiv-knowledge-v1", 20) != 0) {
+      (std::strncmp(fmt->valuestring, "survaiv-knowledge-v", 19) != 0)) {
     ESP_LOGE(kTag, "Import: unknown format");
     cJSON_Delete(root);
     return false;
@@ -573,11 +616,25 @@ bool ImportKnowledge(const std::string &json) {
 
   xSemaphoreTake(g_mutex, portMAX_DELAY);
 
+  // Custom rules (v2) — the high-value distilled knowledge.
+  cJSON *cr = cJSON_GetObjectItemCaseSensitive(root, "custom_rules");
+  if (cr && cJSON_IsString(cr) && cr->valuestring[0] != '\0') {
+    g_custom_rules = cr->valuestring;
+    // Fit to this platform's budget.
+    if (g_custom_rules.size() > static_cast<size_t>(kMaxWisdomBytes)) {
+      g_custom_rules.resize(kMaxWisdomBytes);
+      auto pos = g_custom_rules.rfind('\n');
+      if (pos != std::string::npos && pos > 0) g_custom_rules.resize(pos + 1);
+    }
+    config::SetString("wis_rules", g_custom_rules);
+  }
+
   // Wisdom text.
   cJSON *wt = cJSON_GetObjectItemCaseSensitive(root, "wisdom_text");
   if (wt && cJSON_IsString(wt)) {
     g_wisdom = wt->valuestring;
-    if (g_wisdom.size() > kMaxWisdomBytes) g_wisdom.resize(kMaxWisdomBytes);
+    if (g_wisdom.size() > static_cast<size_t>(kMaxWisdomBytes))
+      g_wisdom.resize(kMaxWisdomBytes);
   }
 
   // Stats.
@@ -669,8 +726,11 @@ bool ImportKnowledge(const std::string &json) {
     ++g_count;
   }
 
-  // Persist imported data.
+  // Persist imported data and regenerate wisdom (respects custom_rules priority).
   SaveStatsToNvs();
+  if (!g_frozen) {
+    RegenerateWisdom();
+  }
   SaveWisdomToNvs();
 
   ESP_LOGI(kTag, "Imported: %u stats, %d decisions, %d models, %zu B wisdom",

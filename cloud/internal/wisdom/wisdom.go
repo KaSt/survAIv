@@ -54,15 +54,16 @@ type Stats struct {
 
 // Tracker tracks agent decisions and evaluates outcomes.
 type Tracker struct {
-	db     *sql.DB
-	client *httpclient.Client
-	mu     sync.RWMutex
-	ring   [maxDecisions]TrackedDecision
-	head   int
-	count  int
-	stats  Stats
-	wisdom string
-	frozen bool
+	db          *sql.DB
+	client      *httpclient.Client
+	mu          sync.RWMutex
+	ring        [maxDecisions]TrackedDecision
+	head        int
+	count       int
+	stats       Stats
+	wisdom      string
+	customRules string
+	frozen      bool
 }
 
 // NewTracker creates a new wisdom Tracker backed by SQLite.
@@ -310,6 +311,25 @@ func (t *Tracker) IsFrozen() bool {
 }
 
 func (t *Tracker) regenerateWisdom() {
+	// Custom rules get priority — they're the distilled insights.
+	if t.customRules != "" {
+		text := t.customRules
+		// Append compact stats if room.
+		compact := t.compactStats()
+		if compact != "" && len(text)+1+len(compact) <= maxWisdomBytes {
+			text += "\n" + compact
+		}
+		if len(text) > maxWisdomBytes {
+			text = text[:maxWisdomBytes]
+			if idx := lastIndex(text, '\n'); idx > 0 {
+				text = text[:idx+1]
+			}
+		}
+		t.wisdom = text
+		return
+	}
+
+	// Fallback: verbose stat-derived rules.
 	var text string
 	rule := 1
 
@@ -358,15 +378,31 @@ func (t *Tracker) regenerateWisdom() {
 	t.wisdom = text
 }
 
+// compactStats returns an ultra-dense one-line stats summary.
+func (t *Tracker) compactStats() string {
+	if t.stats.Total == 0 {
+		return ""
+	}
+	pct := t.stats.Correct * 100 / t.stats.Total
+	s := fmt.Sprintf("S:%d/%d=%d%%", t.stats.Correct, t.stats.Total, pct)
+	if t.stats.HoldsTotal > 0 {
+		s += fmt.Sprintf(" h:%d%%", t.stats.HoldsCorrect*100/t.stats.HoldsTotal)
+	}
+	if t.stats.BuysTotal > 0 {
+		s += fmt.Sprintf(" b:%d%%", t.stats.BuysCorrect*100/t.stats.BuysTotal)
+	}
+	return s
+}
+
 func (t *Tracker) loadFromDB() {
 	if t.db == nil {
 		return
 	}
 
-	row := t.db.QueryRow("SELECT total, correct, holds_total, holds_correct, buys_total, buys_correct, frozen FROM wisdom_stats WHERE id = 1")
+	row := t.db.QueryRow("SELECT total, correct, holds_total, holds_correct, buys_total, buys_correct, frozen, COALESCE(custom_rules, '') FROM wisdom_stats WHERE id = 1")
 	var frozen int
 	if err := row.Scan(&t.stats.Total, &t.stats.Correct, &t.stats.HoldsTotal, &t.stats.HoldsCorrect,
-		&t.stats.BuysTotal, &t.stats.BuysCorrect, &frozen); err == nil {
+		&t.stats.BuysTotal, &t.stats.BuysCorrect, &frozen, &t.customRules); err == nil {
 		t.frozen = frozen != 0
 	}
 
@@ -375,7 +411,7 @@ func (t *Tracker) loadFromDB() {
 	row.Scan(&t.wisdom)
 
 	slog.Info("wisdom loaded", "total", t.stats.Total, "correct", t.stats.Correct,
-		"frozen", t.frozen, "wisdom_len", len(t.wisdom))
+		"frozen", t.frozen, "wisdom_len", len(t.wisdom), "custom_rules_len", len(t.customRules))
 }
 
 func (t *Tracker) saveStatsToDB() {
@@ -393,6 +429,38 @@ func (t *Tracker) saveWisdomToDB() {
 		return
 	}
 	t.db.Exec("INSERT INTO wisdom_rules (rule_text) VALUES (?)", t.wisdom)
+}
+
+func (t *Tracker) saveCustomRulesToDB() {
+	if t.db == nil {
+		return
+	}
+	t.db.Exec("UPDATE wisdom_stats SET custom_rules = ? WHERE id = 1", t.customRules)
+}
+
+// GetCustomRules returns the current custom rules text.
+func (t *Tracker) GetCustomRules() string {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	return t.customRules
+}
+
+// SetCustomRules updates the custom rules and regenerates wisdom.
+func (t *Tracker) SetCustomRules(rules string) {
+	t.mu.Lock()
+	if len(rules) > maxWisdomBytes {
+		rules = rules[:maxWisdomBytes]
+		if idx := lastIndex(rules, '\n'); idx > 0 {
+			rules = rules[:idx+1]
+		}
+	}
+	t.customRules = rules
+	t.regenerateWisdom()
+	t.saveCustomRulesToDB()
+	t.saveWisdomToDB()
+	t.mu.Unlock()
+
+	slog.Info("custom rules updated", "size", len(rules))
 }
 
 func contains(s, sub string) bool {

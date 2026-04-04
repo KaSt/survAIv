@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -83,6 +84,10 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Get("/api/equity-history", handleEquityHistory(state))
 	r.Get("/api/scouted", handleScouted(state))
 	r.Get("/api/wisdom", handleWisdom)
+	r.Get("/api/knowledge", handleKnowledgeExport)
+	r.Post("/api/knowledge", handleKnowledgeImport)
+	r.Post("/api/wisdom/freeze", handleWisdomFreeze)
+	r.Post("/api/wisdom/rules", handleWisdomRules)
 	r.Get("/api/events", handleSSE(state))
 	r.Get("/api/auth", handleAuthGet(cfg))
 	r.Post("/api/auth", handleAuthPost(cfg))
@@ -146,6 +151,62 @@ func handleScouted(state *State) http.HandlerFunc {
 func handleWisdom(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprint(w, wisdom.StatsJSON())
+}
+
+func handleKnowledgeExport(w http.ResponseWriter, r *http.Request) {
+	data, err := wisdom.ExportKnowledge()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", "attachment; filename=survaiv-knowledge.json")
+	w.Write(data)
+}
+
+func handleKnowledgeImport(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 512*1024))
+	if err != nil {
+		http.Error(w, "read error", http.StatusBadRequest)
+		return
+	}
+	if err := wisdom.ImportKnowledge(body); err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"ok":false,"msg":"%s"}`, err.Error())
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprint(w, `{"ok":true,"msg":"Knowledge imported"}`)
+}
+
+func handleWisdomFreeze(w http.ResponseWriter, r *http.Request) {
+	body, _ := io.ReadAll(io.LimitReader(r.Body, 128))
+	freeze := strings.Contains(string(body), "true")
+	wisdom.SetFrozen(freeze)
+	w.Header().Set("Content-Type", "application/json")
+	if freeze {
+		fmt.Fprint(w, `{"ok":true,"frozen":true}`)
+	} else {
+		fmt.Fprint(w, `{"ok":true,"frozen":false}`)
+	}
+}
+
+func handleWisdomRules(w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 16*1024))
+	if err != nil {
+		http.Error(w, "read error", http.StatusBadRequest)
+		return
+	}
+	var payload struct {
+		Rules string `json:"rules"`
+	}
+	rules := string(body)
+	if json.Unmarshal(body, &payload) == nil && payload.Rules != "" {
+		rules = payload.Rules
+	}
+	wisdom.SetCustomRules(rules)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"ok":true,"size":%d}`, len(rules))
 }
 
 func handleSSE(state *State) http.HandlerFunc {

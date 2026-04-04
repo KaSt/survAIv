@@ -3,6 +3,7 @@
 #include <cstring>
 #include <vector>
 
+#include "cJSON.h"
 #include "config.h"
 #include "dashboard_state.h"
 #include "wallet.h"
@@ -183,6 +184,45 @@ static esp_err_t ApiWisdomFreezeHandler(httpd_req_t *req) {
   httpd_resp_set_type(req, "application/json");
   std::string resp = std::string("{\"ok\":true,\"frozen\":") + (freeze ? "true" : "false") + "}";
   return httpd_resp_send(req, resp.c_str(), resp.size());
+}
+
+static esp_err_t ApiWisdomRulesHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
+  // Read body (custom rules text).
+  int content_len = req->content_len;
+  if (content_len <= 0 || content_len > 4096) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Invalid body");
+    return ESP_FAIL;
+  }
+  std::string body(content_len, '\0');
+  int total = 0;
+  while (total < content_len) {
+    int r = httpd_req_recv(req, &body[total], content_len - total);
+    if (r <= 0) break;
+    total += r;
+  }
+  body.resize(total);
+
+  // Parse {"rules":"..."} or raw text.
+  cJSON *root = cJSON_Parse(body.c_str());
+  std::string rules;
+  if (root) {
+    cJSON *r_field = cJSON_GetObjectItemCaseSensitive(root, "rules");
+    if (r_field && cJSON_IsString(r_field)) rules = r_field->valuestring;
+    cJSON_Delete(root);
+  } else {
+    rules = body;
+  }
+
+  wisdom::SetCustomRules(rules);
+
+  httpd_resp_set_type(req, "application/json");
+  char resp[64];
+  snprintf(resp, sizeof(resp), "{\"ok\":true,\"size\":%zu}", rules.size());
+  return httpd_resp_send(req, resp, strlen(resp));
 }
 
 // SSE endpoint — keeps connection open and sends events.
@@ -830,6 +870,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/knowledge", HTTP_GET, ApiKnowledgeExportHandler);
   RegisterUri("/api/knowledge", HTTP_POST, ApiKnowledgeImportHandler);
   RegisterUri("/api/wisdom/freeze", HTTP_POST, ApiWisdomFreezeHandler);
+  RegisterUri("/api/wisdom/rules", HTTP_POST, ApiWisdomRulesHandler);
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);

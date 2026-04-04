@@ -64,18 +64,34 @@ var migrations = []string{
 
 	// Ensure singleton wisdom_stats row exists.
 	`INSERT OR IGNORE INTO wisdom_stats (id) VALUES (1)`,
+
+	// Add custom_rules column (safe to re-run — ALTER TABLE IF NOT EXISTS not in SQLite, use error ignore).
+	`ALTER TABLE wisdom_stats ADD COLUMN custom_rules TEXT NOT NULL DEFAULT ''`,
 }
 
 // Migrate applies all schema migrations.
 func Migrate(db *sql.DB) error {
 	for _, stmt := range migrations {
 		if _, err := db.Exec(stmt); err != nil {
+			// ALTER TABLE ADD COLUMN fails if column already exists — that's fine.
+			if contains(stmt, "ADD COLUMN") {
+				continue
+			}
 			slog.Error("migration failed", "err", err, "stmt", stmt[:min(len(stmt), 80)])
 			return err
 		}
 	}
 	slog.Info("database migrations applied", "count", len(migrations))
 	return nil
+}
+
+func contains(s, sub string) bool {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }
 
 func min(a, b int) int {
