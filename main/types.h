@@ -19,6 +19,7 @@ struct HttpResponse {
 
 struct HttpContext {
   HttpResponse *response = nullptr;
+  bool truncated = false;  // Set by event handler when body accumulation is stopped.
 };
 
 struct MarketSnapshot {
