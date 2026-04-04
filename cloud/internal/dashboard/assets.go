@@ -218,7 +218,7 @@ canvas { width: 100% !important; height: 100% !important; }
     </div>
   </div>
 
-  <div id="sys-stats" style="padding:8px 16px;font-size:0.8em;color:var(--fg2);display:flex;gap:16px;flex-wrap:wrap"></div>
+  <div id="sys-stats" style="padding:4px 16px;font-size:0.8em;color:var(--fg2);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
 </div>
 
 <div class="modal-overlay" id="settingsModal">
@@ -413,7 +413,13 @@ function updateState(d) {
     var memPct = sy.sys > 0 ? Math.round(sy.alloc * 100 / sy.sys) : 0;
     h += '<span>Mem: '+bar(memPct)+' '+fmtB(sy.alloc)+' / '+fmtB(sy.sys)+'</span>';
     h += '<span>Goroutines: '+sy.goroutines+'</span>';
-    h += '<span style="color:var(--fg2)">GC: '+sy.gc_cycles+'</span>';
+    h += '<span>GC: '+sy.gc_cycles+'</span>';
+    // Uptime + current time
+    if (d.uptime_seconds != null) {
+      var u = d.uptime_seconds, ud = Math.floor(u/86400), uh = Math.floor((u%86400)/3600), um = Math.floor((u%3600)/60);
+      h += '<span>Uptime: '+(ud > 0 ? ud+'d ':'') + uh+'h '+um+'m</span>';
+    }
+    h += '<span>Time: '+new Date().toLocaleTimeString()+'</span>';
     document.getElementById('sys-stats').innerHTML = h;
   }
 }

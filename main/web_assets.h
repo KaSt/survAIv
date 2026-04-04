@@ -215,7 +215,7 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
   <div class="log" id="log"><div class="empty">Waiting for first cycle…</div></div>
 </div>
 
-<div id="sys-stats" style="padding:8px 0;font-size:11px;color:var(--dim);display:flex;gap:16px;flex-wrap:wrap"></div>
+<div id="sys-stats" style="padding:4px 20px;font-size:11px;color:var(--dim);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
 
 <div class="section" id="wallet-section" style="display:none">
   <h2>Wallet</h2>
@@ -226,7 +226,7 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
   </div>
 </div>
 
-<div class="section">
+<div class="section" style="text-align:center">
   <div class="sub">
     Firmware: <span id="v-fw">—</span> <span id="v-ota-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;display:none"></span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
   </div>
@@ -652,7 +652,13 @@ function updateState(s) {
     // RAM bar
     var ramPct = sy.total_heap > 0 ? Math.round(100*(sy.total_heap-sy.free_heap)/sy.total_heap) : 0;
     h += '<span>RAM: '+bar(ramPct)+' '+ramPct+'% ('+fmtKB(sy.free_heap)+' free)</span>';
-    h += '<span style="color:var(--dim)">Min free: '+fmtKB(sy.min_free_heap)+'</span>';
+    h += '<span>Min free: '+fmtKB(sy.min_free_heap)+'</span>';
+    // Uptime + current time
+    if (s.uptime_seconds != null) {
+      var u = s.uptime_seconds, ud = Math.floor(u/86400), uh = Math.floor((u%86400)/3600), um = Math.floor((u%3600)/60);
+      h += '<span>Uptime: '+(ud > 0 ? ud+'d ':'') + uh+'h '+um+'m</span>';
+    }
+    h += '<span>Time: '+new Date().toLocaleTimeString()+'</span>';
     $('sys-stats').innerHTML = h;
   }
 
