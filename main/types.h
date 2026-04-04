@@ -50,7 +50,7 @@ struct UsageStats {
 struct ToolCall {
   bool valid = false;
   std::string tool;
-  std::string order = "volume_24hr";
+  std::string order = "volume24hr";
   int limit = 6;
   int offset = 0;
 };

@@ -99,11 +99,11 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
   }
 
   prompt
-      << "10. Allowed tool: search_markets with {\"order\":\"volume_24hr\",\"limit\":N,"
+      << "10. Allowed tool: search_markets with {\"order\":\"volume24hr\",\"limit\":N,"
       << "\"offset\":N}. The ESP32 will fetch public Polymarket market data only.\n"
       << "Return one of these JSON shapes exactly:\n"
       << "{\"type\":\"tool_call\",\"tool\":\"search_markets\",\"arguments\":{\"order\":"
-      << "\"volume_24hr\",\"limit\":5,\"offset\":0},\"rationale\":\"...\"}\n";
+      << "\"volume24hr\",\"limit\":5,\"offset\":0},\"rationale\":\"...\"}\n";
 
   if (!paper_only && !geoblocked) {
     prompt

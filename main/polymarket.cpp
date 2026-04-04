@@ -14,7 +14,7 @@ namespace {
 constexpr const char *kTag = "survaiv_poly";
 
 constexpr const char *kPolymarketMarketsUrl =
-    "https://gamma-api.polymarket.com/markets?active=true&closed=false&order=volume_24hr&ascending=false&limit=";
+    "https://gamma-api.polymarket.com/markets?active=true&closed=false&ascending=false&limit=";
 constexpr const char *kPolymarketGeoblockUrl = "https://polymarket.com/api/geoblock";
 
 }  // namespace
