@@ -10,7 +10,7 @@ Three deployment targets, one codebase philosophy:
 |----------|----------|------|--------|
 | **ESP32-C3** | Seeed XIAO · 400 KB SRAM · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
 | **ESP32-S3** | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
-| **Cloud / TUI** | Any server, Heroku, local machine | ~6,900 lines Go | ✅ Ready |
+| **Cloud / TUI** | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
 
 ## How It Works
 
@@ -54,7 +54,9 @@ Every cycle the agent:
 ### Core
 - **x402 micropayments** — wallet-is-auth, no accounts. Supports [tx402.ai](https://tx402.ai), [x402engine.app](https://x402engine.app), [claw402.org](https://claw402.org), and custom endpoints.
 - **Dynamic model selection** — built-in catalog of 20+ models across providers. Auto-picks per task complexity and remaining budget.
+- **Dynamic runtime config** — cloud version auto-detects host resources (CPU cores, memory) and model context window, then adapts prompt budget, completion limits, market coverage, and parallelism. See [Efficiency Score](#efficiency-score).
 - **Reasoning model awareness** — detects reasoning models (e.g. DeepSeek R1, gpt-oss:20b) and sends `reasoning_effort: "low"` with separate token budgets so chain-of-thought doesn't starve the response.
+- **Parallel execution** — on multi-core cloud hosts (≥4 cores), geoblock + market fetch run concurrently; tool call LLM requests overlap with wisdom outcome checks.
 - **Paper & live trading** — paper mode by default with realistic cost simulation; opt into live CLOB trading with on-device EIP-712 signing.
 - **Wisdom learning** — tracks every decision outcome, generates trading rules from verified results, and feeds them back into the prompt. Custom rules (LLM-distilled or hand-crafted) get priority in the byte budget. Export/import knowledge between agents and platforms for training on powerful hardware and deploying on microcontrollers.
 - **API authentication** — PIN-based claim system with session tokens. All API endpoints (including GET and SSE) are auth-guarded once claimed. First user to enter the PIN displayed on serial console owns the agent.
@@ -63,7 +65,8 @@ Every cycle the agent:
 - **Real-time web UI** — equity chart, P&L chart (profit/loss over cycles), positions table, market scanner, decision log.
 - **SSE streaming** — live updates without polling.
 - **Dark / light theme** — toggle with persistence.
-- **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter.
+- **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter, agent efficiency score with platform comparison.
+- **Custom favicon** — pixel art brain-bot icon embedded as base64 PNG (273 bytes on ESP32, 301 bytes on cloud).
 - **Market descriptions** — LLM receives resolution criteria and event context, not just prices.
 - **Platform badge** — shows firmware version with OTA/NO-OTA indicator on ESP32 builds.
 
@@ -75,6 +78,8 @@ Every cycle the agent:
 
 ### Cloud Specific
 - **Bubbletea TUI** — full terminal UI with budget cards, positions, market scanner, decision log, wisdom stats. Dark/light themes.
+- **Dynamic runtime config** — auto-adapts prompt budget, completion limits, and market limit based on detected model context window and host hardware.
+- **Parallel execution** — on ≥4 CPU cores, independent tasks (geoblock + market fetch, tool calls + wisdom checks) run concurrently.
 - **Docker & Compose** — `Dockerfile` + `docker-compose.yml` with optional PostgreSQL profile.
 - **SQLite or PostgreSQL** — SQLite by default (zero config), PostgreSQL via `SURVAIV_DATABASE_URL`. Auto-detected from DSN.
 - **Heroku-ready** — auto-detects via `DYNO` env, runs headless with dashboard HTTP only.
@@ -314,6 +319,58 @@ Since the export format is a standard JSON file, knowledge can be shared between
 | S3 | 4,000 bytes | Full rule set + verbose stats |
 | Cloud | 8,000 bytes | Comprehensive rules + category breakdowns |
 
+## Efficiency Score
+
+The dashboard settings modal shows an **agent efficiency score** (0–100) that quantifies how well the current platform can run the agent, with a visual comparison across all supported boards.
+
+### How It's Computed
+
+The score is the sum of five weighted criteria, each measuring a different dimension of agent capability:
+
+| Criterion | Weight | What It Measures | How It Scales |
+|-----------|--------|------------------|---------------|
+| **Context capacity** | 0–30 | Prompt budget available for market data + wisdom | `30 × min(prompt_budget / 32000, 1.0)` |
+| **Parallelism** | 0–20 | Concurrent task execution (goroutines / cores) | `20 × min(workers / 4, 1.0)` |
+| **Memory headroom** | 0–15 | Available RAM for HTTP buffers, JSON parsing | 15 if >1 GB, 10 if >256 MB, 5 if >64 MB, 0 otherwise |
+| **Market coverage** | 0–20 | Markets analyzed per cycle (more = better selection) | `20 × min(market_limit / 50, 1.0)` |
+| **Wisdom capacity** | 0–15 | Bytes available for learned trading rules | `15 × min(wisdom_budget / 8192, 1.0)` |
+
+**Total = Context + Parallelism + Memory + Coverage + Wisdom** (max 100)
+
+### Platform Comparison
+
+| Platform | Context | Parallelism | Memory | Coverage | Wisdom | **Total** |
+|----------|---------|-------------|--------|----------|--------|-----------|
+| ESP32-C3 (OTA) | 2 | 0 | 0 | 2 | 1 | **~12** |
+| ESP32-C3 (no-OTA) | 4 | 0 | 0 | 5 | 4 | **~22** |
+| ESP32-S3 | 8 | 5 | 0 | 20 | 7 | **~38** |
+| Cloud (4-core, 128K model) | 30 | 10 | 10–15 | 8 | 15 | **~75** |
+| Cloud (8-core, 128K model) | 30 | 20 | 15 | 8 | 15 | **~88** |
+| Cloud (8-core, 1M model) | 30 | 20 | 15 | 20 | 15 | **~100** |
+
+### How Context Adapts to the Model
+
+On the cloud version, the dynamic config auto-detects the model's context window from the built-in catalog and computes:
+
+| Model Context | Prompt Budget | Max Completion | Markets/Cycle |
+|---------------|---------------|----------------|---------------|
+| Unknown | 16,000 tokens | 1,000 tokens | 10 |
+| 32K | 19,200 tokens | 2,000 tokens | 12 |
+| 128K | 32,000 tokens | 4,000 tokens | 21 |
+| 256K+ | 32,000 tokens (capped) | 4,000 tokens | 21 |
+| 1M+ (Llama 4 Maverick) | 32,000 tokens (capped) | 4,000 tokens | 21 |
+
+**Formula:** `prompt_budget = min(context_K × 1000 × 0.6, 32000)`, floor at 2,000.
+
+ESP32 boards use fixed token budgets (determined by available SRAM and flash layout) — the dynamic config is a cloud-only feature. On constrained boards, the prompt is pre-trimmed by the firmware to fit.
+
+### Dashboard Visualization
+
+The settings modal displays:
+- A **color-coded bar** (green ≥70, yellow ≥40, red <40) with the numeric score
+- **Breakdown** of all five criteria
+- **Platform comparison grid** with mini progress bars for every supported board
+
 ## Security
 
 All API endpoints are protected by a PIN-based authentication system:
@@ -363,8 +420,9 @@ s3/                       — ESP32-S3 build variant (shares main/ source)
 ```
 cloud/
 ├── main.go               — Entry point, signal handling, agent loop
-├── internal/agent/       — LLM prompts, parsing, cycle orchestration
+├── internal/agent/       — LLM prompts, parsing, cycle orchestration, parallel fetch
 ├── internal/dashboard/   — Thread-safe state, HTTP handlers, embedded HTML
+├── internal/dynconfig/   — Dynamic runtime config, efficiency scoring
 ├── internal/wisdom/      — Outcome tracking, rule generation, import/export
 ├── internal/tui/         — Bubbletea terminal UI (8 files)
 ├── internal/config/      — Env vars + DB-backed config
@@ -385,14 +443,18 @@ cloud/
 
 | Feature | C3 (OTA) | C3 (no-OTA) | S3 | Cloud |
 |---------|----------|-------------|----|----|
-| Markets per scan | 6 | 12 | 50 | unlimited |
+| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | adaptive (up to 32K) |
+| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
+| Markets per scan | 6 | 12 | 50 | adaptive (up to 50) |
 | HTTP body size | 64 KB | 128 KB | 512 KB | unlimited |
 | Wisdom budget | 800 B | 2,000 B | 4,000 B | 8,000 B |
+| Parallel execution | — | — | — | ≥4 cores |
 | Model registry | 40 dynamic | 80 dynamic | 200 dynamic | unlimited |
 | OTA updates | ✅ | — | ✅ | N/A |
 | x402 providers | tx402 only* | tx402 only* | all 4 | all 4 |
 | Persistence | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
 | UI | Web dashboard | Web dashboard | Web dashboard | TUI + web |
+| Efficiency score | ~12 | ~22 | ~38 | ~75–100 |
 | Deployment | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
 
 \* x402engine catalog too large for C3's 400 KB SRAM.
