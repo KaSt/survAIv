@@ -92,8 +92,19 @@ static bool ValidateAuthToken(httpd_req_t *req) {
   return false;
 }
 
+static void SetCorsHeaders(httpd_req_t *req) {
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "X-Auth-Token, Content-Type");
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+}
+
 #define REQUIRE_AUTH(req) \
   do { \
+    SetCorsHeaders(req); \
+    if (req->method == HTTP_OPTIONS) { \
+      httpd_resp_send(req, NULL, 0); \
+      return ESP_OK; \
+    } \
     if (!ValidateAuthToken(req)) { \
       httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized"); \
       return ESP_FAIL; \
@@ -250,7 +261,6 @@ static esp_err_t ApiEventsHandler(httpd_req_t *req) {
   httpd_resp_set_type(req, "text/event-stream");
   httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
   httpd_resp_set_hdr(req, "Connection", "keep-alive");
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
 
   // Send initial state.
   std::string initial = "event: state\ndata: " + GetDashboardState().SseStateEvent() + "\n\n";
@@ -842,6 +852,12 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
 
 // ─── URI registration helpers ───────────────────────────────────
 
+static esp_err_t OptionsHandler(httpd_req_t *req) {
+  SetCorsHeaders(req);
+  httpd_resp_send(req, NULL, 0);
+  return ESP_OK;
+}
+
 static void RegisterUri(const char *uri, httpd_method_t method, esp_err_t (*handler)(httpd_req_t *)) {
   httpd_uri_t u = {};
   u.uri = uri;
@@ -861,7 +877,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 26;
+  config.max_uri_handlers = 40;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -892,6 +908,17 @@ void StartDashboard(int port) {
   RegisterUri("/api/auth", HTTP_GET, ApiAuthGetHandler);
   RegisterUri("/api/auth", HTTP_POST, ApiAuthPostHandler);
   RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
+
+  // CORS preflight handlers.
+  static const char *cors_paths[] = {
+    "/api/state", "/api/positions", "/api/history", "/api/equity",
+    "/api/scouted", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
+    "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
+    "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
+  };
+  for (const char *p : cors_paths) {
+    RegisterUri(p, HTTP_OPTIONS, OptionsHandler);
+  }
 
   g_is_onboard = false;
   ESP_LOGI(kTag, "Dashboard server started on port %d", port);
