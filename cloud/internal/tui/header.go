@@ -3,35 +3,42 @@ package tui
 import (
 	"fmt"
 
-	"survaiv/internal/config"
 	"survaiv/internal/dashboard"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
-func renderHeader(t Theme, snap dashboard.Snapshot, cfg *config.Config) string {
-	mode := t.Badge.Render("[PAPER]")
-	if snap.LiveMode {
-		mode = t.StatusOk.Render("[LIVE]")
-	}
+func renderHeader(snap dashboard.StateSnapshot, width int) string {
+	logo := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(currentTheme.accent).
+		Render("⟁ SURVAIV")
 
-	statusDot := t.StatusOk.Render("●")
-	statusText := snap.Status
-	if snap.Status == "error" || snap.Status == "llm_error" {
-		statusDot = t.StatusErr.Render("●")
-	}
+	status := lipgloss.NewStyle().
+		Foreground(currentTheme.green).
+		Render(fmt.Sprintf(" [%s]", snap.Status))
 
-	h := int(snap.UptimeSeconds / 3600)
-	m := int(snap.UptimeSeconds%3600) / 60
+	model := lipgloss.NewStyle().
+		Foreground(currentTheme.dim).
+		Render(fmt.Sprintf(" model: %s", snap.Model))
 
-	header := fmt.Sprintf("  %s  %s  %s %s  Uptime: %dh %dm",
-		t.Header.Render("⟁ SURVAIV"),
-		mode,
-		statusDot,
-		statusText,
-		h, m)
+	uptime := lipgloss.NewStyle().
+		Foreground(currentTheme.dim).
+		Render(fmt.Sprintf(" uptime: %s  cycles: %d", formatDuration(snap.Uptime), snap.Cycles))
 
-	if snap.LastError != "" {
-		header += "\n  " + t.StatusErr.Render("⚠ "+snap.LastError)
-	}
+	content := logo + status + model + uptime
 
-	return header
+	return lipgloss.NewStyle().
+		Width(width).
+		BorderBottom(true).
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(currentTheme.border).
+		Padding(0, 1).
+		Render(content)
+}
+
+func formatDuration(seconds int64) string {
+	h := seconds / 3600
+	m := (seconds % 3600) / 60
+	return fmt.Sprintf("%dh%02dm", h, m)
 }

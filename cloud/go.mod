@@ -8,6 +8,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/ethereum/go-ethereum v1.15.11
+	github.com/go-chi/chi/v5 v5.2.1
 	github.com/mattn/go-sqlite3 v1.14.24
 )
 
@@ -19,7 +20,6 @@ require (
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
-	github.com/go-chi/chi/v5 v5.2.1 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

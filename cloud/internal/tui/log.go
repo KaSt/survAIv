@@ -2,81 +2,59 @@ package tui
 
 import (
 	"fmt"
-	"strings"
-	"time"
 
 	"survaiv/internal/dashboard"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
-func renderLog(t Theme, snap dashboard.Snapshot, scroll, maxHeight int) string {
-	title := t.SectionTitle.Render("  ── DECISION LOG ──")
+func renderLog(snap dashboard.StateSnapshot, width, scroll int) string {
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(currentTheme.accent).
+		Render("📋 Decision Log")
 
 	if len(snap.Decisions) == 0 {
-		return title + "\n" + t.Dim.Render("  Waiting for first cycle…")
+		return lipgloss.NewStyle().Width(width).Padding(0, 1).
+			Render(title + "\n" + lipgloss.NewStyle().Foreground(currentTheme.dim).Render("  No decisions yet"))
 	}
 
-	maxVisible := maxHeight / 3
-	if maxVisible < 5 {
-		maxVisible = 5
-	}
-	if maxVisible > 15 {
-		maxVisible = 15
-	}
-
-	start := scroll
-	if start >= len(snap.Decisions) {
-		start = len(snap.Decisions) - 1
-	}
+	rows := title + "\n"
+	maxShow := 6
+	// Show newest first, with scroll offset.
+	start := len(snap.Decisions) - 1 - scroll
 	if start < 0 {
 		start = 0
 	}
-
-	end := start + maxVisible
-	if end > len(snap.Decisions) {
-		end = len(snap.Decisions)
+	shown := 0
+	for i := start; i >= 0 && shown < maxShow; i-- {
+		d := snap.Decisions[i]
+		typeStyle := lipgloss.NewStyle().Foreground(decisionColor(d.Type)).Bold(true)
+		q := d.MarketQuestion
+		if len(q) > 40 {
+			q = q[:37] + "..."
+		}
+		rows += fmt.Sprintf("  %s %-40s conf:%.2f edge:%4.0f  %s\n",
+			typeStyle.Render(fmt.Sprintf("%-12s", d.Type)), q, d.Confidence, d.EdgeBps,
+			lipgloss.NewStyle().Foreground(currentTheme.dim).Render(d.Rationale))
+		if len(rows) > 500 {
+			break
+		}
+		shown++
 	}
 
-	var lines []string
-	lines = append(lines, title)
+	return lipgloss.NewStyle().Width(width).Padding(0, 1).Render(rows)
+}
 
-	for _, d := range snap.Decisions[start:end] {
-		ts := time.Unix(d.Epoch, 0).Format("15:04:05")
-		timeStr := t.LogTime.Render(ts)
-
-		var typeStr string
-		switch {
-		case strings.Contains(d.Type, "buy"):
-			typeStr = t.LogBuy.Render(fmt.Sprintf("%-15s", d.Type))
-		case strings.Contains(d.Type, "close"):
-			typeStr = t.LogClose.Render(fmt.Sprintf("%-15s", d.Type))
-		case d.Type == "tool_call":
-			typeStr = t.LogTool.Render(fmt.Sprintf("%-15s", d.Type))
-		default:
-			typeStr = t.LogHold.Render(fmt.Sprintf("%-15s", d.Type))
-		}
-
-		q := ""
-		if d.MarketQuestion != "" {
-			q = truncate(d.MarketQuestion, 35)
-		}
-
-		conf := ""
-		if d.Confidence > 0 {
-			conf = fmt.Sprintf(" %.0f%%", d.Confidence*100)
-		}
-
-		line := fmt.Sprintf("  %s %s %s%s", timeStr, typeStr, q, conf)
-		lines = append(lines, line)
-
-		if d.Rationale != "" {
-			rationale := truncate(d.Rationale, 80)
-			lines = append(lines, "    "+t.Dim.Render(rationale))
-		}
+func decisionColor(t string) lipgloss.Color {
+	switch {
+	case t == "hold":
+		return currentTheme.yellow
+	case len(t) > 4 && t[len(t)-3:] == "yes":
+		return currentTheme.green
+	case len(t) > 3 && t[len(t)-2:] == "no":
+		return currentTheme.red
+	default:
+		return currentTheme.fg
 	}
-
-	if end < len(snap.Decisions) {
-		lines = append(lines, t.Dim.Render(fmt.Sprintf("  … %d more (j/k to scroll)", len(snap.Decisions)-end)))
-	}
-
-	return strings.Join(lines, "\n")
 }

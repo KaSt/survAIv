@@ -2,57 +2,50 @@ package tui
 
 import (
 	"fmt"
-	"strings"
 
 	"survaiv/internal/dashboard"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
-func renderMarkets(t Theme, snap dashboard.Snapshot) string {
-	title := t.SectionTitle.Render("  ── MARKET SCANNER ──")
+func renderMarkets(snap dashboard.StateSnapshot, width int) string {
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(currentTheme.accent).
+		Render("🔍 Scouted Markets")
 
-	if len(snap.ScoutedMarkets) == 0 {
-		return title + "\n" + t.Dim.Render("  Waiting for first scan…")
+	if len(snap.Scouted) == 0 {
+		return lipgloss.NewStyle().Width(width).Padding(0, 1).
+			Render(title + "\n" + lipgloss.NewStyle().Foreground(currentTheme.dim).Render("  Waiting for first scan..."))
 	}
 
-	var lines []string
-	lines = append(lines, title)
-
-	for _, m := range snap.ScoutedMarkets {
-		var dot string
-		switch m.Signal {
-		case "bullish":
-			dot = t.Bullish.Render("●")
-		case "bearish":
-			dot = t.Bearish.Render("●")
-		case "neutral":
-			dot = t.Neutral.Render("●")
-		default:
-			dot = t.Dim.Render("●")
+	rows := title + "\n"
+	maxShow := 8
+	for i, s := range snap.Scouted {
+		if i >= maxShow {
+			rows += fmt.Sprintf("  ... and %d more\n", len(snap.Scouted)-maxShow)
+			break
 		}
-
-		q := truncate(m.Question, 50)
-		edge := fmt.Sprintf("%.0fbp", m.EdgeBps)
-		conf := fmt.Sprintf("%.0f%%", m.Confidence*100)
-		price := "—"
-		if m.YesPrice > 0 {
-			price = fmt.Sprintf("%.0f¢", m.YesPrice*100)
+		sig := signalStyle(s.Signal)
+		q := s.Question
+		if len(q) > 45 {
+			q = q[:42] + "..."
 		}
-
-		vol := formatK(m.Volume)
-		note := truncate(m.Note, 40)
-
-		line := fmt.Sprintf("  %s %-50s %5s %4s  Vol:$%s  %s",
-			dot, q, price, conf, vol, note)
-		lines = append(lines, line)
-		_ = edge // Available for extended view
+		rows += fmt.Sprintf("  %s %-45s  edge:%4.0f  conf:%.2f\n", sig, q, s.EdgeBps, s.Confidence)
 	}
 
-	return strings.Join(lines, "\n")
+	return lipgloss.NewStyle().Width(width).Padding(0, 1).Render(rows)
 }
 
-func formatK(n float64) string {
-	if n >= 1000 {
-		return fmt.Sprintf("%.0fk", n/1000)
+func signalStyle(signal string) string {
+	switch signal {
+	case "bullish":
+		return lipgloss.NewStyle().Foreground(currentTheme.green).Render("▲")
+	case "bearish":
+		return lipgloss.NewStyle().Foreground(currentTheme.red).Render("▼")
+	case "skip":
+		return lipgloss.NewStyle().Foreground(currentTheme.dim).Render("⊘")
+	default:
+		return lipgloss.NewStyle().Foreground(currentTheme.yellow).Render("◆")
 	}
-	return fmt.Sprintf("%.0f", n)
 }

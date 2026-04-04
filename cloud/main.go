@@ -61,11 +61,11 @@ func main() {
 
 	// 6. Create shared dashboard state.
 	dashState := dashboard.NewState()
-	dashState.SetOaiConfig(cfg.OaiURL, cfg.OaiModel)
 	dashState.SetLiveMode(!cfg.PaperOnly)
 
-	// 7. Create wisdom tracker.
+	// 7. Create wisdom tracker and register as default.
 	wisTracker := wisdom.NewTracker(database, httpClient)
+	wisdom.SetDefault(wisTracker)
 
 	// 8. Create agent.
 	agnt := agent.New(cfg, httpClient, ldgr, x402mgr, dashState, wisTracker)
@@ -108,7 +108,7 @@ func main() {
 
 	// 11. Start dashboard server (always).
 	go func() {
-		if err := dashboard.StartServer(cfg, dashState, wisTracker, database); err != nil {
+		if err := dashboard.Serve(ctx, cfg, dashState); err != nil {
 			slog.Error("dashboard server failed", "err", err)
 		}
 	}()
@@ -119,7 +119,7 @@ func main() {
 		<-ctx.Done()
 		slog.Info("shutting down")
 	} else {
-		p := tea.NewProgram(tui.New(dashState, cfg), tea.WithAltScreen())
+		p := tea.NewProgram(tui.NewModel(dashState), tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			slog.Error("TUI error", "err", err)
 			os.Exit(1)

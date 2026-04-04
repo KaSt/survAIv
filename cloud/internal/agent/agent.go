@@ -132,7 +132,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	if !ok {
 		a.dash.SetAgentStatus("llm_error")
 		a.dash.SetNextRetrySec(llmFailRetryDelaySec)
-		a.dash.PushEvent("state", a.dash.ToJSON())
+		a.dash.PushEvent("state", string(a.dash.ToJSON()))
 		return llmFailRetryDelaySec
 	}
 	a.dash.ClearError()
@@ -198,7 +198,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		}
 	}
 
-	a.dash.PushEvent("state", a.dash.ToJSON())
+	a.dash.PushEvent("state", string(a.dash.ToJSON()))
 
 	// 11. Track decisions for wisdom learning.
 	a.trackWisdom(decision, scouted, markets, modelID)
