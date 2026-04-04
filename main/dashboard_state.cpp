@@ -253,6 +253,9 @@ std::string DashboardState::ToJson() const {
   // Paper-only flag for trading mode UI.
   o << ",\"paper_only\":" << (config::PaperTradingOnly() ? 1 : 0);
 
+  // Tool usage level for settings UI.
+  o << ",\"tool_usage\":" << config::ToolUsageLevel();
+
   // News search config presence.
   o << ",\"news_provider\":\"" << JsonEscape(config::NewsProvider()) << "\"";
   o << ",\"has_news_key\":" << (config::NewsApiKey().empty() ? "false" : "true");

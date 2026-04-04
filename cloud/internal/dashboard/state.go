@@ -45,6 +45,7 @@ type State struct {
 	nextRetrySec  int
 	nextCycleEpoch int64
 	paperOnly     bool
+	toolUsage     int
 	agentName     string
 
 	efficiency *dynconfig.RuntimeConfig
@@ -210,6 +211,13 @@ func (s *State) SetPaperOnly(v bool) {
 	s.paperOnly = v
 }
 
+// SetToolUsage sets the tool usage level (0=frugal, 1=balanced, 2=generous).
+func (s *State) SetToolUsage(level int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.toolUsage = level
+}
+
 // SetAgentName sets the agent display name.
 func (s *State) SetAgentName(name string) {
 	s.mu.Lock()
@@ -269,6 +277,7 @@ func (s *State) ToJSON() []byte {
 		"model_price":          s.modelPrice,
 		"open_positions":       len(s.positions),
 		"paper_only":           s.paperOnly,
+		"tool_usage":           s.toolUsage,
 		"agent_name":           s.agentName,
 	}
 	if s.lastError != "" {

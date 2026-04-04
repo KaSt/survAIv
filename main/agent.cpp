@@ -91,7 +91,7 @@ std::string ExtractMessageContent(const cJSON *root) {
   return "";
 }
 
-std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
+std::string BuildSystemPrompt(bool paper_only, bool geoblocked, int tool_usage) {
   std::ostringstream prompt;
   prompt
       << "You are a frugal market-analysis agent running behind an ESP32 controller. "
@@ -117,15 +117,29 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
         << "4. Keep size_fraction <= 0.01. This is real capital — be extremely cautious.\n";
   }
 
-  if (paper_only || geoblocked) {
-    prompt
-        << "5. Tool calls (search_news, search_markets) are free in paper mode — use them "
-        << "whenever you need more context to make a good decision. If a market involves "
-        << "sports, politics, or current events, search for recent news before deciding.\n";
-  } else {
-    prompt
-        << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
-        << "LLM round.\n";
+  switch (tool_usage) {
+    case 0: // frugal
+      prompt
+          << "5. Minimize tool calls. Only use a tool if you absolutely cannot decide without it. "
+          << "Every tool call costs an extra LLM round.\n";
+      break;
+    case 2: // generous
+      prompt
+          << "5. Use tool calls freely to gather maximum context. Search news for sports, politics, "
+          << "and current events markets. Better information leads to better decisions.\n";
+      break;
+    default: // balanced
+      if (paper_only || geoblocked) {
+        prompt
+            << "5. Tool calls (search_news, search_markets) are free in paper mode — use them "
+            << "whenever you need more context to make a good decision. If a market involves "
+            << "sports, politics, or current events, search for recent news before deciding.\n";
+      } else {
+        prompt
+            << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
+            << "LLM round.\n";
+      }
+      break;
   }
 
   prompt
@@ -146,10 +160,20 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
         << "Use paper trades only for exploration or low-confidence ideas.\n";
   }
 
-  if (paper_only || geoblocked) {
-    prompt << "11. Allowed tools (use freely in paper mode):\n";
-  } else {
-    prompt << "11. Allowed tools (prefer zero or one per cycle):\n";
+  switch (tool_usage) {
+    case 0:
+      prompt << "11. Allowed tools (use sparingly):\n";
+      break;
+    case 2:
+      prompt << "11. Allowed tools (use freely for better decisions):\n";
+      break;
+    default:
+      if (paper_only || geoblocked) {
+        prompt << "11. Allowed tools (use freely in paper mode):\n";
+      } else {
+        prompt << "11. Allowed tools (prefer zero or one per cycle):\n";
+      }
+      break;
   }
 
   prompt
@@ -550,7 +574,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
     return 0;
   }
 
-  std::string system_prompt = BuildSystemPrompt(paper_only, geoblock.blocked);
+  std::string system_prompt = BuildSystemPrompt(paper_only, geoblock.blocked, config::ToolUsageLevel());
   std::string user_prompt = BuildUserPrompt(geoblock, *ledger, markets);
   std::string response_text;
   UsageStats usage;
@@ -600,7 +624,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
       std::vector<MarketSnapshot> tool_markets =
           FetchMarkets(tool_call.limit, tool_call.offset, tool_call.order);
       if (!tool_markets.empty() &&
-          (paper_only || ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets))) {
+          (paper_only || config::ToolUsageLevel() >= 2 || ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets))) {
         std::ostringstream follow_up;
         follow_up << user_prompt << "\n"
                   << "{\"tool_result\":{\"tool\":\"search_markets\",\"markets\":"

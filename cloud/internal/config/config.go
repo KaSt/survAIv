@@ -334,6 +334,18 @@ func (c *Config) NewsAPIKey() string {
 	return ""
 }
 
+// ToolUsageLevel returns 0=frugal, 1=balanced (default), 2=generous.
+func (c *Config) ToolUsageLevel() int {
+	v := c.Get("tool_usage")
+	if v == "0" {
+		return 0
+	}
+	if v == "2" {
+		return 2
+	}
+	return 1
+}
+
 // NewsProvider returns the news search provider ("tavily" or "brave").
 func (c *Config) NewsProvider() string {
 	v := c.Get("news_provider")

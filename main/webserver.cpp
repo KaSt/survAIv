@@ -836,6 +836,12 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
     ESP_LOGI(kTag, "Trading mode changed: %s", paper_only ? "paper" : "real");
   }
 
+  int tool_usage = extractInt("tool_usage");
+  if (tool_usage >= 0 && tool_usage <= 2) {
+    config::SetInt("tool_usage", tool_usage);
+    ESP_LOGI(kTag, "Tool usage level changed: %d", tool_usage);
+  }
+
   std::string news_prov = extract("news_prov");
   if (!news_prov.empty()) {
     config::SetString("news_prov", news_prov);

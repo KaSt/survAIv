@@ -287,6 +287,17 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
       <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions will continue to completion in their original mode.</div>
     </div>
 
+    <div class="setting-group">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Tool Usage</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--dim)">Frugal</span>
+        <input type="range" id="tool-usage-slider" min="0" max="2" value="1" step="1"
+          style="flex:1;accent-color:var(--accent)" oninput="updateToolLabel()" onchange="saveToolUsage()">
+        <span style="font-size:10px;color:var(--dim)">Generous</span>
+      </div>
+      <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--dim);margin-top:2px">Balanced</div>
+    </div>
+
     <div class="setting-group" id="llm-cfg" style="display:none">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
@@ -430,6 +441,18 @@ function toggleTheme() {
 function openSettings() { $('settings-overlay').classList.add('open'); }
 function closeSettings() { $('settings-overlay').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+
+const toolUsageLabels = ['Frugal \u2014 minimize tool calls', 'Balanced \u2014 use when needed', 'Generous \u2014 search freely'];
+function updateToolLabel() {
+  const s = $('tool-usage-slider');
+  const l = $('tool-usage-label');
+  if (s && l) l.textContent = toolUsageLabels[parseInt(s.value)] || 'Balanced';
+}
+function saveToolUsage() {
+  const v = parseInt($('tool-usage-slider').value);
+  fetch('/api/config', {method:'POST', body:JSON.stringify({tool_usage: v}),
+    headers:authHeaders()});
+}
 
 let equityData = [];
 
@@ -706,6 +729,10 @@ function updateState(s) {
     const sel = $('cfg-news-prov');
     if (sel) sel.value = s.news_provider;
   }
+
+  // Tool usage slider
+  const tus = $('tool-usage-slider');
+  if (tus && s.tool_usage !== undefined) { tus.value = s.tool_usage; updateToolLabel(); }
 }
 
 function updatePositions(positions) {

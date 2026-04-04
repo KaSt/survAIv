@@ -253,6 +253,16 @@ canvas { width: 100% !important; height: 100% !important; }
       <div style="font-size:10px;color:var(--fg2);margin-top:4px">Open positions will continue to completion in their original mode.</div>
     </div>
     <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Tool Usage</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--fg2)">Frugal</span>
+        <input type="range" id="tool-usage-slider" min="0" max="2" value="1" step="1"
+          style="flex:1;accent-color:var(--accent)" oninput="updateToolLabel()">
+        <span style="font-size:10px;color:var(--fg2)">Generous</span>
+      </div>
+      <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--fg2);margin-top:2px">Balanced</div>
+    </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px">News Search</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
         <label style="font-size:10px;color:var(--fg2);flex:1">Provider<br>
@@ -332,6 +342,14 @@ function toggleTheme() {
 
 function openSettings() { $('#settingsModal').classList.add('active'); }
 function closeSettings() { $('#settingsModal').classList.remove('active'); }
+
+var toolUsageLabels = ['Frugal \u2014 minimize tool calls', 'Balanced \u2014 use when needed', 'Generous \u2014 search freely'];
+function updateToolLabel() {
+  var s = document.getElementById('tool-usage-slider');
+  var l = document.getElementById('tool-usage-label');
+  if (s && l) l.textContent = toolUsageLabels[parseInt(s.value)] || 'Balanced';
+}
+
 function saveSettings() {
   var body = {};
   var u = $('#settingsUrl').value.trim();
@@ -342,6 +360,10 @@ function saveSettings() {
   if (k) body.key = k;
   fetch('/api/llm-config', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
     .then(function(r) { return r.json(); }).then(function() { closeSettings(); }).catch(console.error);
+  var tusVal = document.getElementById('tool-usage-slider');
+  if (tusVal) {
+    fetch('/api/config', {method:'POST', body:JSON.stringify({tool_usage: parseInt(tusVal.value)}), headers:authHeaders()});
+  }
 }
 
 function setTradingMode(paper) {
@@ -411,6 +433,8 @@ function updateState(d) {
   }
   var newsProv = document.getElementById('cfg-news-prov');
   if (newsProv && d.news_provider) newsProv.value = d.news_provider;
+  var tus = document.getElementById('tool-usage-slider');
+  if (tus && d.tool_usage !== undefined) { tus.value = d.tool_usage; updateToolLabel(); }
   var newsMsg = document.getElementById('news-cfg-msg');
   if (newsMsg) newsMsg.textContent = d.has_news_key ? 'Key configured' : '';
   var walletSec = document.getElementById('wallet-section');

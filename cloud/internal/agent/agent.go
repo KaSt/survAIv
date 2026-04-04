@@ -137,7 +137,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	}
 
 	// 5. Build prompts.
-	systemPrompt := BuildSystemPrompt(paperOnly, geo.Blocked, a.wisdom)
+	systemPrompt := BuildSystemPrompt(paperOnly, geo.Blocked, a.cfg.ToolUsageLevel(), a.wisdom)
 	userPrompt := BuildUserPrompt(geo, budget, markets, positions, paperOnly, a.cfg.DailyLossLimit)
 
 	// 6. Select model.
@@ -174,7 +174,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	toolCall := ParseToolCall(responseText)
 	if toolCall.Valid && toolCall.Tool == "search_markets" {
 		toolMarkets := polymarket.FetchMarkets(ctx, a.client, toolCall.Limit, toolCall.Offset, toolCall.Order)
-		if len(toolMarkets) > 0 && (paperOnly || a.ledger.CanSpendOnInference(estimatedCost, toolMarkets)) {
+		if len(toolMarkets) > 0 && (paperOnly || a.cfg.ToolUsageLevel() >= 2 || a.ledger.CanSpendOnInference(estimatedCost, toolMarkets)) {
 			var followModel string
 			if useX402 {
 				sel := models.SelectModel(baseURL, models.Complex, a.ledger.Cash(), estCycles)

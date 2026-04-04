@@ -7,7 +7,7 @@
 
 namespace survaiv {
 
-std::string BuildSystemPrompt(bool paper_only, bool geoblocked);
+std::string BuildSystemPrompt(bool paper_only, bool geoblocked, int tool_usage);
 std::string BuildUserPrompt(const GeoblockStatus &geoblock, const BudgetLedger &ledger,
                             const std::vector<MarketSnapshot> &markets);
 

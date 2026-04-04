@@ -109,6 +109,13 @@ std::string OwnerPin() { return GetNvsString("owner_pin", ""); }
 std::string NewsApiKey()  { return GetNvsString("news_key", ""); }
 std::string NewsProvider(){ return GetNvsString("news_prov", "tavily"); }
 
+int ToolUsageLevel() {
+  int v = GetNvsInt("tool_usage", 1);
+  if (v < 0) return 0;
+  if (v > 2) return 2;
+  return v;
+}
+
 void Reboot() {
   ESP_LOGI(kTag, "Rebooting...");
   vTaskDelay(pdMS_TO_TICKS(500));

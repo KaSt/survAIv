@@ -9,6 +9,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -129,6 +130,7 @@ func handleState(state *State, cfg *config.Config) http.HandlerFunc {
 		json.Unmarshal(raw, &data)
 		data["news_provider"] = cfg.NewsProvider()
 		data["has_news_key"] = cfg.NewsAPIKey() != ""
+		data["tool_usage"] = cfg.ToolUsageLevel()
 		b, _ := json.Marshal(data)
 		w.Write(b)
 	}
@@ -420,6 +422,7 @@ func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
 			AgentName    *string `json:"agent_name"`
 			NewsProvider *string `json:"news_provider"`
 			NewsAPIKey   *string `json:"news_api_key"`
+			ToolUsage    *int    `json:"tool_usage"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -447,6 +450,18 @@ func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
 		if req.NewsAPIKey != nil {
 			cfg.Set("news_api_key", *req.NewsAPIKey)
 			slog.Info("news API key updated")
+		}
+		if req.ToolUsage != nil {
+			v := *req.ToolUsage
+			if v < 0 {
+				v = 0
+			}
+			if v > 2 {
+				v = 2
+			}
+			cfg.Set("tool_usage", strconv.Itoa(v))
+			state.SetToolUsage(v)
+			slog.Info("tool usage level changed", "level", v)
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
