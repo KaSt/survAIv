@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"survaiv/internal/db"
 )
 
 // Config holds all survaiv runtime configuration.
@@ -111,7 +113,7 @@ func (c *Config) Get(key string) string {
 		// General DB lookup for keys not cached in struct (owner_pin, agent_name, etc.).
 		if c.db != nil {
 			var val string
-			if err := c.db.QueryRow("SELECT value FROM config WHERE key = ?", key).Scan(&val); err == nil {
+			if err := c.db.QueryRow(db.Q("SELECT value FROM config WHERE key = ?"), key).Scan(&val); err == nil {
 				return val
 			}
 		}
@@ -136,11 +138,7 @@ func (c *Config) Set(key, value string) {
 	}
 
 	if c.db != nil {
-		_, err := c.db.Exec(
-			`INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)`,
-			key, value,
-		)
-		if err != nil {
+		if err := db.Upsert(c.db, "config", "key", "value", key, value); err != nil {
 			slog.Error("config: failed to persist", "key", key, "err", err)
 		}
 	}

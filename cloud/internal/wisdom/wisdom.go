@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"survaiv/internal/db"
 	"survaiv/internal/httpclient"
 	"survaiv/internal/types"
 )
@@ -298,7 +299,7 @@ func (t *Tracker) SetFrozen(frozen bool) {
 		if frozen {
 			v = 1
 		}
-		t.db.Exec("UPDATE wisdom_stats SET frozen = ? WHERE id = 1", v)
+		t.db.Exec(db.Q("UPDATE wisdom_stats SET frozen = ? WHERE id = 1"), v)
 	}
 	slog.Info("wisdom learning", "frozen", frozen)
 }
@@ -418,8 +419,8 @@ func (t *Tracker) saveStatsToDB() {
 	if t.db == nil {
 		return
 	}
-	t.db.Exec(`UPDATE wisdom_stats SET total=?, correct=?, holds_total=?, holds_correct=?,
-		buys_total=?, buys_correct=? WHERE id = 1`,
+	t.db.Exec(db.Q(`UPDATE wisdom_stats SET total=?, correct=?, holds_total=?, holds_correct=?,
+		buys_total=?, buys_correct=? WHERE id = 1`),
 		t.stats.Total, t.stats.Correct, t.stats.HoldsTotal, t.stats.HoldsCorrect,
 		t.stats.BuysTotal, t.stats.BuysCorrect)
 }
@@ -428,14 +429,14 @@ func (t *Tracker) saveWisdomToDB() {
 	if t.db == nil || t.wisdom == "" {
 		return
 	}
-	t.db.Exec("INSERT INTO wisdom_rules (rule_text) VALUES (?)", t.wisdom)
+	t.db.Exec(db.Q("INSERT INTO wisdom_rules (rule_text) VALUES (?)"), t.wisdom)
 }
 
 func (t *Tracker) saveCustomRulesToDB() {
 	if t.db == nil {
 		return
 	}
-	t.db.Exec("UPDATE wisdom_stats SET custom_rules = ? WHERE id = 1", t.customRules)
+	t.db.Exec(db.Q("UPDATE wisdom_stats SET custom_rules = ? WHERE id = 1"), t.customRules)
 }
 
 // GetCustomRules returns the current custom rules text.

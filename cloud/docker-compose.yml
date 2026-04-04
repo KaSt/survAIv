@@ -1,0 +1,55 @@
+# survaiv cloud — Docker Compose
+#
+# Usage:
+#   docker compose up                  # SQLite (default, zero config)
+#   docker compose --profile pg up     # with PostgreSQL
+#
+# SQLite mode: data stored in a named volume at /data/survaiv.db.
+# Postgres mode: add --profile pg to start a Postgres container. Set
+#   SURVAIV_DATABASE_URL=postgres://survaiv:survaiv@postgres:5432/survaiv?sslmode=disable
+# in your .env file (or uncomment the line below).
+
+services:
+  survaiv:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-docker}
+    container_name: survaiv
+    restart: unless-stopped
+    ports:
+      - "${SURVAIV_PORT:-8080}:8080"
+    volumes:
+      - survaiv-data:/data
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - SURVAIV_PORT=8080
+      # Uncomment to use the Postgres container (requires --profile pg):
+      # - SURVAIV_DATABASE_URL=postgres://survaiv:${POSTGRES_PASSWORD:-survaiv}@postgres:5432/survaiv?sslmode=disable
+
+  # ── PostgreSQL (optional, activate with: docker compose --profile pg up) ──
+  postgres:
+    image: postgres:17-alpine
+    container_name: survaiv-pg
+    restart: unless-stopped
+    profiles: ["pg"]
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: survaiv
+      POSTGRES_USER: survaiv
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-survaiv}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "survaiv"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  survaiv-data:
+  pg-data:
+

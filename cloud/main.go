@@ -38,7 +38,7 @@ func main() {
 	}
 
 	// 1. Open database.
-	database, err := db.Open(envOr("SURVAIV_DB_PATH", "survaiv.db"))
+	database, err := db.Open(db.DSN())
 	if err != nil {
 		slog.Error("failed to open database", "err", err)
 		os.Exit(1)
@@ -135,11 +135,4 @@ func main() {
 			os.Exit(1)
 		}
 	}
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }

@@ -62,7 +62,32 @@ CGO_ENABLED=1 go build -o survaiv .
 git push heroku master
 ```
 
-The app auto-detects Heroku via `DYNO` env and runs headless. `PORT` is set automatically.
+The app auto-detects Heroku via `DYNO` env and runs headless. `PORT` is set automatically. Set `DATABASE_URL` to a Postgres connection string if you want Postgres instead of SQLite.
+
+### Docker
+
+```bash
+# SQLite (zero config):
+docker compose up --build
+
+# With PostgreSQL:
+docker compose --profile pg up --build
+# Then set in .env:
+#   SURVAIV_DATABASE_URL=postgres://survaiv:survaiv@postgres:5432/survaiv?sslmode=disable
+```
+
+Dashboard at `http://localhost:8080`. Data persists in Docker volumes.
+
+## Database
+
+SQLite (default) or PostgreSQL. The driver is auto-detected from the connection string:
+
+| Backend | Config | Notes |
+|---|---|---|
+| SQLite | `SURVAIV_DB_PATH=survaiv.db` | Default. Zero setup. File-based. |
+| PostgreSQL | `SURVAIV_DATABASE_URL=postgres://...` | Set `SURVAIV_DATABASE_URL` or `DATABASE_URL`. |
+
+When both are set, `SURVAIV_DATABASE_URL` takes precedence over `SURVAIV_DB_PATH`.
 
 ## Environment Variables
 
@@ -80,6 +105,7 @@ The app auto-detects Heroku via `DYNO` env and runs headless. `PORT` is set auto
 | `SURVAIV_MARKET_LIMIT` | `10` | Markets to fetch per cycle |
 | `SURVAIV_DAILY_LOSS_LIMIT` | `5.0` | Max daily loss in USDC |
 | `SURVAIV_DB_PATH` | `survaiv.db` | SQLite database path |
+| `SURVAIV_DATABASE_URL` | _(empty)_ | PostgreSQL connection string (overrides DB_PATH) |
 | `SURVAIV_PORT` / `PORT` | `8080` | Dashboard HTTP port |
 
 ## TUI Keybindings
