@@ -1,5 +1,14 @@
 menu "Survaiv Agent"
 
+config SURVAIV_ENABLE_OTA
+    bool "Enable OTA (over-the-air) updates"
+    default y
+    help
+        When enabled, the partition table uses two OTA app slots (~1.75 MB each
+        on a 4 MB flash). Disabling OTA uses a single factory partition (~3.9 MB),
+        giving the app much more flash space and allowing higher resource limits.
+        Without OTA you must flash via USB cable.
+
 config SURVAIV_WIFI_SSID
     string "Wi-Fi SSID"
     default ""

@@ -8,10 +8,78 @@ import (
 	"survaiv/internal/types"
 )
 
+// extractFirstJSONObject scans text for the first valid JSON object,
+// preferring one that contains a "type" key (common in LLM responses).
+// Falls back to the first valid JSON object, or the original text.
+func extractFirstJSONObject(text string) string {
+	text = strings.TrimSpace(text)
+	// Fast path: text is already valid JSON.
+	if len(text) > 0 && text[0] == '{' {
+		var m map[string]interface{}
+		if json.Unmarshal([]byte(text), &m) == nil {
+			return text
+		}
+	}
+
+	var firstValid string
+	for i := 0; i < len(text); i++ {
+		if text[i] != '{' {
+			continue
+		}
+		depth := 0
+		inStr := false
+		esc := false
+		end := -1
+		for j := i; j < len(text); j++ {
+			ch := text[j]
+			if esc {
+				esc = false
+				continue
+			}
+			if ch == '\\' && inStr {
+				esc = true
+				continue
+			}
+			if ch == '"' {
+				inStr = !inStr
+				continue
+			}
+			if inStr {
+				continue
+			}
+			if ch == '{' {
+				depth++
+			} else if ch == '}' {
+				depth--
+				if depth == 0 {
+					end = j
+					break
+				}
+			}
+		}
+		if end > i {
+			candidate := text[i : end+1]
+			var m map[string]interface{}
+			if json.Unmarshal([]byte(candidate), &m) == nil {
+				if _, hasType := m["type"]; hasType {
+					return candidate
+				}
+				if firstValid == "" {
+					firstValid = candidate
+				}
+			}
+		}
+	}
+	if firstValid != "" {
+		return firstValid
+	}
+	return text
+}
+
 // ParseDecision parses an LLM JSON response into a Decision.
 // Returns a default hold decision on malformed input.
 func ParseDecision(text string) types.Decision {
-	text = stripCodeFence(text)
+	text = extractFirstJSONObject(stripCodeFence(text))
 
 	var raw struct {
 		Type         string  `json:"type"`
@@ -52,7 +120,7 @@ func ParseDecision(text string) types.Decision {
 
 // ParseToolCall parses an LLM JSON response for a tool_call.
 func ParseToolCall(text string) types.ToolCall {
-	text = stripCodeFence(text)
+	text = extractFirstJSONObject(stripCodeFence(text))
 
 	var raw struct {
 		Type      string          `json:"type"`
@@ -110,7 +178,7 @@ func ParseToolCall(text string) types.ToolCall {
 
 // ParseMarketRatings extracts the market_ratings array from the LLM response.
 func ParseMarketRatings(text string, markets []types.MarketSnapshot) []types.ScoutedMarket {
-	text = stripCodeFence(text)
+	text = extractFirstJSONObject(stripCodeFence(text))
 
 	var raw struct {
 		Ratings []struct {
@@ -171,19 +239,40 @@ func ParseUsage(body []byte) types.UsageStats {
 	}
 }
 
-// ExtractMessageContent pulls the assistant message text from an LLM response.
+// ExtractMessageContent pulls the assistant message text from an LLM response,
+// with fallbacks for reasoning_content, streaming delta, and text completions.
 func ExtractMessageContent(body []byte) string {
 	var raw struct {
 		Choices []struct {
-			Message struct {
-				Content string `json:"content"`
+			Message *struct {
+				Content          *string `json:"content"`
+				ReasoningContent *string `json:"reasoning_content"`
 			} `json:"message"`
+			Delta *struct {
+				Content *string `json:"content"`
+			} `json:"delta"`
+			Text *string `json:"text"`
 		} `json:"choices"`
 	}
 	if err := json.Unmarshal(body, &raw); err != nil || len(raw.Choices) == 0 {
 		return ""
 	}
-	return raw.Choices[0].Message.Content
+	c := raw.Choices[0]
+	if c.Message != nil {
+		if c.Message.Content != nil && *c.Message.Content != "" {
+			return *c.Message.Content
+		}
+		if c.Message.ReasoningContent != nil && *c.Message.ReasoningContent != "" {
+			return *c.Message.ReasoningContent
+		}
+	}
+	if c.Delta != nil && c.Delta.Content != nil && *c.Delta.Content != "" {
+		return *c.Delta.Content
+	}
+	if c.Text != nil && *c.Text != "" {
+		return *c.Text
+	}
+	return ""
 }
 
 // stripCodeFence removes markdown code fence wrappers if present.

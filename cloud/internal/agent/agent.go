@@ -181,6 +181,13 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 
 	// 9. Parse decision.
 	decision := ParseDecision(responseText)
+	if decision.Rationale == "invalid_json" {
+		truncated := responseText
+		if len(truncated) > 400 {
+			truncated = truncated[:400]
+		}
+		slog.Warn("failed to parse LLM decision", "output", truncated)
+	}
 	equity = a.ledger.Equity(markets)
 	maxPositionUsdc := equity * (maxPositionBps / 10000.0)
 

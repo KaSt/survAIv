@@ -174,6 +174,21 @@ canvas { width: 100% !important; height: 100% !important; }
     <div class="chart-container"><canvas id="equityChart"></canvas></div>
   </div>
 
+  <div class="section">
+    <div class="section-title">📉 P&amp;L per Cycle</div>
+    <div class="chart-container"><canvas id="pnlChart"></canvas></div>
+  </div>
+
+  <div id="wallet-section" style="display:none">
+  <div class="section">
+    <div class="section-title">💳 Wallet</div>
+    <div style="font-size:0.88em">
+      <span style="color:var(--fg2)">Address:</span> <strong id="walletAddr" style="font-family:monospace;font-size:0.92em">—</strong>
+      <span style="margin-left:16px;color:var(--fg2)">USDC Balance:</span> <strong id="walletBal">—</strong>
+    </div>
+  </div>
+  </div>
+
   <div class="grid-2">
     <div class="section">
       <div class="section-title">📊 Open Positions</div>
@@ -200,6 +215,15 @@ canvas { width: 100% !important; height: 100% !important; }
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
     <h3>⚙ LLM Settings</h3>
+    <div id="llm-presets" style="display:none">
+    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+      <button onclick="setLlmPreset('local')" class="btn" style="font-size:0.75em;padding:2px 8px">Local</button>
+      <button onclick="setLlmPreset('openrouter')" class="btn" style="font-size:0.75em;padding:2px 8px">OpenRouter</button>
+      <button onclick="setLlmPreset('openai')" class="btn" style="font-size:0.75em;padding:2px 8px">OpenAI</button>
+      <button onclick="setLlmPreset('groq')" class="btn" style="font-size:0.75em;padding:2px 8px">Groq</button>
+      <button onclick="setLlmPreset('x402')" class="btn" style="font-size:0.75em;padding:2px 8px">x402</button>
+    </div>
+    </div>
     <label>API Endpoint URL</label>
     <input id="settingsUrl" placeholder="https://...">
     <label>Model</label>
@@ -257,6 +281,7 @@ function toggleTheme() {
   document.body.classList.toggle('light', !darkMode);
   localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   drawChart();
+  drawPnlChart();
 }
 
 function openSettings() { $('#settingsModal').classList.add('active'); }
@@ -325,6 +350,26 @@ function updateState(d) {
   if (newsProv && d.news_provider) newsProv.value = d.news_provider;
   var newsMsg = document.getElementById('news-cfg-msg');
   if (newsMsg) newsMsg.textContent = d.has_news_key ? 'Key configured' : '';
+  var walletSec = document.getElementById('wallet-section');
+  if (walletSec) walletSec.style.display = d.live_mode ? 'block' : 'none';
+  if (d.wallet) {
+    var wa = document.getElementById('walletAddr');
+    if (wa) wa.textContent = d.wallet;
+    var wb = document.getElementById('walletBal');
+    if (wb) wb.textContent = fmtUsd(d.usdc_balance || 0);
+  }
+  var x402Spend = d.inference_spent_usdc || 0;
+  var llmSpend = (b.llm_spend || 0);
+  var llmSub = document.querySelector('#cardLlm + .card-sub');
+  if (llmSub) {
+    if (x402Spend > 0 && Math.abs(x402Spend - llmSpend) > 0.005) {
+      llmSub.textContent = 'x402: ' + fmtUsd4(x402Spend);
+    } else {
+      llmSub.textContent = 'Inference cost';
+    }
+  }
+  var presetDiv = document.getElementById('llm-presets');
+  if (presetDiv) presetDiv.style.display = d.paper_only ? 'block' : 'none';
 }
 
 function renderPositions(arr) {
@@ -457,6 +502,89 @@ function drawChart() {
   }
 }
 
+function drawPnlChart() {
+  var canvas = document.getElementById('pnlChart');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * (window.devicePixelRatio || 1);
+  canvas.height = rect.height * (window.devicePixelRatio || 1);
+  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+  var w = rect.width, h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (equityData.length < 2) {
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--fg2').trim();
+    ctx.font = '12px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('Collecting data\u2026', w/2, h/2);
+    return;
+  }
+
+  var baseline = equityData[0].equity || equityData[0][1] || 0;
+  var pnl = equityData.map(function(d) { return (d.equity || d[1] || 0) - baseline; });
+  var mn = Math.min.apply(null, pnl.concat([0]));
+  var mx = Math.max.apply(null, pnl.concat([0]));
+  var range = (mx - mn) || 0.01;
+  var zeroY = h - ((-mn) / range) * h;
+
+  // Grid
+  var borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+  ctx.strokeStyle = borderColor;
+  ctx.lineWidth = 1;
+  for (var gi = 0; gi < 4; gi++) { var gy = h*gi/3; ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
+
+  // Zero line
+  ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Bars
+  var barW = Math.max(1, (w / pnl.length) - 1);
+  for (var bi = 0; bi < pnl.length; bi++) {
+    var bx = (bi / pnl.length) * w;
+    var val = pnl[bi];
+    var barH = (Math.abs(val) / range) * h;
+    ctx.fillStyle = val >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)';
+    if (val >= 0) ctx.fillRect(bx, zeroY - barH, barW, barH);
+    else ctx.fillRect(bx, zeroY, barW, barH);
+  }
+
+  // Cumulative line
+  ctx.beginPath();
+  for (var li = 0; li < pnl.length; li++) {
+    var lx = (li / (pnl.length - 1)) * w;
+    var ly = h - ((pnl[li] - mn) / range) * h;
+    if (li === 0) ctx.moveTo(lx, ly); else ctx.lineTo(lx, ly);
+  }
+  var last = pnl[pnl.length - 1];
+  ctx.strokeStyle = last >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--green').trim() : getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Labels
+  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg2').trim();
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText((mx>=0?'+':'') + mx.toFixed(2), 4, 12);
+  ctx.fillText((mn>=0?'+':'') + mn.toFixed(2), 4, h-4);
+  ctx.textAlign = 'right';
+  ctx.fillText((last>=0?'+':'') + last.toFixed(2), w-4, 12);
+}
+
+var llmPresets = {
+  local:      {url:'http://localhost:8080', model:'local-model', key:''},
+  openrouter: {url:'https://openrouter.ai/api', model:'meta-llama/llama-4-scout', key:''},
+  openai:     {url:'https://api.openai.com', model:'gpt-4.1-mini', key:''},
+  groq:       {url:'https://api.groq.com/openai', model:'llama-3.3-70b-versatile', key:''},
+  x402:       {url:'https://tx402.ai', model:'auto', key:''}
+};
+function setLlmPreset(name) {
+  var p = llmPresets[name]; if (!p) return;
+  document.getElementById('settingsUrl').value = p.url;
+  document.getElementById('settingsModel').value = p.model;
+  document.getElementById('settingsKey').value = p.key;
+}
+
 // SSE
 var evtSource;
 function connectSSE() {
@@ -485,6 +613,7 @@ async function loadAll() {
     renderDecisions(results[2]);
     equityData = results[3] || [];
     drawChart();
+    drawPnlChart();
     renderScouted(results[4]);
     renderWisdom(results[5]);
   } catch(e) { console.error('Load error:', e); }
@@ -575,7 +704,7 @@ function saveNewsConfig() {
     });
 }
 
-window.addEventListener('resize', drawChart);
+window.addEventListener('resize', function() { drawChart(); drawPnlChart(); });
 checkAuth();
 </script>
 </body>
