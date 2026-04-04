@@ -20,9 +20,9 @@ Three deployment targets, one codebase philosophy:
 ┌───────────────────────────────────────────────────────────────┐
 │                     survaiv agent loop                        │
 │                                                               │
-│  ┌──────────┐   x402 (Base USDC)    ┌─────────────────────┐  │
-│  │  Agent    │ ◄───────────────────► │ LLM Provider        │  │
-│  │  Loop     │   EIP-3009 payment    │ tx402.ai            │  │
+│  ┌──────────┐   x402 (Base USDC)     ┌─────────────────────┐  │
+│  │  Agent   │ ◄ ──────────────────►  │ LLM Provider        │  │
+│  │  Loop    │    EIP-3009 payment    │ tx402.ai            │  │
 │  │          │                        │ x402engine.app      │  │
 │  │          │                        │ claw402.org         │  │
 │  │          │                        │ or custom endpoint  │  │
@@ -30,15 +30,15 @@ Three deployment targets, one codebase philosophy:
 │       │                                                       │
 │       ▼                                                       │
 │  ┌──────────┐   Polymarket CLOB      ┌─────────────────────┐  │
-│  │ Trading   │ ◄───────────────────► │ Polymarket           │  │
-│  │ Engine    │   EIP-712 signing     │ (Gamma API + CLOB)   │  │
+│  │ Trading  │  ◄───────────────────► │ Polymarket          │  │
+│  │ Engine   │    EIP-712 signing     │ (Gamma API + CLOB)  │  │
 │  └──────────┘                        └─────────────────────┘  │
 │       │                                                       │
 │       ▼                                                       │
-│  ┌──────────┐                        ┌─────────────────────┐  │
-│  │ Dashboard │ ◄──── SSE ──────────► │ Browser / TUI        │  │
-│  │ + API     │                       │                      │  │
-│  └──────────┘                        └─────────────────────┘  │
+│  ┌─────────-─┐                        ┌─────────────────────┐ │
+│  │ Dashboard │ ◄──── SSE ──────────►  │ Browser / TUI       │ │
+│  │ + API     │                        │                     │ │
+│  └─-─────────┘                        └─────────────────────┘ │
 └───────────────────────────────────────────────────────────────┘
 ```
 
@@ -65,10 +65,12 @@ Every cycle the agent:
 
 ### Dashboard
 - **Real-time web UI** — equity chart, P&L chart (profit/loss over cycles), positions table, market scanner, decision log, system stats.
+- **Next-cycle countdown** — discrete `m:ss` timer next to the status badge counts down to the next agent cycle.
 - **System stats** — per-core CPU usage with color-coded bar graphs, RAM usage bar, minimum free heap. CPU measured via FreeRTOS idle hooks (ESP32) or `getrusage` (cloud).
 - **SSE streaming** — live updates without polling.
 - **Dark / light theme** — toggle with persistence.
-- **Settings modal** — LLM endpoint config, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter, agent efficiency score with platform comparison.
+- **Settings modal** — LLM endpoint config, tool usage slider, backup/restore, OTA updates, knowledge export/import, custom rules editor with byte counter, agent efficiency score with platform comparison.
+- **Tool usage slider** — 3-position control (Frugal / Balanced / Generous) that tunes how aggressively the agent uses search tool calls. Frugal minimizes LLM rounds; Generous searches news for every actionable market. Persisted across reboots.
 - **Custom favicon** — pixel art brain-bot icon embedded as base64 PNG (273 bytes on ESP32, 301 bytes on cloud).
 - **Market descriptions** — LLM receives resolution criteria and event context, not just prices.
 - **Platform badge** — shows firmware version with OTA/NO-OTA indicator on ESP32 builds.
@@ -85,6 +87,7 @@ Every cycle the agent:
 - **Config file support** — TOML-style `survaiv.toml` with auto-detection (`./survaiv.toml` → `~/.config/survaiv/config.toml`), explicit `--config` flag, or env vars. See `survaiv.toml.example`.
 - **Dynamic runtime config** — auto-adapts prompt budget, completion limits, and market limit based on detected model context window and host hardware.
 - **Bind address control** — `--listen 127.0.0.1` for local-only, `--port 9090` for custom port. Also settable via config file or env vars.
+- **CPU core limiting** — `--cores 4` or `--cores 50%` to cap GOMAXPROCS. Clamps to actual core count with safe defaults.
 - **Parallel execution** — on ≥4 CPU cores, independent tasks (geoblock + market fetch, tool calls + wisdom checks) run concurrently.
 - **Docker & Compose** — `Dockerfile` + `docker-compose.yml` with optional PostgreSQL profile.
 - **SQLite or PostgreSQL** — SQLite by default (zero config), PostgreSQL via `SURVAIV_DATABASE_URL`. Auto-detected from DSN.
@@ -154,6 +157,8 @@ go build -o survaiv .
 ./survaiv --headless                   # dashboard only (for servers)
 ./survaiv --listen 127.0.0.1           # local-only access
 ./survaiv --port 9090                  # custom port
+./survaiv --cores 4                    # limit to 4 CPU cores
+./survaiv --cores 50%                  # use half of available cores
 ./survaiv --config /path/to/config.toml
 ./survaiv --version                    # print version
 ```
