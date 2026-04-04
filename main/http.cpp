@@ -22,6 +22,12 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
     return ESP_OK;
   }
 
+  // If we already decided to stop accumulating, abort the transfer so
+  // esp_http_client doesn't keep draining TLS data (which allocates memory).
+  if (context->truncated) {
+    return ESP_FAIL;
+  }
+
   switch (event->event_id) {
     case HTTP_EVENT_ON_HEADER:
       if (event->header_key != nullptr && event->header_value != nullptr) {
@@ -32,26 +38,24 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
       if (event->data != nullptr && event->data_len > 0) {
         size_t new_size = context->response->body.size() + event->data_len;
         if (new_size > kMaxBodySize) {
-          ESP_LOGW(kTag, "HTTP response body exceeds 64 KB, truncating");
-          break;
+          ESP_LOGW(kTag, "HTTP response exceeds 64 KB — aborting transfer");
+          context->truncated = true;
+          return ESP_FAIL;
         }
         // When the string must reallocate, verify enough heap remains.
         // Peak usage: new buffer allocated before old buffer is freed.
         if (new_size > context->response->body.capacity()) {
           size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-          // Estimate new capacity (std::string typically doubles).
           size_t new_cap = context->response->body.capacity() * 2;
           if (new_cap < new_size) new_cap = new_size;
           if (free_heap < new_cap + kMinFreeHeap) {
-            if (!context->truncated) {
-              ESP_LOGW(kTag, "HTTP body truncated at %uB: heap %uB, need %uB+%uB",
-                       static_cast<unsigned>(context->response->body.size()),
-                       static_cast<unsigned>(free_heap),
-                       static_cast<unsigned>(new_cap),
-                       static_cast<unsigned>(kMinFreeHeap));
-            }
+            ESP_LOGW(kTag, "HTTP body stopped at %uB: heap %uB, need %uB+%uB",
+                     static_cast<unsigned>(context->response->body.size()),
+                     static_cast<unsigned>(free_heap),
+                     static_cast<unsigned>(new_cap),
+                     static_cast<unsigned>(kMinFreeHeap));
             context->truncated = true;
-            break;
+            return ESP_FAIL;
           }
         }
         context->response->body.append(
@@ -97,6 +101,14 @@ HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method
   response.err = esp_http_client_perform(client);
   if (response.err == ESP_OK) {
     response.status_code = esp_http_client_get_status_code(client);
+  } else if (context.truncated) {
+    // We intentionally aborted the transfer due to memory pressure.
+    // The body we have is partial but the HTTP status may still be valid.
+    int code = esp_http_client_get_status_code(client);
+    response.status_code = code > 0 ? code : 200;
+    response.err = ESP_OK;
+    ESP_LOGW(kTag, "Response truncated for %s (%uB kept)",
+             url.c_str(), static_cast<unsigned>(response.body.size()));
   } else {
     ESP_LOGE(kTag, "HTTP request to %s failed: %s", url.c_str(), esp_err_to_name(response.err));
   }
