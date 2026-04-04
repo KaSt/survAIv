@@ -109,15 +109,16 @@ type WisdomStats struct {
 
 // DecisionRecord is a dashboard-facing record of a single agent decision.
 type DecisionRecord struct {
-	Epoch          int64   `json:"epoch"`
-	Type           string  `json:"type"`
-	MarketID       string  `json:"market_id"`
-	MarketQuestion string  `json:"question"`
-	Side           string  `json:"side"`
-	Confidence     float64 `json:"confidence"`
-	EdgeBps        float64 `json:"edge_bps"`
-	SizeUsdc       float64 `json:"size_usdc"`
-	Rationale      string  `json:"rationale"`
+	Epoch          int64    `json:"epoch"`
+	Type           string   `json:"type"`
+	MarketID       string   `json:"market_id"`
+	MarketQuestion string   `json:"question"`
+	Side           string   `json:"side"`
+	Confidence     float64  `json:"confidence"`
+	EdgeBps        float64  `json:"edge_bps"`
+	SizeUsdc       float64  `json:"size_usdc"`
+	Rationale      string   `json:"rationale"`
+	ToolsUsed      []string `json:"tools_used,omitempty"`
 }
 
 // EquitySnapshot records equity at a point in time.

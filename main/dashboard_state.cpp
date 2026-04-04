@@ -341,8 +341,16 @@ std::string DashboardState::DecisionHistoryJson() const {
       << ",\"confidence\":" << d.confidence
       << ",\"edge_bps\":" << d.edge_bps
       << ",\"size_usdc\":" << d.size_usdc
-      << ",\"rationale\":\"" << JsonEscape(d.rationale) << "\""
-      << "}";
+      << ",\"rationale\":\"" << JsonEscape(d.rationale) << "\"";
+    if (!d.tools_used.empty()) {
+      o << ",\"tools_used\":[";
+      for (size_t t = 0; t < d.tools_used.size(); ++t) {
+        if (t > 0) o << ",";
+        o << "\"" << JsonEscape(d.tools_used[t]) << "\"";
+      }
+      o << "]";
+    }
+    o << "}";
   }
   o << "]";
 

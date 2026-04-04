@@ -179,6 +179,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		maxToolCalls = 2 // generous: allow up to 2 rounds
 	}
 
+	var toolsUsed []string
 	for toolRound := 0; toolRound < maxToolCalls; toolRound++ {
 		toolCall := ParseToolCall(responseText)
 		if !toolCall.Valid {
@@ -285,6 +286,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		}
 
 		slog.Info("tool call completed", "tool", toolCall.Tool, "round", toolRound)
+		toolsUsed = append(toolsUsed, toolCall.Tool)
 	}
 
 	// 9. Parse decision.
@@ -315,6 +317,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		EdgeBps:    decision.EdgeBps,
 		SizeUsdc:   equity * decision.SizeFraction,
 		Rationale:  decision.Rationale,
+		ToolsUsed:  toolsUsed,
 	}
 	if dm := types.FindMarket(markets, decision.MarketID); dm != nil {
 		rec.MarketQuestion = dm.Question

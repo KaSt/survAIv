@@ -774,6 +774,7 @@ function updateDecisions(decisions) {
     return `<div class="log-entry">
       <span class="log-time">${time}</span>
       <span class="log-type ${typeCls}">${d.type}</span>
+      ${d.tools_used && d.tools_used.length ? d.tools_used.map(t => '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--dim)">🔍 ' + t + '</span>').join('') : ''}
       ${q ? '<span>' + q + '</span>' : ''}
       ${d.confidence ? ' <span style="color:var(--blue)">' + (d.confidence*100).toFixed(0) + '%</span>' : ''}
       ${d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : ''}
@@ -977,6 +978,7 @@ function connectSSE() {
       entry.className = 'log-entry';
       entry.innerHTML = `<span class="log-time">${dt.toLocaleTimeString()}</span>
         <span class="log-type ${typeCls}">${d.type}</span>
+        ${d.tools_used && d.tools_used.length ? d.tools_used.map(t => '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--dim)">🔍 ' + t + '</span>').join('') : ''}
         ${d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : ''}`;
       log.prepend(entry);
     } catch(err) {}

@@ -617,6 +617,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
     case 2: max_tool_calls = 2; break; // generous
   }
 
+  std::vector<std::string> tools_used;
   for (int tool_round = 0; tool_round < max_tool_calls; ++tool_round) {
     ToolCall tool_call = ParseToolCall(response_text);
     if (!tool_call.valid) break;
@@ -663,6 +664,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
     ESP_LOGI(kTag, "Tool call round %d: %s (%s)", tool_round,
              tool_call.tool.c_str(), handled ? "ok" : "skipped");
     if (!handled) break;
+    tools_used.push_back(tool_call.tool);
   }
 
   Decision decision = ParseDecision(response_text);
@@ -692,6 +694,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
     rec.edge_bps = decision.edge_bps;
     rec.size_usdc = equity * decision.size_fraction;
     rec.rationale = decision.rationale;
+    rec.tools_used = tools_used;
     // Find market question for display.
     const MarketSnapshot *dm = FindMarket(markets, decision.market_id);
     if (dm) rec.market_question = dm->question;

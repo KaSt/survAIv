@@ -574,7 +574,13 @@ function renderDecisions(arr) {
     else if (t === 'tool_call') cls = 'log-type-tool';
     const q = (d.question || '').length > 45 ? d.question.slice(0, 42) + '...' : (d.question || '');
     const ts = d.epoch ? new Date(d.epoch * 1000).toLocaleTimeString() : '';
-    html += '<div class="log-item"><span class="log-type ' + cls + '">' + t + '</span> ' +
+    var toolBadges = '';
+    if (d.tools_used && d.tools_used.length) {
+      for (var ti = 0; ti < d.tools_used.length; ti++) {
+        toolBadges += '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--fg2)">\ud83d\udd0d ' + d.tools_used[ti] + '</span>';
+      }
+    }
+    html += '<div class="log-item"><span class="log-type ' + cls + '">' + t + '</span> ' + toolBadges +
       '<span>' + q + '</span> <span class="log-meta">conf:' + (d.confidence || 0).toFixed(2) +
       ' edge:' + (d.edge_bps || 0).toFixed(0) + ' ' + ts + '</span>';
     if (d.rationale) html += '<div class="log-rationale">' + d.rationale.slice(0, 120) + '</div>';

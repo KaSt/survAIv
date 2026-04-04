@@ -26,6 +26,7 @@ struct DecisionRecord {
   double edge_bps = 0.0;
   double size_usdc = 0.0;
   std::string rationale;
+  std::vector<std::string> tools_used;
 };
 
 struct EquitySnapshot {
