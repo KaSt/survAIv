@@ -13,10 +13,26 @@ type knowledgeExport struct {
 	Format      string              `json:"format"`
 	ExportedAt  int64               `json:"exported_at"`
 	CustomRules string              `json:"custom_rules,omitempty"`
+	Scope       *knowledgeScope     `json:"scope,omitempty"`
 	WisdomText  string              `json:"wisdom_text"`
 	Stats       knowledgeStats      `json:"stats"`
 	Models      []modelExport       `json:"models"`
 	Decisions   []knowledgeDecision `json:"decisions"`
+}
+
+type knowledgeScope struct {
+	TotalDecisions   int              `json:"total_decisions"`
+	TrackedDecisions int              `json:"tracked_decisions"`
+	UniqueMarkets    int              `json:"unique_markets"`
+	FirstDecision    int64            `json:"first_decision"`
+	LastDecision     int64            `json:"last_decision"`
+	Categories       []string         `json:"categories"`
+	Markets          []scopeMarket    `json:"markets"`
+}
+
+type scopeMarket struct {
+	ID       string `json:"id"`
+	Question string `json:"q"`
 }
 
 type knowledgeStats struct {
@@ -80,6 +96,40 @@ func (t *Tracker) ExportKnowledge() ([]byte, error) {
 		},
 		Models: []modelExport{},
 	}
+
+	// Build scope from decision ring.
+	scope := &knowledgeScope{
+		TotalDecisions:   t.stats.Total,
+		TrackedDecisions: t.count,
+		Categories:       []string{},
+		Markets:          []scopeMarket{},
+	}
+	seenMarkets := make(map[string]bool)
+	seenCats := make(map[string]bool)
+	for i := 0; i < t.count; i++ {
+		ri := (t.head + i) % maxDecisions
+		d := t.ring[ri]
+		if scope.FirstDecision == 0 || d.Epoch < scope.FirstDecision {
+			scope.FirstDecision = d.Epoch
+		}
+		if d.Epoch > scope.LastDecision {
+			scope.LastDecision = d.Epoch
+		}
+		if !seenMarkets[d.MarketID] {
+			seenMarkets[d.MarketID] = true
+			q := d.Question
+			if len(q) > 100 {
+				q = q[:100]
+			}
+			scope.Markets = append(scope.Markets, scopeMarket{ID: d.MarketID, Question: q})
+		}
+		if d.Category != "" && !seenCats[d.Category] {
+			seenCats[d.Category] = true
+			scope.Categories = append(scope.Categories, d.Category)
+		}
+	}
+	scope.UniqueMarkets = len(scope.Markets)
+	exp.Scope = scope
 
 	for i := 0; i < t.count; i++ {
 		ri := (t.head + i) % maxDecisions

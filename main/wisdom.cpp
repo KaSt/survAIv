@@ -535,6 +535,78 @@ std::string ExportKnowledge() {
   // Custom rules — the high-value LLM-distilled insights.
   ss << ",\"custom_rules\":\"" << JsonEscape(g_custom_rules) << '"';
 
+  // Scope — what this agent learned on (helps importers assess applicability).
+  {
+    int64_t first_epoch = 0, last_epoch = 0;
+    int unique_markets = 0;
+    // Collect unique market IDs and categories from the ring.
+    // Simple O(n²) dedup — ring is small (≤30 on ESP32).
+    struct { char id[24]; char question[100]; } seen_markets[30];
+    char seen_cats[8][32];
+    int n_markets = 0, n_cats = 0;
+
+    for (int i = 0; i < g_count; ++i) {
+      int ri = (g_head + i) % kMaxDecisions;
+      const TrackedDecision &d = g_ring[ri];
+
+      if (first_epoch == 0 || d.epoch < first_epoch) first_epoch = d.epoch;
+      if (d.epoch > last_epoch) last_epoch = d.epoch;
+
+      // Dedup markets.
+      bool found = false;
+      for (int j = 0; j < n_markets; ++j) {
+        if (std::strncmp(seen_markets[j].id, d.market_id.c_str(), 23) == 0) {
+          found = true;
+          break;
+        }
+      }
+      if (!found && n_markets < 30) {
+        std::strncpy(seen_markets[n_markets].id, d.market_id.c_str(), 23);
+        seen_markets[n_markets].id[23] = '\0';
+        std::strncpy(seen_markets[n_markets].question, d.question.c_str(), 99);
+        seen_markets[n_markets].question[99] = '\0';
+        ++n_markets;
+      }
+
+      // Dedup categories.
+      if (!d.category.empty()) {
+        bool cat_found = false;
+        for (int j = 0; j < n_cats; ++j) {
+          if (std::strncmp(seen_cats[j], d.category.c_str(), 31) == 0) {
+            cat_found = true;
+            break;
+          }
+        }
+        if (!cat_found && n_cats < 8) {
+          std::strncpy(seen_cats[n_cats], d.category.c_str(), 31);
+          seen_cats[n_cats][31] = '\0';
+          ++n_cats;
+        }
+      }
+    }
+
+    ss << ",\"scope\":{\"total_decisions\":" << g_stats.total
+       << ",\"tracked_decisions\":" << g_count
+       << ",\"unique_markets\":" << n_markets
+       << ",\"first_decision\":" << first_epoch
+       << ",\"last_decision\":" << last_epoch;
+
+    ss << ",\"categories\":[";
+    for (int i = 0; i < n_cats; ++i) {
+      if (i > 0) ss << ',';
+      ss << '"' << JsonEscape(seen_cats[i]) << '"';
+    }
+    ss << "]";
+
+    ss << ",\"markets\":[";
+    for (int i = 0; i < n_markets; ++i) {
+      if (i > 0) ss << ',';
+      ss << "{\"id\":\"" << JsonEscape(seen_markets[i].id)
+         << "\",\"q\":\"" << JsonEscape(seen_markets[i].question) << "\"}";
+    }
+    ss << "]}";
+  }
+
   // Wisdom text + stats.
   ss << ",\"wisdom_text\":\"" << JsonEscape(g_wisdom) << '"'
      << ",\"stats\":{\"total\":" << g_stats.total
