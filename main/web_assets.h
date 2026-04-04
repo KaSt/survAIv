@@ -11,6 +11,7 @@ static const char kDashboardHtml[] = R"rawhtml(<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>survaiv</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧠</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
@@ -1055,6 +1056,7 @@ static const char kOnboardHtml[] = R"rawhtml(<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>survaiv setup</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🧠</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'SF Mono',Monaco,monospace;background:#fafafa;color:#1a1a1a;

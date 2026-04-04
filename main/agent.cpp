@@ -561,6 +561,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
       dash.SetActiveModel(sel.model->name, sel.price);
     }
   }
+  if (model_id.empty()) model_id = config::OpenaiModel();
 
   if (!ChatCompletion(system_prompt, user_prompt, &response_text, &usage, model_id)) {
     dash.SetAgentStatus("llm_error");
