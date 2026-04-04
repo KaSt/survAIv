@@ -196,7 +196,7 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
   <div class="log" id="log"><div class="empty">Waiting for first cycle…</div></div>
 </div>
 
-<div class="section">
+<div class="section" id="wallet-section" style="display:none">
   <h2>Wallet</h2>
   <div class="card">
     <div class="label">Address</div>
@@ -506,6 +506,8 @@ function updateState(s) {
     $('v-wallet').textContent = s.wallet || '—';
     $('v-balance').textContent = s.usdc_balance >= 0 ? fmtUsd(s.usdc_balance) : '—';
   }
+  const walletSec = $('wallet-section');
+  if (walletSec) walletSec.style.display = s.live_mode ? 'block' : 'none';
   if (s.firmware) {
     $('v-fw').textContent = s.firmware;
   }
