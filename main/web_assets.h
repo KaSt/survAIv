@@ -176,6 +176,22 @@ canvas{width:100%!important;height:100%!important}
     </label>
   </div>
   <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
+  <div id="llm-cfg" style="margin-top:10px;display:none">
+    <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+      <label style="font-size:10px;color:var(--dim)">URL<br>
+        <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:220px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="https://…">
+      </label>
+      <label style="font-size:10px;color:var(--dim)">Model<br>
+        <input id="cfg-model" style="width:140px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="model-id">
+      </label>
+      <label style="font-size:10px;color:var(--dim)">API Key<br>
+        <input id="cfg-key" type="password" style="width:120px;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--card);color:var(--fg)" placeholder="sk-…">
+      </label>
+      <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
+    </div>
+    <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+  </div>
   <div class="sub" style="margin-top:8px">
     Firmware: <span id="v-fw">—</span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
   </div>
@@ -301,6 +317,16 @@ function updateState(s) {
   if (s.active_model) {
     $('v-model').textContent = s.active_model;
     $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
+  }
+
+  // Show LLM config panel in paper mode
+  const llmCfg = $('llm-cfg');
+  if (llmCfg) {
+    llmCfg.style.display = s.live_mode ? 'none' : 'block';
+    if (!s.live_mode && s.oai_url && !$('cfg-url').dataset.touched) {
+      $('cfg-url').value = s.oai_url || '';
+      $('cfg-model').value = s.oai_model || '';
+    }
   }
 }
 
@@ -524,6 +550,38 @@ function restoreConfig(file) {
     msg.textContent = 'Error: ' + e.message;
     msg.style.color = 'var(--red)';
   });
+}
+
+function saveLlmConfig() {
+  const msg = $('llm-cfg-msg');
+  const body = {};
+  const url = $('cfg-url').value.trim();
+  const model = $('cfg-model').value.trim();
+  const key = $('cfg-key').value.trim();
+  if (url) body.oai_url = url;
+  if (model) body.oai_model = model;
+  if (key) body.api_key = key;
+  if (!Object.keys(body).length) { msg.textContent = 'Nothing to change'; return; }
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/llm-config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        msg.textContent = 'Applied: ' + d.oai_model + ' @ ' + d.oai_url;
+        msg.style.color = 'var(--green)';
+        $('cfg-url').value = d.oai_url;
+        $('cfg-model').value = d.oai_model;
+        $('cfg-key').value = '';
+        $('cfg-url').dataset.touched = '1';
+      } else {
+        msg.textContent = 'Error: ' + (d.error || 'unknown');
+        msg.style.color = 'var(--red)';
+      }
+    }).catch(e => {
+      msg.textContent = 'Error: ' + e.message;
+      msg.style.color = 'var(--red)';
+    });
 }
 
 function otaUpdate(file) {

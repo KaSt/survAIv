@@ -541,6 +541,55 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+// ─── POST /api/llm-config ───────────────────────────────────────
+// Change LLM endpoint, model, and API key at runtime (paper mode only).
+// Body: {"oai_url":"…","oai_model":"…","api_key":"…"}
+// All fields optional — only provided fields are updated.
+static esp_err_t ApiLlmConfigHandler(httpd_req_t *req) {
+  if (!config::PaperTradingOnly()) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
+                        "LLM config changes disabled in live mode");
+    return ESP_FAIL;
+  }
+
+  char buf[512];
+  int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+  if (received <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+    return ESP_FAIL;
+  }
+  buf[received] = '\0';
+
+  auto extract = [&](const char *key) -> std::string {
+    std::string needle = std::string("\"") + key + "\":\"";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return "";
+    start += needle.size();
+    const char *end = strchr(start, '"');
+    if (!end) return "";
+    return std::string(start, end - start);
+  };
+
+  std::string oai_url = extract("oai_url");
+  std::string oai_model = extract("oai_model");
+  std::string api_key = extract("api_key");
+
+  if (!oai_url.empty()) config::SetString("oai_url", oai_url);
+  if (!oai_model.empty()) config::SetString("oai_model", oai_model);
+  if (!api_key.empty()) config::SetString("api_key", api_key);
+
+  ESP_LOGI(kTag, "LLM config updated: url=%s model=%s",
+           oai_url.empty() ? "(unchanged)" : oai_url.c_str(),
+           oai_model.empty() ? "(unchanged)" : oai_model.c_str());
+
+  httpd_resp_set_type(req, "application/json");
+  // Return the effective config so the UI can confirm.
+  std::string resp = "{\"ok\":true,\"oai_url\":\"" + config::OpenaiBaseUrl() +
+                     "\",\"oai_model\":\"" + config::OpenaiModel() + "\"}";
+  httpd_resp_send(req, resp.c_str(), resp.size());
+  return ESP_OK;
+}
+
 // ─── URI registration helpers ───────────────────────────────────
 
 static void RegisterUri(const char *uri, httpd_method_t method, esp_err_t (*handler)(httpd_req_t *)) {
@@ -586,6 +635,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);
   RegisterUri("/api/ota", HTTP_POST, ApiOtaHandler);
   RegisterUri("/api/generate-wallet", HTTP_POST, ApiGenerateWalletHandler);
+  RegisterUri("/api/llm-config", HTTP_POST, ApiLlmConfigHandler);
 
   g_is_onboard = false;
   ESP_LOGI(kTag, "Dashboard server started on port %d", port);
