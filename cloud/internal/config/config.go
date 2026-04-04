@@ -6,7 +6,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +36,7 @@ type Config struct {
 	DailyLossLimit   float64
 	Port             int
 	ListenAddr       string
+	MaxCores         int
 	DBPath           string
 	Headless         bool
 }
@@ -74,6 +77,9 @@ func Load(db *sql.DB, configFile string) *Config {
 
 	// Listen address: "127.0.0.1" for local-only, "0.0.0.0" or "" for all interfaces.
 	c.ListenAddr = resolve("SURVAIV_LISTEN", "listen", file, "")
+
+	// Max cores: number or percentage (e.g. "4" or "50%"). 0 = use all.
+	c.MaxCores = resolveCores("SURVAIV_MAX_CORES", "max_cores", file, 0)
 
 	// Headless mode: auto-detect Heroku or explicit flag.
 	c.Headless = os.Getenv("DYNO") != ""
@@ -251,6 +257,69 @@ func envIntFromStr(s string, fallback int) int {
 		return fallback
 	}
 	return v
+}
+
+// resolveCores parses a core limit that can be an integer ("4") or a
+// percentage of total cores ("50%"). Returns 0 for "use all cores".
+func resolveCores(envKey, fileKey string, file map[string]string, fallback int) int {
+	raw := resolve(envKey, fileKey, file, "")
+	if raw == "" {
+		return fallback
+	}
+	return parseCores(raw)
+}
+
+// ParseCoresFlag is the exported entry point for CLI --cores flag parsing.
+func ParseCoresFlag(s string) int { return parseCores(s) }
+
+// parseCores interprets a string as either an absolute core count or a
+// percentage (e.g. "50%"). Negative values and zero are treated as "all cores".
+func parseCores(s string) int {
+	s = strings.TrimSpace(s)
+	total := runtime.NumCPU()
+
+	if strings.HasSuffix(s, "%") {
+		pct, err := strconv.ParseFloat(strings.TrimSuffix(s, "%"), 64)
+		if err != nil || pct <= 0 {
+			return 0
+		}
+		if pct > 100 {
+			pct = 100
+		}
+		n := int(math.Round(float64(total) * pct / 100))
+		if n < 1 {
+			n = 1
+		}
+		if n > total {
+			n = total
+		}
+		return n
+	}
+
+	n, err := strconv.Atoi(s)
+	if err != nil || n <= 0 {
+		return 0
+	}
+	if n > total {
+		slog.Warn("max_cores exceeds available cores, clamping", "requested", n, "available", total)
+		return total
+	}
+	return n
+}
+
+// ApplyMaxCores calls runtime.GOMAXPROCS with the configured core limit.
+// Returns the actual value set (0 means all cores were used).
+func (c *Config) ApplyMaxCores() int {
+	total := runtime.NumCPU()
+	n := c.MaxCores
+	if n <= 0 || n > total {
+		n = total
+	}
+	prev := runtime.GOMAXPROCS(n)
+	if n < total {
+		slog.Info("core limit applied", "max_cores", n, "total_cores", total, "previous", prev)
+	}
+	return n
 }
 
 // NewsAPIKey returns the Tavily or Brave Search API key.

@@ -32,6 +32,7 @@ func main() {
 	configFile := flag.String("config", "", "Path to config file (default: auto-detect survaiv.toml)")
 	listenFlag := flag.String("listen", "", "Listen address (e.g. 127.0.0.1 for local-only, 0.0.0.0 for all)")
 	portFlag := flag.Int("port", 0, "Dashboard HTTP port (default: 8080)")
+	coresFlag := flag.String("cores", "", "Max CPU cores to use (number or percentage, e.g. 4 or 50%)")
 	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
 
@@ -59,6 +60,12 @@ func main() {
 	if *portFlag != 0 {
 		cfg.Port = *portFlag
 	}
+	if *coresFlag != "" {
+		cfg.MaxCores = config.ParseCoresFlag(*coresFlag)
+	}
+
+	// Apply core limit before starting any goroutines.
+	cfg.ApplyMaxCores()
 
 	// 3. Init HTTP client.
 	httpClient := httpclient.New()

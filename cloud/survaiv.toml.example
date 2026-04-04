@@ -66,6 +66,10 @@
 # Listen address: "" or "0.0.0.0" = all interfaces, "127.0.0.1" = local only.
 # listen = ""
 
+# Max CPU cores to use: integer (e.g. 4) or percentage (e.g. "50%").
+# 0 or omitted = use all available cores. Values above actual cores are clamped.
+# max_cores = 0
+
 # Database file path.
 # db_path = "survaiv.db"
 
