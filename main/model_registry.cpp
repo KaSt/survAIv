@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "cJSON.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "http.h"
 #include "json_util.h"
@@ -547,14 +548,12 @@ static void IngestCatalog(const providers::LlmAdapter *adapter, int adapter_idx,
     if (is_engine) {
       SafeCopy(me.dm.engine_id, sizeof(me.dm.engine_id), cm.id);
       me.dm.engine_price = cm.price_per_req;
-      SafeCopy(me.dm.notes, sizeof(me.dm.notes),
-               (std::string("Dynamic (") + adapter->name + ")").c_str());
     } else {
       SafeCopy(me.dm.tx402_id, sizeof(me.dm.tx402_id), cm.id);
       me.dm.tx402_price = cm.price_per_req;
-      SafeCopy(me.dm.notes, sizeof(me.dm.notes),
-               (std::string("Dynamic (") + adapter->name + ")").c_str());
     }
+    // Build notes string in-place to avoid heap allocation.
+    snprintf(me.dm.notes, sizeof(me.dm.notes), "Dynamic (%s)", adapter->name);
 
     me.dm.context_k = static_cast<uint16_t>(
         cm.context_k > 0xFFFF ? 0xFFFF : cm.context_k);
@@ -566,22 +565,24 @@ static void IngestCatalog(const providers::LlmAdapter *adapter, int adapter_idx,
 }
 
 void RefreshRegistry() {
-  ESP_LOGI(kTag, "Refreshing dynamic model registry...");
+  ESP_LOGI(kTag, "Refreshing dynamic model registry (free heap: %lu)",
+           static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
 
   std::vector<MergeEntry> entries;
   entries.reserve(kMaxDynamic);
 
-  // Scratch buffer for catalog parsing (stack-allocated, reused per adapter).
-  static constexpr int kCatalogBuf = 60;
-  providers::CatalogModel catalog[kCatalogBuf];
+  // Scratch buffer: static to avoid blowing the stack (~124 bytes each).
+  static constexpr int kCatalogBuf = 40;
+  static providers::CatalogModel catalog[kCatalogBuf];
 
   // Iterate over all registered LLM adapters that have a catalog URL.
   for (int ai = 0; ai < providers::LlmAdapterCount(); ++ai) {
     const providers::LlmAdapter *adapter = providers::GetLlmAdapter(ai);
     if (!adapter || !adapter->catalog_url || !adapter->parse_catalog) continue;
 
-    ESP_LOGI(kTag, "Fetching catalog: %s (%s)", adapter->display_name,
-             adapter->catalog_url);
+    ESP_LOGI(kTag, "Fetching catalog: %s (heap: %lu)",
+             adapter->display_name,
+             static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
 
     HttpResponse resp =
         HttpRequest(adapter->catalog_url, HTTP_METHOD_GET, {});
@@ -591,8 +592,20 @@ void RefreshRegistry() {
       continue;
     }
 
+    // Skip if available heap is too low to safely parse a large JSON.
+    size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    if (resp.body.size() > 16384 && free_heap < resp.body.size() * 3) {
+      ESP_LOGW(kTag, "%s catalog too large for available heap (%uB body, %uB free) — skipped",
+               adapter->display_name, static_cast<unsigned>(resp.body.size()),
+               static_cast<unsigned>(free_heap));
+      continue;
+    }
+
     int n = adapter->parse_catalog(resp.body, catalog, kCatalogBuf);
     ESP_LOGI(kTag, "%s: %d models parsed", adapter->display_name, n);
+
+    // Free the response body before ingesting to reduce peak heap usage.
+    { std::string().swap(resp.body); }
 
     IngestCatalog(adapter, ai, catalog, n, entries);
   }
