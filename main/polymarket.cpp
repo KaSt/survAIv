@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "cJSON.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "http.h"
 #include "json_util.h"
@@ -45,10 +46,14 @@ GeoblockStatus FetchGeoblockStatus() {
 
 std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
                                          const std::string &order) {
-  // Over-fetch to compensate for near-resolved markets that get filtered out.
-  int fetch_limit = std::min(limit * 3, 20);
+  // Each market is ~7 KB in the API response; cap fetch to keep response
+  // under ~42 KB so it fits comfortably in heap alongside TLS buffers.
+  int fetch_limit = std::min(limit, 6);
   std::ostringstream url;
   url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
+
+  ESP_LOGI(kTag, "Fetching %d markets (heap: %lu)", fetch_limit,
+           static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
 
   HttpResponse response = HttpRequest(url.str(), HTTP_METHOD_GET, {});
   std::vector<MarketSnapshot> markets;
