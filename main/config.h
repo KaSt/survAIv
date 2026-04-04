@@ -21,7 +21,7 @@ std::string ApiKey();
 std::string WalletPrivateKey();
 std::string PolygonRpcUrl();
 std::string ClobBaseUrl();
-std::string LlmProvider();     // "apikey" or "x402"
+std::string LlmProvider();     // "apikey", "x402", or "claw402"
 int LoopSeconds();
 int StartingBankrollCents();
 int ReserveCents();

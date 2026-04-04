@@ -148,7 +148,10 @@ void Init() {
   ESP_LOGI(kTag, "x402 payment module ready (Base/USDC)");
 }
 
-bool IsConfigured() { return config::LlmProvider() == "x402"; }
+bool IsConfigured() {
+  const std::string &prov = config::LlmProvider();
+  return prov == "x402" || prov == "claw402";
+}
 
 double TotalSpentUsdc() { return g_total_spent_usdc; }
 void ResetSpending() { g_total_spent_usdc = 0.0; }

@@ -1,10 +1,12 @@
 #include <string>
 
 #include "agent.h"
+#include "claw402.h"
 #include "clob.h"
 #include "config.h"
 #include "dashboard_state.h"
 #include "ledger.h"
+#include "model_registry.h"
 #include "onboard.h"
 #include "wallet.h"
 #include "webserver.h"
@@ -103,6 +105,10 @@ extern "C" void app_main(void) {
 
   survaiv::GetDashboardState().SetAgentStatus("running");
   survaiv::wisdom::Init();
+  survaiv::claw402::Init();
+
+  // Refresh dynamic model registry from provider catalogs (free, no auth).
+  survaiv::models::RefreshRegistry();
 
   survaiv::BudgetLedger ledger(
       static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
@@ -117,6 +123,11 @@ extern "C" void app_main(void) {
       survaiv::wisdom::CheckOutcomes();
       survaiv::wisdom::EvaluateAndUpdateWisdom();
       survaiv::webserver::PushSseEvent("wisdom", survaiv::wisdom::StatsJson());
+    }
+
+    // Refresh dynamic model registry every 96 cycles (~24h at 15-min intervals).
+    if (cycle % 96 == 0) {
+      survaiv::models::RefreshRegistry();
     }
 
     vTaskDelay(pdMS_TO_TICKS(survaiv::config::LoopSeconds() * 1000));

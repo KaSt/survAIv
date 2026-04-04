@@ -27,6 +27,19 @@ struct ModelInfo {
   const char *notes;       // One-liner: best use case
 };
 
+// Heap-allocated model entry for dynamically discovered models.
+struct DynamicModel {
+  char name[48];
+  char tx402_id[64];
+  char engine_id[48];
+  double tx402_price;
+  double engine_price;
+  uint16_t context_k;
+  uint8_t reasoning;
+  uint8_t speed;
+  char notes[64];
+};
+
 struct ModelSelection {
   const ModelInfo *model;
   const char *provider_url;  // "https://tx402.ai/v1" or gateway URL
@@ -34,10 +47,13 @@ struct ModelSelection {
   double price;              // Price per request
 };
 
-// Number of models in the registry.
+// Number of models in the registry (hardcoded + dynamic).
 int ModelCount();
 
 // Access model at index i (0..ModelCount()-1).
+// For i < hardcoded count, returns the static entry.
+// For i >= hardcoded count, returns a temporary ModelInfo pointing into
+// the dynamic list (valid until next RefreshRegistry call).
 const ModelInfo &GetModel(int i);
 
 // Select the best model for a task, given the provider base URL and remaining
@@ -62,6 +78,11 @@ double CheapestPrice(const ModelInfo &m);
 // all known tx402 and engine IDs with fuzzy suffix matching. Returns the
 // cheapest known price, or 0 if no match is found.
 double LookupPrice(const std::string &model_name);
+
+// Fetch model/price catalogs from tx402.ai and x402engine.app and build
+// a dynamic model list. Safe to call periodically (every ~24h). Failures
+// are non-fatal — the hardcoded list is always available as fallback.
+void RefreshRegistry();
 
 }  // namespace models
 }  // namespace survaiv
