@@ -62,6 +62,45 @@ std::string StripCodeFence(std::string text) {
   return text.substr(first_newline + 1, last_fence - first_newline - 1);
 }
 
+std::string ExtractFirstJsonObject(const std::string &text) {
+  // First try: if the whole thing parses, return it.
+  if (!text.empty() && text.front() == '{') {
+    return text;
+  }
+  // Find the first '{' and match braces to find the complete object.
+  size_t start = text.find('{');
+  if (start == std::string::npos) return text;
+
+  int depth = 0;
+  bool in_string = false;
+  bool escape = false;
+  for (size_t i = start; i < text.size(); ++i) {
+    char ch = text[i];
+    if (escape) {
+      escape = false;
+      continue;
+    }
+    if (ch == '\\' && in_string) {
+      escape = true;
+      continue;
+    }
+    if (ch == '"') {
+      in_string = !in_string;
+      continue;
+    }
+    if (in_string) continue;
+    if (ch == '{') ++depth;
+    else if (ch == '}') {
+      --depth;
+      if (depth == 0) {
+        return text.substr(start, i - start + 1);
+      }
+    }
+  }
+  // Fallback: return from first brace to end.
+  return text.substr(start);
+}
+
 double JsonToDouble(const cJSON *item) {
   if (item == nullptr) {
     return 0.0;

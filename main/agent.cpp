@@ -315,7 +315,7 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   }
 
   *usage_out = ParseUsage(root);
-  *content_out = StripCodeFence(ExtractMessageContent(root));
+  *content_out = ExtractFirstJsonObject(StripCodeFence(ExtractMessageContent(root)));
 
   if (content_out->empty()) {
     ESP_LOGW(kTag, "LLM content empty — raw response (first 500 chars): %.500s",

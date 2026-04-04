@@ -10,6 +10,9 @@ namespace survaiv {
 std::string ToLower(std::string text);
 std::string JsonEscape(const std::string &text);
 std::string StripCodeFence(std::string text);
+
+// Extract the first JSON object ({...}) from text that may contain prose.
+std::string ExtractFirstJsonObject(const std::string &text);
 double JsonToDouble(const cJSON *item);
 std::string JsonToString(const cJSON *item);
 std::vector<double> ParseStringifiedArrayToDoubles(const cJSON *item);
