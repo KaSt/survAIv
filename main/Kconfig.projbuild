@@ -50,9 +50,15 @@ config SURVAIV_MARKET_LIMIT
     default 4
 
 config SURVAIV_MAX_TOOL_CALLS_PER_CYCLE
-    int "Maximum Polymarket tool calls per cycle"
+    int "Maximum tool calls per agent cycle"
     range 0 4
     default 1
+
+config SURVAIV_NEWS_API_KEY
+    string "News search API key (Tavily or Brave)"
+    default ""
+    help
+        API key for web search. Tavily: tvly-xxx, Brave: BSA-xxx.
 
 config SURVAIV_EST_PROMPT_TOKENS
     int "Estimated prompt tokens per LLM call"

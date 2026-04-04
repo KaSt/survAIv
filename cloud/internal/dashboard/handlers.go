@@ -77,7 +77,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Use(authMiddleware(cfg))
 
 	r.Get("/", serveIndex)
-	r.Get("/api/state", handleState(state))
+	r.Get("/api/state", handleState(state, cfg))
 	r.Get("/api/positions", handlePositions(state))
 	r.Get("/api/decisions", handleDecisions(state))
 	r.Get("/api/equity-history", handleEquityHistory(state))
@@ -102,10 +102,16 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	w.Write(IndexHTML)
 }
 
-func handleState(state *State) http.HandlerFunc {
+func handleState(state *State, cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(state.ToJSON())
+		raw := state.ToJSON()
+		var data map[string]interface{}
+		json.Unmarshal(raw, &data)
+		data["news_provider"] = cfg.NewsProvider()
+		data["has_news_key"] = cfg.NewsAPIKey() != ""
+		b, _ := json.Marshal(data)
+		w.Write(b)
 	}
 }
 
@@ -335,8 +341,10 @@ func handleAuthPost(cfg *config.Config) http.HandlerFunc {
 func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			PaperOnly *int    `json:"paper_only"`
-			AgentName *string `json:"agent_name"`
+			PaperOnly    *int    `json:"paper_only"`
+			AgentName    *string `json:"agent_name"`
+			NewsProvider *string `json:"news_provider"`
+			NewsAPIKey   *string `json:"news_api_key"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid JSON", http.StatusBadRequest)
@@ -356,6 +364,14 @@ func handleConfig(cfg *config.Config, state *State) http.HandlerFunc {
 			cfg.Set("agent_name", *req.AgentName)
 			state.SetAgentName(*req.AgentName)
 			slog.Info("agent name changed", "name", *req.AgentName)
+		}
+		if req.NewsProvider != nil && *req.NewsProvider != "" {
+			cfg.Set("news_provider", *req.NewsProvider)
+			slog.Info("news provider changed", "provider", *req.NewsProvider)
+		}
+		if req.NewsAPIKey != nil {
+			cfg.Set("news_api_key", *req.NewsAPIKey)
+			slog.Info("news API key updated")
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))

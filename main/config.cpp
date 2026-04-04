@@ -106,6 +106,9 @@ bool HasStoredConfig() {
 std::string AgentName() { return GetNvsString("agent_name", ""); }
 std::string OwnerPin() { return GetNvsString("owner_pin", ""); }
 
+std::string NewsApiKey()  { return GetNvsString("news_key", ""); }
+std::string NewsProvider(){ return GetNvsString("news_prov", "tavily"); }
+
 void Reboot() {
   ESP_LOGI(kTag, "Rebooting...");
   vTaskDelay(pdMS_TO_TICKS(500));

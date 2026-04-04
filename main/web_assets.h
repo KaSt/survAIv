@@ -272,6 +272,22 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
       </div>
       <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
+    <div class="setting-group">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">News Search</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--dim);flex:1">Provider<br>
+          <select id="cfg-news-prov" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)">
+            <option value="tavily">Tavily</option>
+            <option value="brave">Brave Search</option>
+          </select>
+        </label>
+        <label style="font-size:10px;color:var(--dim);flex:2">API Key<br>
+          <input id="cfg-news-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="tvly-xxx or BSA-xxx">
+        </label>
+        <button onclick="saveNewsConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+      </div>
+      <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+    </div>
   </div>
 </div>
 
@@ -522,6 +538,12 @@ function updateState(s) {
     pb.style.color = isPaper ? '#000' : '';
     rb.style.background = !isPaper ? 'var(--green)' : '';
     rb.style.color = !isPaper ? '#000' : '';
+  }
+
+  // News search config
+  if (s.news_provider) {
+    const sel = $('cfg-news-prov');
+    if (sel) sel.value = s.news_provider;
   }
 }
 
@@ -775,6 +797,24 @@ function saveLlmConfig() {
       }
     }).catch(e => {
       msg.textContent = 'Error: ' + e.message;
+      msg.style.color = 'var(--red)';
+    });
+}
+
+function saveNewsConfig() {
+  const msg = $('news-cfg-msg');
+  const body = {news_prov: $('cfg-news-prov').value, news_key: $('cfg-news-key').value};
+  msg.textContent = 'Saving\u2026';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/config', {method:'POST', body:JSON.stringify(body),
+    headers:{'Content-Type':'application/json','X-Auth-Token':authToken}})
+    .then(r => r.json()).then(() => {
+      msg.textContent = '\u2713 Saved';
+      msg.style.color = 'var(--green)';
+      $('cfg-news-key').value = '';
+      setTimeout(() => msg.textContent = '', 3000);
+    }).catch(() => {
+      msg.textContent = '\u2717 Failed';
       msg.style.color = 'var(--red)';
     });
 }

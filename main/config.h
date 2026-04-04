@@ -40,6 +40,10 @@ bool HasStoredConfig();
 std::string AgentName();
 std::string OwnerPin();
 
+// News search config.
+std::string NewsApiKey();    // Tavily or Brave API key
+std::string NewsProvider();  // "tavily" (default) or "brave"
+
 // Reboot the device.
 void Reboot();
 

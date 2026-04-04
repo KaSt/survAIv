@@ -216,6 +216,24 @@ func envBool(key string, fallback bool) bool {
 	return strings.EqualFold(s, "true") || s == "1"
 }
 
+// NewsAPIKey returns the Tavily or Brave Search API key.
+func (c *Config) NewsAPIKey() string {
+	v := c.Get("news_api_key")
+	if v != "" {
+		return v
+	}
+	return envStr("SURVAIV_NEWS_API_KEY", "")
+}
+
+// NewsProvider returns the news search provider ("tavily" or "brave").
+func (c *Config) NewsProvider() string {
+	v := c.Get("news_provider")
+	if v != "" {
+		return v
+	}
+	return envStr("SURVAIV_NEWS_PROVIDER", "tavily")
+}
+
 // ── Agent identity & PIN helpers ────────────────────────────────
 
 var (

@@ -21,6 +21,7 @@
 #include "webserver.h"
 #include "wisdom.h"
 #include "x402.h"
+#include "news.h"
 
 namespace survaiv {
 
@@ -116,11 +117,15 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
   }
 
   prompt
-      << "10. Allowed tool: search_markets with {\"order\":\"volume24hr\",\"limit\":N,"
-      << "\"offset\":N}. The ESP32 will fetch public Polymarket market data only.\n"
+      << "10. Allowed tools (prefer zero or one per cycle):\n"
+      << "  a) search_markets: {\"order\":\"volume24hr\",\"limit\":N,\"offset\":N} — fetch Polymarket listings.\n"
+      << "  b) search_news: {\"query\":\"<search terms>\"} — web search for recent news/context on a topic. "
+      << "Use this when you need current events context to assess a market. Keep queries short and specific.\n"
       << "Return one of these JSON shapes exactly:\n"
       << "{\"type\":\"tool_call\",\"tool\":\"search_markets\",\"arguments\":{\"order\":"
-      << "\"volume24hr\",\"limit\":5,\"offset\":0},\"rationale\":\"...\"}\n";
+      << "\"volume24hr\",\"limit\":5,\"offset\":0},\"rationale\":\"...\"}\n"
+      << "{\"type\":\"tool_call\",\"tool\":\"search_news\",\"arguments\":{\"query\":"
+      << "\"FC Barcelona vs Atletico Madrid April 2026\"},\"rationale\":\"...\"}\n";
 
   if (!paper_only && !geoblocked) {
     prompt
@@ -314,7 +319,7 @@ ToolCall ParseToolCall(const std::string &json_text) {
 
   std::string type = JsonToString(cJSON_GetObjectItemCaseSensitive(root, "type"));
   std::string tool = JsonToString(cJSON_GetObjectItemCaseSensitive(root, "tool"));
-  if (type != "tool_call" || tool != "search_markets") {
+  if (type != "tool_call" || (tool != "search_markets" && tool != "search_news")) {
     cJSON_Delete(root);
     return call;
   }
@@ -323,18 +328,22 @@ ToolCall ParseToolCall(const std::string &json_text) {
   call.tool = tool;
   cJSON *arguments = cJSON_GetObjectItemCaseSensitive(root, "arguments");
   if (arguments != nullptr) {
-    std::string order = JsonToString(cJSON_GetObjectItemCaseSensitive(arguments, "order"));
-    if (!order.empty()) {
-      call.order = order;
-    }
-    int limit = static_cast<int>(JsonToDouble(cJSON_GetObjectItemCaseSensitive(arguments, "limit")));
-    int offset =
-        static_cast<int>(JsonToDouble(cJSON_GetObjectItemCaseSensitive(arguments, "offset")));
-    if (limit > 0) {
-      call.limit = std::min(limit, 12);
-    }
-    if (offset >= 0) {
-      call.offset = offset;
+    if (tool == "search_markets") {
+      std::string order = JsonToString(cJSON_GetObjectItemCaseSensitive(arguments, "order"));
+      if (!order.empty()) {
+        call.order = order;
+      }
+      int limit = static_cast<int>(JsonToDouble(cJSON_GetObjectItemCaseSensitive(arguments, "limit")));
+      int offset =
+          static_cast<int>(JsonToDouble(cJSON_GetObjectItemCaseSensitive(arguments, "offset")));
+      if (limit > 0) {
+        call.limit = std::min(limit, 12);
+      }
+      if (offset >= 0) {
+        call.offset = offset;
+      }
+    } else if (tool == "search_news") {
+      call.query = JsonToString(cJSON_GetObjectItemCaseSensitive(arguments, "query"));
     }
   }
 
@@ -534,25 +543,37 @@ int RunAgentCycle(BudgetLedger *ledger) {
   // Handle tool calls.
   ToolCall tool_call = ParseToolCall(response_text);
   if (tool_call.valid && CONFIG_SURVAIV_MAX_TOOL_CALLS_PER_CYCLE > 0) {
-    std::vector<MarketSnapshot> tool_markets =
-        FetchMarkets(tool_call.limit, tool_call.offset, tool_call.order);
-    if (!tool_markets.empty() &&
-        ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets)) {
-      // Follow-up after tool result: may need to make a trade decision,
-      // so bump complexity to kComplex.
-      std::string follow_model;
-      if (use_x402) {
-        auto sel2 = models::SelectModel(base_url, models::TaskComplexity::kComplex,
-                                        ledger->Cash(), est_cycles);
-        if (sel2.model) follow_model = sel2.model_id;
+    std::string follow_model;
+    if (use_x402) {
+      auto sel2 = models::SelectModel(base_url, models::TaskComplexity::kComplex,
+                                       ledger->Cash(), est_cycles);
+      if (sel2.model) follow_model = sel2.model_id;
+    }
+
+    if (tool_call.tool == "search_markets") {
+      std::vector<MarketSnapshot> tool_markets =
+          FetchMarkets(tool_call.limit, tool_call.offset, tool_call.order);
+      if (!tool_markets.empty() &&
+          ledger->CanSpendOnInference(estimated_cost, ledger->Positions(), tool_markets)) {
+        std::ostringstream follow_up;
+        follow_up << user_prompt << "\n"
+                  << "{\"tool_result\":{\"tool\":\"search_markets\",\"markets\":"
+                  << BuildMarketsJson(tool_markets) << "}}";
+        if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
+          SpendForUsage(ledger, usage);
+          markets = tool_markets;
+        }
       }
-      std::ostringstream follow_up;
-      follow_up << user_prompt << "\n"
-                << "{\"tool_result\":{\"tool\":\"search_markets\",\"markets\":"
-                << BuildMarketsJson(tool_markets) << "}}";
-      if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
-        SpendForUsage(ledger, usage);
-        markets = tool_markets;
+    } else if (tool_call.tool == "search_news" && !tool_call.query.empty()) {
+      std::vector<NewsResult> news = SearchNews(tool_call.query, 3);
+      if (!news.empty()) {
+        std::ostringstream follow_up;
+        follow_up << user_prompt << "\n"
+                  << "{\"tool_result\":{\"tool\":\"search_news\",\"results\":"
+                  << BuildNewsJson(news) << "}}";
+        if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
+          SpendForUsage(ledger, usage);
+        }
       }
     }
   }

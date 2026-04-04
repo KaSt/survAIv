@@ -37,6 +37,7 @@ type ToolCall struct {
 	Order  string
 	Limit  int
 	Offset int
+	Query  string // for search_news
 }
 
 // Decision represents a parsed trading decision from the LLM.

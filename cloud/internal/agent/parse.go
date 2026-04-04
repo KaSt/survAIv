@@ -55,42 +55,57 @@ func ParseToolCall(text string) types.ToolCall {
 	text = stripCodeFence(text)
 
 	var raw struct {
-		Type      string `json:"type"`
-		Tool      string `json:"tool"`
-		Arguments struct {
-			Order  string  `json:"order"`
-			Limit  float64 `json:"limit"`
-			Offset float64 `json:"offset"`
-		} `json:"arguments"`
+		Type      string          `json:"type"`
+		Tool      string          `json:"tool"`
+		Arguments json.RawMessage `json:"arguments"`
 	}
 
 	if err := json.Unmarshal([]byte(text), &raw); err != nil {
 		return types.ToolCall{}
 	}
 
-	if raw.Type != "tool_call" || raw.Tool != "search_markets" {
+	if raw.Type != "tool_call" {
+		return types.ToolCall{}
+	}
+	if raw.Tool != "search_markets" && raw.Tool != "search_news" {
 		return types.ToolCall{}
 	}
 
-	call := types.ToolCall{
+	tc := types.ToolCall{
 		Valid: true,
 		Tool:  raw.Tool,
 	}
 
-	if raw.Arguments.Order != "" {
-		call.Order = raw.Arguments.Order
-	}
-	if raw.Arguments.Limit > 0 {
-		call.Limit = int(raw.Arguments.Limit)
-		if call.Limit > 12 {
-			call.Limit = 12
+	if raw.Tool == "search_markets" {
+		var args struct {
+			Order  string  `json:"order"`
+			Limit  float64 `json:"limit"`
+			Offset float64 `json:"offset"`
+		}
+		if err := json.Unmarshal(raw.Arguments, &args); err == nil {
+			if args.Order != "" {
+				tc.Order = args.Order
+			}
+			if args.Limit > 0 {
+				tc.Limit = int(args.Limit)
+				if tc.Limit > 12 {
+					tc.Limit = 12
+				}
+			}
+			if args.Offset >= 0 {
+				tc.Offset = int(args.Offset)
+			}
+		}
+	} else if raw.Tool == "search_news" {
+		var args struct {
+			Query string `json:"query"`
+		}
+		if err := json.Unmarshal(raw.Arguments, &args); err == nil {
+			tc.Query = args.Query
 		}
 	}
-	if raw.Arguments.Offset >= 0 {
-		call.Offset = int(raw.Arguments.Offset)
-	}
 
-	return call
+	return tc
 }
 
 // ParseMarketRatings extracts the market_ratings array from the LLM response.

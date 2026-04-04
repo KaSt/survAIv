@@ -12,6 +12,7 @@ import (
 	"survaiv/internal/httpclient"
 	"survaiv/internal/ledger"
 	"survaiv/internal/models"
+	"survaiv/internal/news"
 	"survaiv/internal/polymarket"
 	"survaiv/internal/provider"
 	"survaiv/internal/types"
@@ -140,7 +141,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 
 	// 8. Handle tool calls.
 	toolCall := ParseToolCall(responseText)
-	if toolCall.Valid {
+	if toolCall.Valid && toolCall.Tool == "search_markets" {
 		toolMarkets := polymarket.FetchMarkets(ctx, a.client, toolCall.Limit, toolCall.Offset, toolCall.Order)
 		if len(toolMarkets) > 0 && a.ledger.CanSpendOnInference(estimatedCost, toolMarkets) {
 			var followModel string
@@ -155,6 +156,25 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				a.spendForUsage(u2)
 				responseText = text
 				markets = toolMarkets
+			}
+		}
+	} else if toolCall.Valid && toolCall.Tool == "search_news" && toolCall.Query != "" {
+		newsProvider := news.Provider(a.cfg.NewsProvider())
+		results, err := news.Search(newsProvider, a.cfg.NewsAPIKey(), toolCall.Query, 5)
+		if err != nil {
+			slog.Warn("news search failed", "error", err)
+		} else if len(results) > 0 {
+			var followModel string
+			if useX402 {
+				sel := models.SelectModel(baseURL, models.Complex, a.ledger.Cash(), estCycles)
+				if sel.Model != nil {
+					followModel = sel.ModelID
+				}
+			}
+			followUp := BuildNewsFollowUp(userPrompt, news.BuildNewsJSON(results))
+			if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUp, followModel); ok2 {
+				a.spendForUsage(u2)
+				responseText = text
 			}
 		}
 	}

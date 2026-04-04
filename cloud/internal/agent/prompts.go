@@ -52,11 +52,16 @@ func BuildSystemPrompt(paperOnly, geoblocked bool, wis *wisdom.Tracker) string {
 		b.WriteString("Use paper trades only for exploration or low-confidence ideas.\n")
 	}
 
-	b.WriteString(`10. Allowed tool: search_markets with {"order":"volume24hr","limit":N,"offset":N}. `)
-	b.WriteString("The server will fetch public Polymarket market data only.\n")
+	b.WriteString("10. Allowed tools (prefer zero or one per cycle):\n")
+	b.WriteString(`  a) search_markets: {"order":"volume24hr","limit":N,"offset":N} — fetch Polymarket listings.`)
+	b.WriteByte('\n')
+	b.WriteString("  b) search_news: {\"query\":\"<search terms>\"} — web search for recent news/context on a topic. ")
+	b.WriteString("Use this when you need current events context to assess a market. Keep queries short and specific.\n")
 	b.WriteString("Return one of these JSON shapes exactly:\n")
 
 	b.WriteString(`{"type":"tool_call","tool":"search_markets","arguments":{"order":"volume24hr","limit":5,"offset":0},"rationale":"..."}`)
+	b.WriteByte('\n')
+	b.WriteString(`{"type":"tool_call","tool":"search_news","arguments":{"query":"FC Barcelona vs Atletico Madrid April 2026"},"rationale":"..."}`)
 	b.WriteByte('\n')
 
 	if !paperOnly && !geoblocked {
@@ -161,6 +166,12 @@ func BuildUserPrompt(
 	b.WriteString("]}")
 
 	return b.String()
+}
+
+// BuildNewsFollowUp appends news search results to the user prompt.
+func BuildNewsFollowUp(userPrompt string, newsJSON string) string {
+	return userPrompt + "\n" +
+		`{"tool_result":{"tool":"search_news","results":` + newsJSON + `}}`
 }
 
 // BuildFollowUpPrompt appends tool results to the user prompt.

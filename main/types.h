@@ -51,10 +51,13 @@ struct UsageStats {
 
 struct ToolCall {
   bool valid = false;
-  std::string tool;
+  std::string tool;       // "search_markets" or "search_news"
+  // search_markets fields
   std::string order = "volume24hr";
   int limit = 6;
   int offset = 0;
+  // search_news fields
+  std::string query;
 };
 
 struct Decision {

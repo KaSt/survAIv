@@ -739,7 +739,7 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
     return ESP_FAIL;
   }
 
-  char buf[256] = {};
+  char buf[512] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
   if (received <= 0) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
@@ -755,10 +755,29 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
     return atoi(start);
   };
 
+  auto extract = [&](const char *key) -> std::string {
+    std::string needle = std::string("\"") + key + "\":\"";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return "";
+    start += needle.size();
+    const char *end = strchr(start, '"');
+    if (!end) return "";
+    return std::string(start, end - start);
+  };
+
   int paper_only = extractInt("paper_only");
   if (paper_only >= 0) {
     config::SetInt("paper_only", paper_only);
     ESP_LOGI(kTag, "Trading mode changed: %s", paper_only ? "paper" : "real");
+  }
+
+  std::string news_prov = extract("news_prov");
+  if (!news_prov.empty()) {
+    config::SetString("news_prov", news_prov);
+  }
+  std::string news_key = extract("news_key");
+  if (!news_key.empty()) {
+    config::SetString("news_key", news_key);
   }
 
   httpd_resp_set_type(req, "application/json");

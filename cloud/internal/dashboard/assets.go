@@ -215,6 +215,22 @@ canvas { width: 100% !important; height: 100% !important; }
       </div>
       <div style="font-size:10px;color:var(--fg2);margin-top:4px">Open positions will continue to completion in their original mode.</div>
     </div>
+    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">News Search</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--fg2);flex:1">Provider<br>
+          <select id="cfg-news-prov" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)">
+            <option value="tavily">Tavily</option>
+            <option value="brave">Brave Search</option>
+          </select>
+        </label>
+        <label style="font-size:10px;color:var(--fg2);flex:2">API Key<br>
+          <input id="cfg-news-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="tvly-xxx or BSA-xxx">
+        </label>
+        <button onclick="saveNewsConfig()" style="background:var(--accent);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+      </div>
+      <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
+    </div>
     <div class="modal-actions">
       <button class="btn" onclick="closeSettings()">Cancel</button>
       <button class="btn btn-primary" onclick="saveSettings()">Save</button>
@@ -305,6 +321,10 @@ function updateState(d) {
       rb.style.background = 'var(--accent)'; rb.style.color = '#fff';
     }
   }
+  var newsProv = document.getElementById('cfg-news-prov');
+  if (newsProv && d.news_provider) newsProv.value = d.news_provider;
+  var newsMsg = document.getElementById('news-cfg-msg');
+  if (newsMsg) newsMsg.textContent = d.has_news_key ? 'Key configured' : '';
 }
 
 function renderPositions(arr) {
@@ -537,6 +557,22 @@ function loginWithPin() {
       document.getElementById('auth-login-err').textContent = d.error || 'Wrong PIN';
     }
   });
+}
+
+function saveNewsConfig() {
+  var body = {news_provider: document.getElementById('cfg-news-prov').value,
+    news_api_key: document.getElementById('cfg-news-key').value};
+  fetch('/api/config', {method:'POST', body:JSON.stringify(body), headers:authHeaders()})
+    .then(function(r) { return r.json(); }).then(function() {
+      var msg = document.getElementById('news-cfg-msg');
+      msg.textContent = '\u2713 Saved';
+      msg.style.color = 'var(--green)';
+      setTimeout(function() { msg.textContent = ''; }, 3000);
+    }).catch(function() {
+      var msg = document.getElementById('news-cfg-msg');
+      msg.textContent = '\u2717 Failed';
+      msg.style.color = 'var(--red)';
+    });
 }
 
 window.addEventListener('resize', drawChart);
