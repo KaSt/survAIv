@@ -315,11 +315,14 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   }
 
   *usage_out = ParseUsage(root);
-  *content_out = ExtractFirstJsonObject(StripCodeFence(ExtractMessageContent(root)));
+  std::string raw_content = ExtractMessageContent(root);
+  *content_out = ExtractFirstJsonObject(StripCodeFence(raw_content));
 
   if (content_out->empty()) {
     ESP_LOGW(kTag, "LLM content empty — raw response (first 500 chars): %.500s",
              response.body.c_str());
+  } else {
+    ESP_LOGD(kTag, "Extracted JSON (first 300): %.300s", content_out->c_str());
   }
 
   cJSON_Delete(root);

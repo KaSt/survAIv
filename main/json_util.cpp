@@ -63,41 +63,69 @@ std::string StripCodeFence(std::string text) {
 }
 
 std::string ExtractFirstJsonObject(const std::string &text) {
-  // First try: if the whole thing parses, return it.
+  // Fast path: already starts with '{'.
   if (!text.empty() && text.front() == '{') {
-    return text;
+    cJSON *test = cJSON_Parse(text.c_str());
+    if (test) { cJSON_Delete(test); return text; }
   }
-  // Find the first '{' and match braces to find the complete object.
+
+  // Scan for each '{', extract balanced block, validate it's real JSON with "type".
+  size_t search_from = 0;
+  while (search_from < text.size()) {
+    size_t start = text.find('{', search_from);
+    if (start == std::string::npos) break;
+
+    int depth = 0;
+    bool in_string = false;
+    bool escape = false;
+    size_t end = std::string::npos;
+    for (size_t i = start; i < text.size(); ++i) {
+      char ch = text[i];
+      if (escape) { escape = false; continue; }
+      if (ch == '\\' && in_string) { escape = true; continue; }
+      if (ch == '"') { in_string = !in_string; continue; }
+      if (in_string) continue;
+      if (ch == '{') ++depth;
+      else if (ch == '}') {
+        --depth;
+        if (depth == 0) { end = i; break; }
+      }
+    }
+
+    if (end != std::string::npos) {
+      std::string candidate = text.substr(start, end - start + 1);
+      cJSON *parsed = cJSON_Parse(candidate.c_str());
+      if (parsed) {
+        // Accept if it has a "type" field (decision/tool_call).
+        cJSON *type_field = cJSON_GetObjectItemCaseSensitive(parsed, "type");
+        if (type_field && cJSON_IsString(type_field)) {
+          cJSON_Delete(parsed);
+          return candidate;
+        }
+        cJSON_Delete(parsed);
+      }
+    }
+    search_from = start + 1;
+  }
+
+  // Last resort: return first balanced block even without "type".
   size_t start = text.find('{');
   if (start == std::string::npos) return text;
-
   int depth = 0;
   bool in_string = false;
   bool escape = false;
   for (size_t i = start; i < text.size(); ++i) {
     char ch = text[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (ch == '\\' && in_string) {
-      escape = true;
-      continue;
-    }
-    if (ch == '"') {
-      in_string = !in_string;
-      continue;
-    }
+    if (escape) { escape = false; continue; }
+    if (ch == '\\' && in_string) { escape = true; continue; }
+    if (ch == '"') { in_string = !in_string; continue; }
     if (in_string) continue;
     if (ch == '{') ++depth;
     else if (ch == '}') {
       --depth;
-      if (depth == 0) {
-        return text.substr(start, i - start + 1);
-      }
+      if (depth == 0) return text.substr(start, i - start + 1);
     }
   }
-  // Fallback: return from first brace to end.
   return text.substr(start);
 }
 
