@@ -16,6 +16,7 @@
 #include "polymarket.h"
 #include "sdkconfig.h"
 #include "webserver.h"
+#include "wisdom.h"
 #include "x402.h"
 
 namespace survaiv {
@@ -132,6 +133,13 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
       << "\"size_fraction\":0.0,\"rationale\":\"...\","
       << "\"market_ratings\":[{\"id\":\"abc\",\"signal\":\"neutral\",\"edge_bps\":30,"
       << "\"confidence\":0.40,\"note\":\"Too close to call\"}]}";
+
+  // Inject learned trading wisdom (token-efficient rules from past outcomes).
+  std::string w = wisdom::GetWisdom();
+  if (!w.empty()) {
+    prompt << "\n--- LEARNED TRADING RULES (from verified past outcomes) ---\n" << w;
+  }
+
   return prompt.str();
 }
 
@@ -538,6 +546,43 @@ void RunAgentCycle(BudgetLedger *ledger) {
     }
 
     webserver::PushSseEvent("state", dash.SseStateEvent());
+
+    // Track decision for wisdom learning.
+    // Find category and signal for the primary market (or first scouted).
+    std::string track_market_id = decision.market_id;
+    std::string track_question;
+    std::string track_category;
+    std::string track_signal;
+    double track_yes_price = 0.0;
+
+    // If this is a hold with no specific market, track all scouted markets.
+    if (decision.type == "hold" && !scouted.empty()) {
+      for (const auto &s : scouted) {
+        const MarketSnapshot *sm = FindMarket(markets, s.market_id);
+        wisdom::TrackDecision(
+            s.market_id, s.question,
+            sm ? sm->category : "", "hold", s.signal,
+            s.yes_price, s.confidence, s.edge_bps);
+      }
+    } else if (!decision.market_id.empty()) {
+      const MarketSnapshot *dm2 = FindMarket(markets, decision.market_id);
+      if (dm2) {
+        track_question = dm2->question;
+        track_category = dm2->category;
+        track_yes_price = dm2->yes_price;
+      }
+      // Find signal from scouted ratings.
+      for (const auto &s : scouted) {
+        if (s.market_id == decision.market_id) {
+          track_signal = s.signal;
+          break;
+        }
+      }
+      wisdom::TrackDecision(
+          decision.market_id, track_question, track_category,
+          decision.type, track_signal, track_yes_price,
+          decision.confidence, decision.edge_bps);
+    }
   }
 
   // Handle close decisions.

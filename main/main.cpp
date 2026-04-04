@@ -9,6 +9,7 @@
 #include "wallet.h"
 #include "webserver.h"
 #include "wifi.h"
+#include "wisdom.h"
 #include "x402.h"
 
 #include "esp_event.h"
@@ -101,13 +102,23 @@ extern "C" void app_main(void) {
   }
 
   survaiv::GetDashboardState().SetAgentStatus("running");
+  survaiv::wisdom::Init();
 
   survaiv::BudgetLedger ledger(
       static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
       static_cast<double>(survaiv::config::ReserveCents()) / 100.0);
 
+  int cycle = 0;
   while (true) {
     survaiv::RunAgentCycle(&ledger);
+
+    // Check market outcomes and update wisdom every 4th cycle.
+    if (++cycle % 4 == 0) {
+      survaiv::wisdom::CheckOutcomes();
+      survaiv::wisdom::EvaluateAndUpdateWisdom();
+      survaiv::webserver::PushSseEvent("wisdom", survaiv::wisdom::StatsJson());
+    }
+
     vTaskDelay(pdMS_TO_TICKS(survaiv::config::LoopSeconds() * 1000));
   }
 }

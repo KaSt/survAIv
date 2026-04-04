@@ -25,7 +25,13 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
       break;
     case HTTP_EVENT_ON_DATA:
       if (event->data != nullptr && event->data_len > 0) {
-        context->response->body.append(static_cast<const char *>(event->data), event->data_len);
+        // Cap response body at 64 KB to prevent heap exhaustion / std::bad_alloc.
+        constexpr size_t kMaxBodySize = 64 * 1024;
+        if (context->response->body.size() + event->data_len <= kMaxBodySize) {
+          context->response->body.append(static_cast<const char *>(event->data), event->data_len);
+        } else {
+          ESP_LOGW(kTag, "HTTP response body exceeds 64 KB, truncating");
+        }
       }
       break;
     default:
@@ -39,6 +45,7 @@ HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method
                          const std::vector<std::pair<std::string, std::string>> &headers,
                          const std::string &body) {
   HttpResponse response;
+  response.body.reserve(4096);  // Pre-allocate to reduce realloc churn.
   HttpContext context{.response = &response};
 
   esp_http_client_config_t config = {};

@@ -62,6 +62,13 @@ display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
 .scout-meta{font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap}
 .scout-right{text-align:right;white-space:nowrap}
 .scout-price{font-size:14px;font-weight:700}
+.wisdom-section{margin-top:16px}
+.wisdom-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.wisdom-stat{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.wisdom-stat .val{font-size:20px;font-weight:700;color:var(--green)}
+.wisdom-stat .lbl{font-size:10px;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.wisdom-rules{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;
+font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--fg);max-height:200px;overflow-y:auto}
 .scout-conf{font-size:10px;color:var(--dim)}
 .chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;
 height:120px;position:relative}
@@ -113,6 +120,18 @@ canvas{width:100%!important;height:100%!important}
 <div class="section">
   <h2>Market Scanner</h2>
   <div class="scout-grid" id="scout-body"><div class="empty">Waiting for first scan…</div></div>
+</div>
+
+<div class="section wisdom-section">
+  <h2>Learning</h2>
+  <div class="wisdom-stats" id="wisdom-stats">
+    <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Decisions</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-resolved">–</div><div class="lbl">Resolved</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-accuracy">–</div><div class="lbl">Accuracy</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-buys">–</div><div class="lbl">Buy Acc</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-holds">–</div><div class="lbl">Hold Acc</div></div>
+  </div>
+  <div class="wisdom-rules" id="w-rules">No learned rules yet…</div>
 </div>
 
 <div class="section">
@@ -352,11 +371,25 @@ function updateScouted(list) {
   }).join('');
 }
 
+function updateWisdom(w) {
+  const el = (id) => document.getElementById(id);
+  el('w-total').textContent = w.total_tracked || 0;
+  el('w-resolved').textContent = w.total_resolved || 0;
+  const acc = w.total_resolved > 0 ? ((w.total_correct / w.total_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-accuracy').textContent = acc;
+  const ba = w.buy_resolved > 0 ? ((w.buy_correct / w.buy_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-buys').textContent = ba;
+  const ha = w.hold_resolved > 0 ? ((w.hold_correct / w.hold_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-holds').textContent = ha;
+  el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
+}
+
 function poll() {
   fetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
   fetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
   fetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
   fetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
+  fetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
   fetch('/api/equity').then(r => r.json()).then(data => {
     equityData = data;
     drawChart();
@@ -380,6 +413,9 @@ function connectSSE() {
   });
   es.addEventListener('scouted', function(e) {
     try { updateScouted(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('wisdom', function(e) {
+    try { updateWisdom(JSON.parse(e.data)); } catch(err) {}
   });
   es.addEventListener('decision', function(e) {
     try {

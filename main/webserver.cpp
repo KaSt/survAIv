@@ -7,6 +7,7 @@
 #include "dashboard_state.h"
 #include "wallet.h"
 #include "web_assets.h"
+#include "wisdom.h"
 
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -66,6 +67,12 @@ static esp_err_t ApiEquityHandler(httpd_req_t *req) {
 
 static esp_err_t ApiScoutedHandler(httpd_req_t *req) {
   std::string json = GetDashboardState().ScoutedMarketsJson();
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, json.c_str(), json.size());
+}
+
+static esp_err_t ApiWisdomHandler(httpd_req_t *req) {
+  std::string json = wisdom::StatsJson();
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json.c_str(), json.size());
 }
@@ -499,7 +506,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 16;
+  config.max_uri_handlers = 18;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -514,6 +521,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/history", HTTP_GET, ApiHistoryHandler);
   RegisterUri("/api/equity", HTTP_GET, ApiEquityHandler);
   RegisterUri("/api/scouted", HTTP_GET, ApiScoutedHandler);
+  RegisterUri("/api/wisdom", HTTP_GET, ApiWisdomHandler);
   RegisterUri("/api/events", HTTP_GET, ApiEventsHandler);
   RegisterUri("/api/backup", HTTP_GET, ApiBackupHandler);
   RegisterUri("/api/restore", HTTP_POST, ApiRestoreHandler);
