@@ -24,8 +24,13 @@ constexpr const char *kNvsNs = "survaiv_cfg";
 constexpr const char *kWisdomKey = "wisdom";
 constexpr const char *kStatsKey = "wis_stats";
 constexpr int kMaxDecisions = 30;
+#if CONFIG_IDF_TARGET_ESP32S3
+constexpr int kMaxWisdomBytes = 4000;
+constexpr int kMaxQuestionLen = 120;
+#else
 constexpr int kMaxWisdomBytes = 800;
 constexpr int kMaxQuestionLen = 60;
+#endif
 constexpr int kMaxChecksPerCall = 3;
 constexpr int64_t kCheckCooldownSec = 3600;
 

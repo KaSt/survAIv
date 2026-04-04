@@ -36,6 +36,10 @@ int CooldownAfterLossSeconds();
 // Returns true if the essential config (WiFi SSID) is set in NVS.
 bool HasStoredConfig();
 
+// Agent identity helpers.
+std::string AgentName();
+std::string OwnerPin();
+
 // Reboot the device.
 void Reboot();
 

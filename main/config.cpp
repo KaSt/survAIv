@@ -103,6 +103,9 @@ bool HasStoredConfig() {
   return err == ESP_OK && len > 1;
 }
 
+std::string AgentName() { return GetNvsString("agent_name", ""); }
+std::string OwnerPin() { return GetNvsString("owner_pin", ""); }
+
 void Reboot() {
   ESP_LOGI(kTag, "Rebooting...");
   vTaskDelay(pdMS_TO_TICKS(500));

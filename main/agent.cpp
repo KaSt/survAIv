@@ -26,7 +26,11 @@ namespace survaiv {
 
 namespace {
 constexpr const char *kTag = "survaiv_agent";
+#if CONFIG_IDF_TARGET_ESP32S3
+constexpr int kEstPromptTokens = 8000;
+#else
 constexpr int kEstPromptTokens = 2000;
+#endif
 constexpr int kEstCompletionTokens = 500;
 constexpr double kSimulatedCostPerRequest = 0.0005;
 

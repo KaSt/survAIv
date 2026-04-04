@@ -109,8 +109,27 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
 </style>
 </head>
 <body>
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:200;align-items:center;justify-content:center">
+  <div style="max-width:380px;padding:24px;text-align:center">
+    <h1 style="font-size:24px;margin-bottom:8px">⟁ SURVAIV</h1>
+    <div id="auth-claim" style="display:none">
+      <p style="font-size:13px;color:var(--dim);margin-bottom:16px">This is your agent's secret PIN. Write it down — you'll need it to access this dashboard.</p>
+      <div id="auth-pin-display" style="font-size:28px;font-weight:700;letter-spacing:2px;padding:16px;background:var(--card);border:2px solid var(--green);border-radius:8px;margin-bottom:16px;font-family:monospace"></div>
+      <label style="font-size:12px;color:var(--dim)">Confirm PIN to claim ownership</label>
+      <input id="auth-confirm-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;margin-top:6px;background:var(--input-bg);color:var(--text)" placeholder="Type the PIN above">
+      <button onclick="confirmClaim()" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      <div id="auth-claim-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    </div>
+    <div id="auth-login" style="display:none">
+      <p style="font-size:13px;color:var(--dim);margin-bottom:16px">Enter your PIN to access the dashboard.</p>
+      <input id="auth-login-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text)" placeholder="Enter PIN">
+      <button onclick="loginWithPin()" style="width:100%;margin-top:12px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      <div id="auth-login-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
+    </div>
+  </div>
+</div>
 <div class="top">
-  <h1>⟁ SURVAIV</h1>
+  <h1 id="agent-title">⟁ SURVAIV</h1>
   <div class="status">
     <span class="badge" id="mode">PAPER</span>
     <span class="dot" id="dot"></span>
@@ -227,6 +246,16 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
       </div>
     </div>
 
+    <div class="setting-group">
+      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Trading Mode</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <button id="mode-paper-btn" onclick="setTradingMode(true)" class="badge" style="padding:6px 14px;cursor:pointer">📝 Paper</button>
+        <button id="mode-real-btn" onclick="setTradingMode(false)" class="badge" style="padding:6px 14px;cursor:pointer">⟁ Real</button>
+        <span id="mode-msg" style="font-size:11px;color:var(--dim)"></span>
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+    </div>
+
     <div class="setting-group" id="llm-cfg" style="display:none">
       <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
@@ -251,6 +280,76 @@ const $ = id => document.getElementById(id);
 const fmt = (n, d=4) => n < 0 ? n.toFixed(d) : n.toFixed(d);
 const fmtUsd = n => '$' + Math.abs(n).toFixed(2);
 const cls = n => n >= 0 ? 'pos' : 'neg';
+
+// ── Auth ────────────────────────────────────────────────────────
+let authToken = sessionStorage.getItem('survaiv-token') || '';
+
+function authHeaders() {
+  const h = {'Content-Type':'application/json'};
+  if (authToken) h['X-Auth-Token'] = authToken;
+  return h;
+}
+
+function checkAuth() {
+  fetch('/api/auth').then(r => r.json()).then(d => {
+    if (!d.claimed) {
+      $('auth-overlay').style.display = 'flex';
+      $('auth-claim').style.display = 'block';
+      $('auth-pin-display').textContent = d.display_pin;
+    } else if (!authToken) {
+      $('auth-overlay').style.display = 'flex';
+      $('auth-login').style.display = 'block';
+    } else {
+      fetch('/api/auth', {headers:{'X-Auth-Token': authToken}}).then(r => {
+        if (r.ok) return r.json(); else return {needs_pin:true};
+      }).then(v => {
+        if (v.needs_pin === false) { $('auth-overlay').style.display = 'none'; initDashboard(); }
+        else { authToken = ''; sessionStorage.removeItem('survaiv-token'); checkAuth(); }
+      });
+    }
+  });
+}
+
+function confirmClaim() {
+  const pin = $('auth-confirm-input').value.trim();
+  fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'claim',pin:pin}),
+    headers:{'Content-Type':'application/json'}})
+    .then(r => r.json()).then(d => {
+      if (d.ok) {
+        authToken = d.token;
+        sessionStorage.setItem('survaiv-token', authToken);
+        $('auth-overlay').style.display = 'none';
+        initDashboard();
+      } else { $('auth-claim-err').textContent = d.error || 'PIN mismatch'; }
+    });
+}
+
+function loginWithPin() {
+  const pin = $('auth-login-input').value.trim();
+  fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'login',pin:pin}),
+    headers:{'Content-Type':'application/json'}})
+    .then(r => r.json()).then(d => {
+      if (d.ok) {
+        authToken = d.token;
+        sessionStorage.setItem('survaiv-token', authToken);
+        $('auth-overlay').style.display = 'none';
+        initDashboard();
+      } else { $('auth-login-err').textContent = d.error || 'Wrong PIN'; }
+    });
+}
+
+function setTradingMode(paper) {
+  fetch('/api/config', {method:'POST', body:JSON.stringify({paper_only: paper ? 1 : 0}),
+    headers: authHeaders()})
+    .then(r => r.json()).then(d => {
+      const msg = $('mode-msg');
+      msg.textContent = paper ? '\u2713 Switched to Paper' : '\u2713 Switched to Real';
+      msg.style.color = 'var(--green)';
+      setTimeout(() => msg.textContent = '', 3000);
+    }).catch(() => {
+      $('mode-msg').textContent = '\u2717 Failed'; $('mode-msg').style.color = 'var(--red)';
+    });
+}
 
 // Theme toggle
 function toggleTheme() {
@@ -411,6 +510,19 @@ function updateState(s) {
   } else {
     errEl.classList.remove('visible');
   }
+
+  // Agent name in header
+  if (s.agent_name) $('agent-title').textContent = '⟁ ' + s.agent_name;
+
+  // Trading mode buttons highlight
+  const isPaper = s.paper_only === 1 || !s.live_mode;
+  const pb = $('mode-paper-btn'), rb = $('mode-real-btn');
+  if (pb && rb) {
+    pb.style.background = isPaper ? 'var(--green)' : '';
+    pb.style.color = isPaper ? '#000' : '';
+    rb.style.background = !isPaper ? 'var(--green)' : '';
+    rb.style.color = !isPaper ? '#000' : '';
+  }
 }
 
 function updatePositions(positions) {
@@ -516,7 +628,7 @@ function updateWisdom(w) {
 
 function toggleFreeze(frozen) {
   fetch('/api/wisdom/freeze', {method:'POST', body:JSON.stringify({frozen:frozen}),
-    headers:{'Content-Type':'application/json'}})
+    headers: authHeaders()})
     .then(r => r.json())
     .then(d => {
       document.getElementById('w-frozen-badge').style.display = d.frozen ? 'inline-block' : 'none';
@@ -540,7 +652,7 @@ function importKnowledge(input) {
   const reader = new FileReader();
   reader.onload = function(e) {
     fetch('/api/knowledge', {method:'POST', body:e.target.result,
-      headers:{'Content-Type':'application/json'}})
+      headers: authHeaders()})
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
@@ -624,7 +736,7 @@ function restoreConfig(file) {
   msg.textContent = 'Restoring…';
   msg.style.color = 'var(--blue)';
   file.text().then(text => {
-    return fetch('/api/restore', {method:'POST', headers:{'Content-Type':'application/json'}, body:text});
+    return fetch('/api/restore', {method:'POST', headers: authHeaders(), body:text});
   }).then(r => {
     if (!r.ok) throw new Error('Restore failed');
     msg.textContent = 'Restored! Rebooting…';
@@ -647,7 +759,7 @@ function saveLlmConfig() {
   if (!Object.keys(body).length) { msg.textContent = 'Nothing to change'; return; }
   msg.textContent = 'Saving…';
   msg.style.color = 'var(--blue)';
-  fetch('/api/llm-config', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+  fetch('/api/llm-config', {method:'POST', headers: authHeaders(), body:JSON.stringify(body)})
     .then(r => r.json())
     .then(d => {
       if (d.ok) {
@@ -675,6 +787,7 @@ function otaUpdate(file) {
   msg.style.color = 'var(--blue)';
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/ota');
+  if (authToken) xhr.setRequestHeader('X-Auth-Token', authToken);
   xhr.upload.onprogress = e => {
     if (e.lengthComputable) msg.textContent = 'Uploading firmware… ' + Math.round(e.loaded/e.total*100) + '%';
   };
@@ -691,11 +804,16 @@ function otaUpdate(file) {
   xhr.send(file);
 }
 
-// Initial load.
-poll();
-connectSSE();
-setInterval(poll, 15000);
-window.addEventListener('resize', drawChart);
+// Dashboard initialization (called after auth).
+function initDashboard() {
+  poll();
+  connectSSE();
+  setInterval(poll, 15000);
+  window.addEventListener('resize', drawChart);
+}
+
+// Start with auth check.
+checkAuth();
 </script>
 </body>
 </html>)rawhtml";
@@ -756,6 +874,15 @@ display:flex;justify-content:space-between}
 
   <!-- Step 1: WiFi -->
   <div class="step active" id="step1">
+    <h2 style="font-size:14px;margin-bottom:12px">Name Your Agent</h2>
+    <div style="display:flex;gap:8px;align-items:end;margin-bottom:16px">
+      <div style="flex:1">
+        <label for="agent-name">Agent Name</label>
+        <input type="text" id="agent-name" placeholder="Loading...">
+      </div>
+      <button class="btn secondary" onclick="randomName()" style="margin:0;padding:8px 12px;font-size:11px;white-space:nowrap">🎲 Random</button>
+    </div>
+    <hr style="border:none;border-top:1px solid #e0e0e0;margin-bottom:16px">
     <h2 style="font-size:14px;margin-bottom:12px">Wi-Fi Network</h2>
     <div class="spinner active" id="scan-spinner">Scanning networks…</div>
     <div class="networks" id="networks"></div>
@@ -871,6 +998,15 @@ let selectedSsid = '';
 let generatedAddress = '';
 let tradingMode = '';
 let x402Provider = 'tx402';
+
+const adjectives = ['swift','brave','calm','dark','eager','fair','glad','happy','keen','loud','neat','proud','quiet','rare','safe','tall','vast','warm','wise','young'];
+const animals = ['bear','crow','deer','eagle','fox','hawk','lion','lynx','moth','newt','orca','puma','raven','seal','tiger','viper','whale','wolf','wren','yak'];
+function randomName() {
+  const a = adjectives[Math.floor(Math.random()*adjectives.length)];
+  const b = animals[Math.floor(Math.random()*animals.length)];
+  document.getElementById('agent-name').value = a + '-' + b;
+}
+randomName();
 
 const tx402Models = [
   {id:'deepseek/deepseek-v3.2',name:'DeepSeek V3.2',price:0.0005},
@@ -1054,7 +1190,8 @@ function saveConfig() {
     llm_provider: isReal ? 'x402' : 'apikey',
     wallet_pk: pk.length === 64 ? pk : '',
     bankroll_cents: Math.round(bankroll * 100),
-    paper_only: isReal ? 0 : 1
+    paper_only: isReal ? 0 : 1,
+    agent_name: document.getElementById('agent-name').value.trim() || 'survaiv'
   };
 
   fetch('/api/save', {

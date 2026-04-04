@@ -4,6 +4,7 @@
 #include <ctime>
 #include <sstream>
 
+#include "config.h"
 #include "esp_ota_ops.h"
 #include "json_util.h"
 
@@ -179,6 +180,15 @@ std::string DashboardState::ToJson() const {
 
   const esp_app_desc_t *app = esp_app_get_description();
   o << ",\"firmware\":\"" << app->version << " (" << app->date << ")\"";
+
+  // Agent name from NVS config.
+  std::string aname = config::AgentName();
+  if (!aname.empty()) {
+    o << ",\"agent_name\":\"" << JsonEscape(aname) << "\"";
+  }
+
+  // Paper-only flag for trading mode UI.
+  o << ",\"paper_only\":" << (config::PaperTradingOnly() ? 1 : 0);
 
   o << "}";
 

@@ -12,6 +12,7 @@
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_ota_ops.h"
+#include "esp_random.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -33,6 +34,47 @@ struct SseClient {
 };
 SseClient g_sse_clients[kMaxSseClients] = {};
 SemaphoreHandle_t g_sse_mutex = nullptr;
+
+// ─── Auth state ─────────────────────────────────────────────────
+static std::string g_pending_pin;
+static std::string g_session_token;
+
+static std::string GenerateClaimPin() {
+  static const char *adjectives[] = {
+      "swift", "brave", "calm",  "dark",  "eager", "fair", "glad",
+      "happy", "keen",  "loud",  "neat",  "proud", "quiet","rare",
+      "safe",  "tall",  "vast",  "warm",  "wise",  "young"};
+  static const char *animals[] = {
+      "bear", "crow", "deer", "eagle", "fox",   "hawk", "lion",
+      "lynx", "moth", "newt", "orca",  "puma",  "raven","seal",
+      "tiger","viper","whale","wolf",  "wren",  "yak"};
+  uint32_t r1, r2, r3;
+  esp_fill_random(&r1, sizeof(r1));
+  esp_fill_random(&r2, sizeof(r2));
+  esp_fill_random(&r3, sizeof(r3));
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%s-%s-%04u",
+           adjectives[r1 % 20], animals[r2 % 20],
+           static_cast<unsigned>(r3 % 10000));
+  return buf;
+}
+
+static std::string GenerateSessionToken() {
+  uint8_t bytes[16];
+  esp_fill_random(bytes, sizeof(bytes));
+  char hex[33];
+  for (int i = 0; i < 16; ++i) {
+    snprintf(hex + i * 2, 3, "%02x", bytes[i]);
+  }
+  return hex;
+}
+
+static bool ValidateAuthToken(httpd_req_t *req) {
+  if (g_session_token.empty()) return true;  // No owner yet — allow all
+  char token[64] = {};
+  httpd_req_get_hdr_value_str(req, "X-Auth-Token", token, sizeof(token));
+  return g_session_token == token;
+}
 
 // ─── Handlers: Dashboard ────────────────────────────────────────
 
@@ -86,6 +128,10 @@ static esp_err_t ApiKnowledgeExportHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
   if (req->content_len > 16384) {
     httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "File too large (max 16KB)");
     return ESP_FAIL;
@@ -116,6 +162,10 @@ static esp_err_t ApiKnowledgeImportHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiWisdomFreezeHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
   char buf[64] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
   if (received <= 0) {
@@ -266,6 +316,7 @@ static esp_err_t ApiSaveHandler(httpd_req_t *req) {
   std::string api_key = extract("api_key");
   std::string llm_provider = extract("llm_provider");
   std::string wallet_pk = extract("wallet_pk");
+  std::string agent_name = extract("agent_name");
   int bankroll = extractInt("bankroll_cents");
   int paper_only = extractInt("paper_only");
 
@@ -282,6 +333,7 @@ static esp_err_t ApiSaveHandler(httpd_req_t *req) {
   if (!api_key.empty()) config::SetString("api_key", api_key);
   if (!llm_provider.empty()) config::SetString("llm_provider", llm_provider);
   if (!wallet_pk.empty()) config::SetString("wallet_pk", wallet_pk);
+  if (!agent_name.empty()) config::SetString("agent_name", agent_name);
   if (bankroll > 0) config::SetInt("bankroll", bankroll);
   config::SetInt("paper_only", paper_only >= 0 ? paper_only : 1);
 
@@ -392,6 +444,10 @@ static esp_err_t ApiBackupHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiRestoreHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
   char buf[2048] = {};
   int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
   if (received <= 0) {
@@ -466,6 +522,10 @@ static esp_err_t ApiRestoreHandler(httpd_req_t *req) {
 }
 
 static esp_err_t ApiOtaHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
   ESP_LOGI(kTag, "OTA update started, size=%d", req->content_len);
 
   const esp_partition_t *update_partition = esp_ota_get_next_update_partition(nullptr);
@@ -546,6 +606,10 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
 // Body: {"oai_url":"…","oai_model":"…","api_key":"…"}
 // All fields optional — only provided fields are updated.
 static esp_err_t ApiLlmConfigHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
   if (!config::PaperTradingOnly()) {
     httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
                         "LLM config changes disabled in live mode");
@@ -590,6 +654,119 @@ static esp_err_t ApiLlmConfigHandler(httpd_req_t *req) {
   return ESP_OK;
 }
 
+// ─── Auth endpoint ──────────────────────────────────────────────
+
+static esp_err_t ApiAuthGetHandler(httpd_req_t *req) {
+  std::string pin = config::OwnerPin();
+  httpd_resp_set_type(req, "application/json");
+
+  if (pin.empty()) {
+    // Not claimed yet — generate a pending PIN.
+    if (g_pending_pin.empty()) {
+      g_pending_pin = GenerateClaimPin();
+      ESP_LOGI(kTag, "Generated claim PIN: %s", g_pending_pin.c_str());
+    }
+    std::string resp = "{\"claimed\":false,\"display_pin\":\"" + g_pending_pin + "\"}";
+    return httpd_resp_send(req, resp.c_str(), resp.size());
+  }
+
+  // Claimed — check if caller has a valid token.
+  char token[64] = {};
+  httpd_req_get_hdr_value_str(req, "X-Auth-Token", token, sizeof(token));
+  bool valid = !g_session_token.empty() && g_session_token == token;
+  std::string resp = "{\"claimed\":true,\"needs_pin\":" +
+                     std::string(valid ? "false" : "true") + "}";
+  return httpd_resp_send(req, resp.c_str(), resp.size());
+}
+
+static esp_err_t ApiAuthPostHandler(httpd_req_t *req) {
+  char buf[256] = {};
+  int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+  if (received <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+    return ESP_FAIL;
+  }
+  buf[received] = '\0';
+
+  // Simple JSON extraction.
+  auto extract = [&](const char *key) -> std::string {
+    std::string needle = std::string("\"") + key + "\":\"";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return "";
+    start += needle.size();
+    const char *end = strchr(start, '"');
+    if (!end) return "";
+    return std::string(start, end - start);
+  };
+
+  std::string action = extract("action");
+  std::string pin = extract("pin");
+
+  httpd_resp_set_type(req, "application/json");
+
+  if (action == "claim") {
+    if (g_pending_pin.empty() || pin != g_pending_pin) {
+      const char *err = "{\"ok\":false,\"error\":\"PIN mismatch\"}";
+      return httpd_resp_send(req, err, strlen(err));
+    }
+    config::SetString("owner_pin", pin);
+    g_pending_pin.clear();
+    g_session_token = GenerateSessionToken();
+    std::string resp = "{\"ok\":true,\"token\":\"" + g_session_token + "\"}";
+    return httpd_resp_send(req, resp.c_str(), resp.size());
+  }
+
+  if (action == "login") {
+    std::string stored = config::OwnerPin();
+    if (stored.empty() || pin != stored) {
+      const char *err = "{\"ok\":false,\"error\":\"Wrong PIN\"}";
+      return httpd_resp_send(req, err, strlen(err));
+    }
+    g_session_token = GenerateSessionToken();
+    std::string resp = "{\"ok\":true,\"token\":\"" + g_session_token + "\"}";
+    return httpd_resp_send(req, resp.c_str(), resp.size());
+  }
+
+  const char *err = "{\"ok\":false,\"error\":\"Unknown action\"}";
+  return httpd_resp_send(req, err, strlen(err));
+}
+
+// ─── POST /api/config ───────────────────────────────────────────
+// Partial config update (e.g. paper_only toggle) without reboot.
+static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
+  if (!ValidateAuthToken(req)) {
+    httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "Unauthorized");
+    return ESP_FAIL;
+  }
+
+  char buf[256] = {};
+  int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+  if (received <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+    return ESP_FAIL;
+  }
+  buf[received] = '\0';
+
+  auto extractInt = [&](const char *key) -> int {
+    std::string needle = std::string("\"") + key + "\":";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return -1;
+    start += needle.size();
+    return atoi(start);
+  };
+
+  int paper_only = extractInt("paper_only");
+  if (paper_only >= 0) {
+    config::SetInt("paper_only", paper_only);
+    ESP_LOGI(kTag, "Trading mode changed: %s", paper_only ? "paper" : "real");
+  }
+
+  httpd_resp_set_type(req, "application/json");
+  std::string resp = "{\"ok\":true,\"paper_only\":" +
+                     std::to_string(config::PaperTradingOnly() ? 1 : 0) + "}";
+  return httpd_resp_send(req, resp.c_str(), resp.size());
+}
+
 // ─── URI registration helpers ───────────────────────────────────
 
 static void RegisterUri(const char *uri, httpd_method_t method, esp_err_t (*handler)(httpd_req_t *)) {
@@ -611,7 +788,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 22;
+  config.max_uri_handlers = 26;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
 
@@ -636,6 +813,9 @@ void StartDashboard(int port) {
   RegisterUri("/api/ota", HTTP_POST, ApiOtaHandler);
   RegisterUri("/api/generate-wallet", HTTP_POST, ApiGenerateWalletHandler);
   RegisterUri("/api/llm-config", HTTP_POST, ApiLlmConfigHandler);
+  RegisterUri("/api/auth", HTTP_GET, ApiAuthGetHandler);
+  RegisterUri("/api/auth", HTTP_POST, ApiAuthPostHandler);
+  RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
 
   g_is_onboard = false;
   ESP_LOGI(kTag, "Dashboard server started on port %d", port);
