@@ -32,7 +32,7 @@ constexpr int kEstPromptTokens = 8000;
 #else
 constexpr int kEstPromptTokens = 2000;
 #endif
-constexpr int kEstCompletionTokens = 500;
+constexpr int kEstCompletionTokens = 800;
 constexpr double kSimulatedCostPerRequest = 0.0005;
 
 // LLM timeout: 120s to handle cold-start LLM servers (e.g. llama.cpp sleep mode).
@@ -115,7 +115,8 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
   prompt
       << "5. Prefer zero or one tool call. Tool calls are expensive because they trigger another "
       << "LLM round.\n"
-      << "6. Return JSON only. No markdown.\n";
+      << "6. CRITICAL: Return ONLY a single JSON object. No thinking, no analysis, no prose "
+      << "before or after. Your entire response must start with { and end with }.\n";
 
   if (paper_only || geoblocked) {
     prompt
