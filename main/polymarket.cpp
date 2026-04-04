@@ -85,6 +85,16 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
     market.slug = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "slug"));
     market.category = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "category"));
     market.end_date = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "endDate"));
+
+    // Parse description for LLM context (truncate for memory).
+    std::string desc = JsonToString(cJSON_GetObjectItemCaseSensitive(item, "description"));
+#if CONFIG_IDF_TARGET_ESP32S3
+    constexpr size_t kMaxDescLen = 500;
+#else
+    constexpr size_t kMaxDescLen = 200;
+#endif
+    if (desc.size() > kMaxDescLen) desc.resize(kMaxDescLen);
+    market.description = std::move(desc);
     market.liquidity = JsonToDouble(cJSON_GetObjectItemCaseSensitive(item, "liquidity"));
     market.volume = JsonToDouble(cJSON_GetObjectItemCaseSensitive(item, "volume"));
 
@@ -138,6 +148,7 @@ std::string BuildMarketsJson(const std::vector<MarketSnapshot> &markets) {
     json << "{"
          << "\"id\":\"" << JsonEscape(market.id) << "\","
          << "\"question\":\"" << JsonEscape(market.question) << "\","
+         << "\"description\":\"" << JsonEscape(market.description) << "\","
          << "\"category\":\"" << JsonEscape(market.category) << "\","
          << "\"yes_price\":" << market.yes_price << ","
          << "\"no_price\":" << market.no_price << ","

@@ -24,6 +24,9 @@ func BuildSystemPrompt(paperOnly, geoblocked bool, wis *wisdom.Tracker) string {
 	b.WriteString("survival budget.\n")
 	b.WriteString("Constraints:\n")
 	b.WriteString("1. Preserve capital first. If expected edge is weak or uncertain, hold.\n")
+	b.WriteString("1b. Each market snapshot includes a 'description' with resolution criteria. ")
+	b.WriteString("Use it to assess whether the outcome is predictable. Combine your general ")
+	b.WriteString("knowledge (training data) with the market price to estimate edge.\n")
 
 	if paperOnly || geoblocked {
 		b.WriteString("2. Paper trading mode is active. Only use paper_buy_yes, paper_buy_no, paper_close.\n")
@@ -149,9 +152,9 @@ func BuildUserPrompt(
 			b.WriteByte(',')
 		}
 		b.WriteString(fmt.Sprintf(
-			`{"id":"%s","question":"%s","yes_price":%.4f,"no_price":%.4f,`+
+			`{"id":"%s","question":"%s","description":"%s","yes_price":%.4f,"no_price":%.4f,`+
 				`"volume":%.2f,"liquidity":%.2f,"category":"%s","end_date":"%s"}`,
-			jsonEscape(m.ID), jsonEscape(m.Question),
+			jsonEscape(m.ID), jsonEscape(m.Question), jsonEscape(m.Description),
 			m.YesPrice, m.NoPrice, m.Volume, m.Liquidity,
 			jsonEscape(m.Category), m.EndDate))
 	}
@@ -172,9 +175,9 @@ func BuildFollowUpPrompt(userPrompt string, toolMarkets []types.MarketSnapshot) 
 			b.WriteByte(',')
 		}
 		b.WriteString(fmt.Sprintf(
-			`{"id":"%s","question":"%s","yes_price":%.4f,"no_price":%.4f,`+
+			`{"id":"%s","question":"%s","description":"%s","yes_price":%.4f,"no_price":%.4f,`+
 				`"volume":%.2f,"liquidity":%.2f,"category":"%s","end_date":"%s"}`,
-			jsonEscape(m.ID), jsonEscape(m.Question),
+			jsonEscape(m.ID), jsonEscape(m.Question), jsonEscape(m.Description),
 			m.YesPrice, m.NoPrice, m.Volume, m.Liquidity,
 			jsonEscape(m.Category), m.EndDate))
 	}

@@ -37,6 +37,7 @@ func FetchMarkets(ctx context.Context, client *httpclient.Client, limit, offset 
 	var raw []struct {
 		ID            string          `json:"id"`
 		Question      string          `json:"question"`
+		Description   string          `json:"description"`
 		Slug          string          `json:"slug"`
 		Category      string          `json:"category"`
 		EndDate       string          `json:"endDate"`
@@ -52,12 +53,18 @@ func FetchMarkets(ctx context.Context, client *httpclient.Client, limit, offset 
 
 	var markets []types.MarketSnapshot
 	for _, r := range raw {
+		desc := r.Description
+		const maxDescLen = 500
+		if len(desc) > maxDescLen {
+			desc = desc[:maxDescLen]
+		}
 		m := types.MarketSnapshot{
-			ID:       r.ID,
-			Question: r.Question,
-			Slug:     r.Slug,
-			Category: r.Category,
-			EndDate:  r.EndDate,
+			ID:          r.ID,
+			Question:    r.Question,
+			Description: desc,
+			Slug:        r.Slug,
+			Category:    r.Category,
+			EndDate:     r.EndDate,
 		}
 		m.Liquidity, _ = r.Liquidity.Float64()
 		m.Volume, _ = r.Volume.Float64()

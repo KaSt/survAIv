@@ -75,7 +75,10 @@ std::string BuildSystemPrompt(bool paper_only, bool geoblocked) {
       << "Polymarket HTTP tool calls for you, and every LLM call costs USDC from the same "
       << "survival budget.\n"
       << "Constraints:\n"
-      << "1. Preserve capital first. If expected edge is weak or uncertain, hold.\n";
+      << "1. Preserve capital first. If expected edge is weak or uncertain, hold.\n"
+      << "1b. Each market snapshot includes a 'description' with resolution criteria. "
+      << "Use it to assess whether the outcome is predictable. Combine your general "
+      << "knowledge (training data) with the market price to estimate edge.\n";
 
   if (paper_only || geoblocked) {
     prompt

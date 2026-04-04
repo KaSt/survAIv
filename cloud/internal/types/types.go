@@ -4,6 +4,7 @@ package types
 type MarketSnapshot struct {
 	ID           string  `json:"id"`
 	Question     string  `json:"question"`
+	Description  string  `json:"description"`
 	Slug         string  `json:"slug"`
 	Category     string  `json:"category"`
 	EndDate      string  `json:"end_date"`

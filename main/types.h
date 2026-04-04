@@ -25,6 +25,7 @@ struct HttpContext {
 struct MarketSnapshot {
   std::string id;
   std::string question;
+  std::string description;
   std::string slug;
   std::string category;
   std::string end_date;
