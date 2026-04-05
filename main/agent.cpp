@@ -542,6 +542,11 @@ int RunAgentCycle(BudgetLedger *ledger) {
   std::vector<MarketSnapshot> markets = FetchMarkets(config::MarketLimit());
   if (markets.empty()) {
     ESP_LOGW(kTag, "No markets fetched this cycle.");
+    // Still push budget so dashboard doesn't show stale zeros.
+    dash.UpdateBudget(ledger->Cash(), ledger->Reserve(), ledger->Cash(),
+                      ledger->LlmSpend(), ledger->RealizedPaperPnl(),
+                      ledger->DailyLossUsdc());
+    dash.SetAgentStatus("waiting for markets");
     return 0;
   }
   LogLedgerState(*ledger, markets);

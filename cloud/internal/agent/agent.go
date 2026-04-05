@@ -64,6 +64,11 @@ func New(
 	// Register paper-reset callback so the dashboard can reset the ledger.
 	dash.SetResetPaperFunc(func() {
 		ldgr.ResetPaper(cfg.StartingBankroll, cfg.Reserve)
+		dash.UpdateBudget(types.BudgetInfo{
+			Cash:    cfg.StartingBankroll,
+			Reserve: cfg.Reserve,
+			Equity:  cfg.StartingBankroll,
+		})
 		slog.Info("paper trading reset", "bankroll", cfg.StartingBankroll)
 	})
 	return a
@@ -109,6 +114,12 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 
 	if len(markets) == 0 {
 		slog.Warn("no markets fetched this cycle")
+		a.dash.UpdateBudget(types.BudgetInfo{
+			Cash:    a.ledger.Cash(),
+			Reserve: a.ledger.Reserve(),
+			Equity:  a.ledger.Cash(),
+		})
+		a.dash.SetAgentStatus("waiting for markets")
 		return 0
 	}
 

@@ -182,6 +182,9 @@ extern "C" void app_main(void) {
     ledger.ResetPaper(
         static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
         static_cast<double>(survaiv::config::ReserveCents()) / 100.0);
+    // Immediately reflect new bankroll on the dashboard.
+    survaiv::GetDashboardState().UpdateBudget(
+        ledger.Cash(), ledger.Reserve(), ledger.Cash(), 0.0, 0.0, 0.0);
     ESP_LOGI("main", "Paper trading reset by user");
   });
 
