@@ -13,6 +13,12 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 
+#if defined(CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2)
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#endif
+
 static const char *kTag = "screen";
 
 // ── Pin definitions per board ────────────────────────────────────────────────
@@ -123,6 +129,64 @@ static bool bl_on          = true;
 static int64_t last_touch  = 0;
 static int timeout_sec     = 30;
 
+// ── Battery (StickC PLUS2 only) ─────────────────────────────────────────────
+
+#if defined(CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2)
+// GPIO38 → ADC1_CHANNEL_2, voltage divider ×2.
+static adc_oneshot_unit_handle_t adc_handle = nullptr;
+static adc_cali_handle_t         cali_handle = nullptr;
+static int  battery_pct   = -1;  // -1 = not yet read
+static int64_t last_batt_read = 0;
+static constexpr int64_t BATT_INTERVAL_US = 10 * 1000000;  // 10 s
+
+static void battery_init() {
+  adc_oneshot_unit_init_cfg_t unit_cfg = {};
+  unit_cfg.unit_id = ADC_UNIT_1;
+  if (adc_oneshot_new_unit(&unit_cfg, &adc_handle) != ESP_OK) {
+    ESP_LOGW(kTag, "ADC unit init failed");
+    return;
+  }
+  adc_oneshot_chan_cfg_t chan_cfg = {};
+  chan_cfg.atten    = ADC_ATTEN_DB_12;
+  chan_cfg.bitwidth = ADC_BITWIDTH_12;
+  adc_oneshot_config_channel(adc_handle, ADC_CHANNEL_2, &chan_cfg);
+
+  // Try line-fitting calibration.
+  adc_cali_line_fitting_config_t cali_cfg = {};
+  cali_cfg.unit_id  = ADC_UNIT_1;
+  cali_cfg.atten    = ADC_ATTEN_DB_12;
+  cali_cfg.bitwidth = ADC_BITWIDTH_12;
+  if (adc_cali_create_scheme_line_fitting(&cali_cfg, &cali_handle) != ESP_OK) {
+    cali_handle = nullptr;
+    ESP_LOGW(kTag, "ADC calibration unavailable, using raw");
+  }
+}
+
+static void battery_read() {
+  if (!adc_handle) return;
+  int64_t now = esp_timer_get_time();
+  if (battery_pct >= 0 && (now - last_batt_read) < BATT_INTERVAL_US) return;
+
+  int raw = 0;
+  if (adc_oneshot_read(adc_handle, ADC_CHANNEL_2, &raw) != ESP_OK) return;
+
+  int mv = 0;
+  if (cali_handle) {
+    adc_cali_raw_to_voltage(cali_handle, raw, &mv);
+  } else {
+    mv = raw * 3300 / 4095;
+  }
+  mv *= 2;  // voltage divider
+
+  // Map 3000 mV (0%) – 4200 mV (100%), clamp.
+  int pct = (mv - 3000) * 100 / 1200;
+  if (pct < 0)   pct = 0;
+  if (pct > 100) pct = 100;
+  battery_pct    = pct;
+  last_batt_read = now;
+}
+#endif  // CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2
+
 // Colours
 static constexpr uint32_t BG     = 0x000000;
 static constexpr uint32_t FG     = 0xFFFFFF;
@@ -161,6 +225,27 @@ static void draw_kv(int x, int y, const char *label, const char *value,
   lcd.print(value);
 }
 
+#if defined(CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2)
+// Draw a horizontal battery icon.  body_w × body_h with a 2 px tip on the right.
+static void draw_battery(int x, int y, int pct) {
+  constexpr int bw = 22, bh = 9, tip_w = 2, tip_h = 5;
+
+  // Outline
+  lcd.drawRect(x, y, bw, bh, GREY);
+  // Tip (positive terminal)
+  lcd.fillRect(x + bw, y + (bh - tip_h) / 2, tip_w, tip_h, GREY);
+
+  // Fill colour
+  uint32_t col = pct > 50 ? GREEN : (pct > 20 ? YELLOW : RED);
+  int fill_w = (bw - 4) * pct / 100;
+  if (fill_w < 1 && pct > 0) fill_w = 1;
+  lcd.fillRect(x + 2, y + 2, fill_w, bh - 4, col);
+  // Clear remainder
+  if (fill_w < bw - 4)
+    lcd.fillRect(x + 2 + fill_w, y + 2, bw - 4 - fill_w, bh - 4, BG);
+}
+#endif
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 void screen_init() {
@@ -176,6 +261,10 @@ void screen_init() {
 
   last_touch  = esp_timer_get_time();
   timeout_sec = CONFIG_SURVAIV_SCREEN_TIMEOUT_SEC;
+
+#if defined(CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2)
+  battery_init();
+#endif
 
   // Boot splash
   lcd.setTextColor(CYAN, BG);
@@ -219,6 +308,21 @@ void screen_update(const ScreenData &d) {
   lcd.setTextColor(d.paper_mode ? YELLOW : GREEN, BG);
   lcd.setCursor(lcd.width() - (d.paper_mode ? 30 : 24) - pad, y);
   lcd.print(d.paper_mode ? "PAPER" : "LIVE");
+
+#if defined(CONFIG_SURVAIV_DISPLAY_ST7789_STICKC2)
+  // Battery icon between title and mode badge.
+  battery_read();
+  if (battery_pct >= 0) {
+    int batt_x = 50;
+    draw_battery(batt_x, y + 1, battery_pct);
+    char pct_buf[6];
+    snprintf(pct_buf, sizeof(pct_buf), "%d%%", battery_pct);
+    lcd.setTextColor(GREY, BG);
+    lcd.setCursor(batt_x + 26, y);
+    lcd.print(pct_buf);
+  }
+#endif
+
   y += lh;
 
   // Status + countdown
