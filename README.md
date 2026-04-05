@@ -77,6 +77,7 @@ Every cycle the agent:
 - **Tool usage slider** — 3-position control (Frugal / Balanced / Generous) that tunes how aggressively the agent uses search tool calls. Frugal minimizes LLM rounds; Generous searches news for every actionable market. Persisted across reboots.
 - **Custom favicon** — pixel art brain-bot icon embedded as base64 PNG (273 bytes on ESP32, 301 bytes on cloud).
 - **Market descriptions** — LLM receives resolution criteria and event context, not just prices.
+- **News ticker** — scrolling headline bar showing latest news collected during research. Auto-speeds based on headline count, pauses on hover, deduplicates, updates in real-time via SSE.
 - **Platform badge** — shows firmware version with OTA/NO-OTA indicator on ESP32 builds.
 
 ### ESP32 Specific
@@ -400,7 +401,7 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 | T-QT Pro | `nano` | 4 | 5 | 5 | 5 | 4 | **~26** |
 | StickC PLUS2 | `spark` | 4 | 0 | 5 | 5 | 4 | **~22** |
 | AtomS3 | `atom` | 4 | 5 | 0 | 5 | 7 | **~25** |
-| ESP32-S3 N16R8 | `core` | 8 | 5 | 10 | 20 | 7 | **~48** |
+| ESP32-S3 N16R8 | `core` | 8 | 5 | 10 | 10 | 7 | **~40** |
 | Cloud (4-core, 128K model) | `giga` | 30 | 10 | 10–15 | 8 | 15 | **~75** |
 | Cloud (8-core, 128K model) | `giga` | 30 | 20 | 15 | 8 | 15 | **~88** |
 | Cloud (8-core, 1M model) | `giga` | 30 | 20 | 15 | 20 | 15 | **~100** |
