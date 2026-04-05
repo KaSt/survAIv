@@ -71,6 +71,10 @@ func New(
 
 // RunCycle executes one agent cycle. Returns retry delay in seconds (0 = no retry).
 func (a *Agent) RunCycle(ctx context.Context) int {
+	// Count every cycle attempt, even if it fails to fetch markets or call LLM.
+	a.cycleCount++
+	a.dash.SetCycleCount(a.cycleCount)
+
 	// Resolve dynamic config for active model.
 	dc := dynconfig.ForModel(a.cfg.OaiModel)
 	a.dynCfg = dc
@@ -330,8 +334,6 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	}
 
 	a.dash.PushDecision(rec)
-	a.cycleCount++
-	a.dash.SetCycleCount(a.cycleCount)
 
 	// Parse and push market ratings.
 	scouted := ParseMarketRatings(responseText, markets)

@@ -535,6 +535,9 @@ int RunAgentCycle(BudgetLedger *ledger) {
     return 0;
   }
 
+  auto &dash = GetDashboardState();
+  dash.IncrementCycleCount();
+
   GeoblockStatus geoblock = FetchGeoblockStatus();
   std::vector<MarketSnapshot> markets = FetchMarkets(config::MarketLimit());
   if (markets.empty()) {
@@ -544,7 +547,6 @@ int RunAgentCycle(BudgetLedger *ledger) {
   LogLedgerState(*ledger, markets);
 
   // Push state to dashboard.
-  auto &dash = GetDashboardState();
   double eq = ledger->Equity(ledger->Positions(), markets);
   dash.UpdateBudget(ledger->Cash(), ledger->Reserve(), eq,
                     ledger->LlmSpend(), ledger->RealizedPaperPnl(),
@@ -700,7 +702,6 @@ int RunAgentCycle(BudgetLedger *ledger) {
     const MarketSnapshot *dm = FindMarket(markets, decision.market_id);
     if (dm) rec.market_question = dm->question;
     dash.PushDecision(rec);
-    dash.IncrementCycleCount();
 
     // Parse and push per-market ratings for the scanner view.
     auto scouted = ParseMarketRatings(response_text, markets);

@@ -65,9 +65,6 @@ namespace survaiv {
 
 DashboardState::DashboardState() {
   mutex_ = xSemaphoreCreateMutex();
-  time_t now;
-  time(&now);
-  boot_epoch_ = static_cast<int64_t>(now);
 }
 
 void DashboardState::UpdateBudget(double cash, double reserve, double equity,
@@ -251,9 +248,8 @@ bool DashboardState::ResetPaperTrading() {
 std::string DashboardState::ToJson() const {
   xSemaphoreTake(mutex_, portMAX_DELAY);
 
-  time_t now;
-  time(&now);
-  int64_t uptime = static_cast<int64_t>(now) - boot_epoch_;
+  // Monotonic uptime from esp_timer (microseconds since boot).
+  int64_t uptime = static_cast<int64_t>(esp_timer_get_time() / 1000000);
 
   std::ostringstream o;
   o << "{\"status\":\"" << JsonEscape(agent_status_) << "\""

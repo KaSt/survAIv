@@ -111,7 +111,6 @@ class DashboardState {
   // Agent status.
   std::string agent_status_ = "initializing";
   int cycle_count_ = 0;
-  int64_t boot_epoch_ = 0;
 
   // Geoblock.
   bool geoblocked_ = false;
