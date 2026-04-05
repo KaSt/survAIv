@@ -140,6 +140,12 @@ cursor:pointer;font-size:11px;font-weight:600;transition:opacity .15s}
 .btn-danger{background:none;border:1px solid var(--red);color:var(--red);padding:4px 12px;
 border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
 .btn-danger:hover{background:var(--red);color:#fff}
+.news-ticker{overflow:hidden;white-space:nowrap;background:var(--card);border:1px solid var(--border);
+border-radius:8px;padding:6px 12px;margin-bottom:12px;font-size:11px;color:var(--dim);display:none;position:relative}
+.news-ticker .ticker-label{color:var(--blue);font-weight:700;margin-right:10px;flex-shrink:0}
+.news-ticker .ticker-track{display:inline-block;animation:tickerScroll var(--ticker-dur,60s) linear infinite}
+.news-ticker:hover .ticker-track{animation-play-state:paused}
+@keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 </style>
 </head>
 <body>
@@ -183,6 +189,10 @@ border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
 </div>
 
 <div class="error-banner" id="error-banner"></div>
+
+<div class="news-ticker" id="news-ticker">
+  <span class="ticker-label">📰 NEWS</span><span class="ticker-track" id="ticker-track"></span>
+</div>
 
 <div class="grid" id="cards">
   <div class="card"><div class="label">Portfolio</div><div class="value" id="v-equity">—</div>
@@ -1056,6 +1066,7 @@ function poll() {
   authFetch('/api/history').then(r => r.json()).then(updateDecisions).catch(() => {});
   authFetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
   authFetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
+  fetchNews();
   authFetch('/api/equity').then(r => r.json()).then(data => {
     equityData = data;
     drawChart();
@@ -1104,6 +1115,9 @@ function connectSSE() {
         ${d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : ''}`;
       log.prepend(entry);
     } catch(err) {}
+  });
+  es.addEventListener('news', function(e) {
+    try { renderTicker(JSON.parse(e.data)); } catch(err) {}
   });
   es.onerror = function() {
     $('dot').className = 'dot err';
@@ -1290,6 +1304,29 @@ function initDashboard() {
     var m = Math.floor(rem / 60), s = rem % 60;
     el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
   }, 1000);
+}
+
+// ── News Ticker ──────────────────────────────────
+function renderTicker(headlines) {
+  var bar = $('news-ticker'), track = $('ticker-track');
+  if (!bar || !track || !headlines || !headlines.length) return;
+  var seen = {};
+  var items = headlines.filter(function(h) {
+    if (!h.title || seen[h.title]) return false;
+    seen[h.title] = true;
+    return true;
+  }).map(function(h) { return h.title; });
+  if (!items.length) return;
+  var sep = '  \u2022  ';
+  var text = items.join(sep) + sep;
+  track.textContent = text + text;
+  var dur = Math.max(30, items.length * 5);
+  bar.style.setProperty('--ticker-dur', dur + 's');
+  bar.style.display = 'block';
+}
+
+function fetchNews() {
+  authFetch('/api/news').then(function(r){ return r.json(); }).then(renderTicker).catch(function(){});
 }
 
 // Start with auth check.

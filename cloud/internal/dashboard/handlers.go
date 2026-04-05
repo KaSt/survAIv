@@ -106,6 +106,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Get("/api/equity-history", handleEquityHistory(state))
 	r.Get("/api/equity", handleEquityHistory(state)) // ESP32-compatible alias
 	r.Get("/api/scouted", handleScouted(state))
+	r.Get("/api/news", handleNews(state))
 	r.Get("/api/wisdom", handleWisdom)
 	r.Get("/api/knowledge", handleKnowledgeExport)
 	r.Post("/api/knowledge", handleKnowledgeImport)
@@ -177,6 +178,15 @@ func handleScouted(state *State) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(state.ScoutedMarketsJSON())
+	}
+}
+
+func handleNews(state *State) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		headlines := state.GetHeadlines()
+		b, _ := json.Marshal(headlines)
+		w.Write(b)
 	}
 }
 

@@ -16,6 +16,7 @@ namespace survaiv {
 constexpr int kMaxDecisionHistory = 50;
 constexpr int kMaxEquityHistory = 200;
 constexpr int kMaxScoutedMarkets = 20;
+constexpr int kMaxNewsHeadlines = 15;
 
 struct DecisionRecord {
   int64_t epoch = 0;
@@ -54,6 +55,8 @@ class DashboardState {
   void SetInferenceSpend(double usdc);
   void SetActiveModel(const std::string &model_name, double price_per_req);
   void SetScoutedMarkets(const std::vector<ScoutedMarket> &scouted);
+  void PushHeadlines(const std::vector<std::string> &titles);
+  std::string NewsHeadlinesJson() const;
   void IncrementCycleCount();
   void SetLastError(const std::string &error);
   void SetNextRetrySec(int seconds);
@@ -107,6 +110,10 @@ class DashboardState {
 
   // Scouted markets from last cycle.
   std::vector<ScoutedMarket> scouted_markets_;
+
+  // News headlines ring buffer for ticker.
+  struct Headline { std::string title; int64_t epoch; };
+  std::vector<Headline> news_headlines_;
 
   // Agent status.
   std::string agent_status_ = "initializing";

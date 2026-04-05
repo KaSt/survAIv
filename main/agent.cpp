@@ -660,14 +660,24 @@ int RunAgentCycle(BudgetLedger *ledger) {
       }
     } else if (tool_call.tool == "search_news" && !tool_call.query.empty()) {
       std::vector<NewsResult> news = SearchNews(tool_call.query, 3);
-      if (!news.empty() && can_spend) {
-        std::ostringstream follow_up;
-        follow_up << user_prompt << "\n"
-                  << "{\"tool_result\":{\"tool\":\"search_news\",\"results\":"
-                  << BuildNewsJson(news) << "}}";
-        if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
-          SpendForUsage(ledger, usage);
-          handled = true;
+      if (!news.empty()) {
+        // Push headlines to dashboard ticker.
+        std::vector<std::string> titles;
+        for (const auto &n : news) {
+          if (!n.title.empty()) titles.push_back(n.title);
+        }
+        dash.PushHeadlines(titles);
+        webserver::PushSseEvent("news", dash.NewsHeadlinesJson());
+
+        if (can_spend) {
+          std::ostringstream follow_up;
+          follow_up << user_prompt << "\n"
+                    << "{\"tool_result\":{\"tool\":\"search_news\",\"results\":"
+                    << BuildNewsJson(news) << "}}";
+          if (ChatCompletion(system_prompt, follow_up.str(), &response_text, &usage, follow_model)) {
+            SpendForUsage(ledger, usage);
+            handled = true;
+          }
         }
       }
     }

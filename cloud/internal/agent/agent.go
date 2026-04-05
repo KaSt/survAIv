@@ -169,9 +169,18 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		provider := news.Provider(a.cfg.NewsProvider())
 		research := ProactiveResearch(ctx, markets, provider, a.cfg.NewsAPIKey())
 		if extra := BuildResearchContext(research); extra != "" {
-			// Inject research into the user prompt JSON (before closing brace).
 			userPrompt = userPrompt[:len(userPrompt)-1] + extra + "}"
 		}
+		// Push headlines to dashboard ticker.
+		var titles []string
+		for _, r := range research {
+			for _, n := range r.Results {
+				if n.Title != "" {
+					titles = append(titles, n.Title)
+				}
+			}
+		}
+		a.dash.PushHeadlines(titles)
 	}
 
 	// 6. Select model.
@@ -281,6 +290,14 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 			if len(results) == 0 {
 				break
 			}
+			// Push to dashboard ticker.
+			var titles []string
+			for _, r := range results {
+				if r.Title != "" {
+					titles = append(titles, r.Title)
+				}
+			}
+			a.dash.PushHeadlines(titles)
 			var followModel string
 			if useX402 {
 				sel := models.SelectModel(baseURL, models.Complex, a.ledger.Cash(), estCycles)

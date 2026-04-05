@@ -205,6 +205,13 @@ static esp_err_t ApiScoutedHandler(httpd_req_t *req) {
   return httpd_resp_send(req, json.c_str(), json.size());
 }
 
+static esp_err_t ApiNewsHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
+  std::string json = GetDashboardState().NewsHeadlinesJson();
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, json.c_str(), json.size());
+}
+
 static esp_err_t ApiWisdomHandler(httpd_req_t *req) {
   REQUIRE_AUTH(req);
   std::string json = wisdom::StatsJson();
@@ -1026,6 +1033,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/history", HTTP_GET, ApiHistoryHandler);
   RegisterUri("/api/equity", HTTP_GET, ApiEquityHandler);
   RegisterUri("/api/scouted", HTTP_GET, ApiScoutedHandler);
+  RegisterUri("/api/news", HTTP_GET, ApiNewsHandler);
   RegisterUri("/api/wisdom", HTTP_GET, ApiWisdomHandler);
   RegisterUri("/api/knowledge", HTTP_GET, ApiKnowledgeExportHandler);
   RegisterUri("/api/knowledge", HTTP_POST, ApiKnowledgeImportHandler);
@@ -1049,7 +1057,7 @@ void StartDashboard(int port) {
   // CORS preflight handlers.
   static const char *cors_paths[] = {
     "/api/state", "/api/positions", "/api/history", "/api/equity",
-    "/api/scouted", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
+    "/api/scouted", "/api/news", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
     "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
     "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
     "/api/restart", "/api/reset-paper", "/api/telemetry-config",

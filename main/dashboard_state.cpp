@@ -155,11 +155,40 @@ void DashboardState::SetActiveModel(const std::string &model_name, double price_
 void DashboardState::SetScoutedMarkets(const std::vector<ScoutedMarket> &scouted) {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   scouted_markets_ = scouted;
-  // Trim to max.
   if (static_cast<int>(scouted_markets_.size()) > kMaxScoutedMarkets) {
     scouted_markets_.resize(kMaxScoutedMarkets);
   }
   xSemaphoreGive(mutex_);
+}
+
+void DashboardState::PushHeadlines(const std::vector<std::string> &titles) {
+  if (titles.empty()) return;
+  int64_t now = static_cast<int64_t>(time(nullptr));
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  for (const auto &t : titles) {
+    if (t.empty()) continue;
+    news_headlines_.push_back({t, now});
+  }
+  if (static_cast<int>(news_headlines_.size()) > kMaxNewsHeadlines) {
+    news_headlines_.erase(
+      news_headlines_.begin(),
+      news_headlines_.begin() + (news_headlines_.size() - kMaxNewsHeadlines));
+  }
+  xSemaphoreGive(mutex_);
+}
+
+std::string DashboardState::NewsHeadlinesJson() const {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  std::ostringstream o;
+  o << "[";
+  for (size_t i = 0; i < news_headlines_.size(); ++i) {
+    if (i > 0) o << ",";
+    o << "{\"title\":\"" << JsonEscape(news_headlines_[i].title)
+      << "\",\"time\":" << news_headlines_[i].epoch << "}";
+  }
+  o << "]";
+  xSemaphoreGive(mutex_);
+  return o.str();
 }
 
 double DashboardState::InferenceSpentUsdc() const {

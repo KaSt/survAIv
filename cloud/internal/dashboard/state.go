@@ -14,6 +14,7 @@ const (
 	maxDecisionHistory = 50
 	maxEquityHistory   = 200
 	maxScoutedMarkets  = 20
+	maxNewsHeadlines   = 30
 )
 
 // State holds all dashboard state, shared between agent and HTTP server.
@@ -57,7 +58,16 @@ type State struct {
 
 	sseClients []chan string
 
+	newsHeadlines []NewsHeadline // ring of recent news headlines for ticker
+
 	onResetPaper func() // callback to reset ledger; set by agent
+}
+
+// NewsHeadline is a single news item for the dashboard ticker.
+type NewsHeadline struct {
+	Title string `json:"title"`
+	URL   string `json:"url,omitempty"`
+	Time  int64  `json:"time"`
 }
 
 func NewState() *State {
@@ -260,6 +270,41 @@ func (s *State) SetEfficiency(rc *dynconfig.RuntimeConfig) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.efficiency = rc
+}
+
+// PushHeadlines adds news headlines to the ticker buffer and broadcasts via SSE.
+func (s *State) PushHeadlines(titles []string) {
+	if len(titles) == 0 {
+		return
+	}
+	now := time.Now().Unix()
+	s.mu.Lock()
+	for _, t := range titles {
+		if t == "" {
+			continue
+		}
+		s.newsHeadlines = append(s.newsHeadlines, NewsHeadline{Title: t, Time: now})
+	}
+	if len(s.newsHeadlines) > maxNewsHeadlines {
+		s.newsHeadlines = s.newsHeadlines[len(s.newsHeadlines)-maxNewsHeadlines:]
+	}
+	// Copy for SSE broadcast outside lock.
+	snapshot := make([]NewsHeadline, len(s.newsHeadlines))
+	copy(snapshot, s.newsHeadlines)
+	s.mu.Unlock()
+
+	if b, err := json.Marshal(snapshot); err == nil {
+		s.PushSSE("news", string(b))
+	}
+}
+
+// GetHeadlines returns a copy of current news headlines.
+func (s *State) GetHeadlines() []NewsHeadline {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]NewsHeadline, len(s.newsHeadlines))
+	copy(out, s.newsHeadlines)
+	return out
 }
 
 // SetInferenceSpend sets the inference spend amount.
