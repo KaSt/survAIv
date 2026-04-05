@@ -709,8 +709,7 @@ function updateState(s) {
   }
   const walletSec = $('wallet-section');
   if (walletSec) walletSec.style.display = s.live_mode ? 'block' : 'none';
-  var otaBtn = $('ota-btn');
-  if (otaBtn) otaBtn.style.display = s.ota_enabled ? '' : 'none';
+
   if (s.firmware) {
     $('v-fw').textContent = s.version || s.firmware || '—';
     var tierBadge = $('v-tier-badge');
