@@ -393,7 +393,7 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 | Platform | Tier | Context | Parallelism | Memory | Coverage | Wisdom | **Total** |
 |----------|------|---------|-------------|--------|----------|--------|-----------|
 | ESP32-C3 (OTA) | `pico` | 2 | 0 | 0 | 2 | 1 | **~12** |
-| ESP32-C3 (no-OTA) | `pico` | 4 | 0 | 0 | 5 | 4 | **~22** |
+| ESP32-C3 (no-OTA) | `pico` | 4 | 0 | 0 | 2 | 4 | **~19** |
 | C3 SuperMini OLED | `dot` | 2 | 0 | 0 | 2 | 1 | **~12** |
 | T-QT Pro | `nano` | 4 | 5 | 5 | 5 | 4 | **~26** |
 | StickC PLUS2 | `spark` | 4 | 0 | 5 | 5 | 4 | **~22** |

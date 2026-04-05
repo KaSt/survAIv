@@ -528,7 +528,8 @@ static bool InCooldown() {
   return elapsed < config::CooldownAfterLossSeconds();
 }
 
-constexpr int kLlmFailRetryDelaySec = 60;  // Retry cycle 60s after LLM failure.
+constexpr int kLlmFailRetryDelaySec = 60;      // Retry 60s after LLM failure.
+constexpr int kMarketFailRetryDelaySec = 30;   // Retry 30s after market fetch failure.
 
 int RunAgentCycle(BudgetLedger *ledger) {
   if (ledger == nullptr) {
@@ -547,7 +548,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
                       ledger->LlmSpend(), ledger->RealizedPaperPnl(),
                       ledger->DailyLossUsdc());
     dash.SetAgentStatus("waiting for markets");
-    return 0;
+    return kMarketFailRetryDelaySec;
   }
   LogLedgerState(*ledger, markets);
 

@@ -25,6 +25,7 @@ import (
 const (
 	simulatedCostPerRequest = 0.0005
 	llmFailRetryDelaySec    = 60
+	marketFailRetryDelaySec = 30
 	maxPositionBps          = 200 // 2% max position size
 )
 
@@ -104,12 +105,12 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		}()
 		go func() {
 			defer wg.Done()
-			markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "volume24hr")
+			markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "liquidity")
 		}()
 		wg.Wait()
 	} else {
 		geo = polymarket.FetchGeoblockStatus(ctx, a.client)
-		markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "volume24hr")
+		markets = polymarket.FetchMarkets(ctx, a.client, marketLimit, 0, "liquidity")
 	}
 
 	if len(markets) == 0 {
@@ -120,7 +121,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 			Equity:  a.ledger.Cash(),
 		})
 		a.dash.SetAgentStatus("waiting for markets")
-		return 0
+		return marketFailRetryDelaySec
 	}
 
 	// 3. Calculate equity and update dashboard.

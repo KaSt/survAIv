@@ -17,7 +17,7 @@ const marketsBaseURL = "https://gamma-api.polymarket.com/markets"
 // FetchMarkets fetches active markets from the Gamma API.
 func FetchMarkets(ctx context.Context, client *httpclient.Client, limit, offset int, order string) []types.MarketSnapshot {
 	if order == "" {
-		order = "volume24hr"
+		order = "liquidity"
 	}
 
 	url := fmt.Sprintf("%s?active=true&closed=false&ascending=false&limit=%d&offset=%d&order=%s",

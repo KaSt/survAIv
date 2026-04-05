@@ -10,7 +10,7 @@ namespace survaiv {
 GeoblockStatus FetchGeoblockStatus();
 
 std::vector<MarketSnapshot> FetchMarkets(int limit, int offset = 0,
-                                         const std::string &order = "volume24hr");
+                                         const std::string &order = "liquidity");
 
 std::string BuildMarketsJson(const std::vector<MarketSnapshot> &markets);
 

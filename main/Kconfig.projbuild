@@ -56,7 +56,7 @@ config SURVAIV_MAX_OPEN_POSITIONS
 config SURVAIV_MARKET_LIMIT
     int "Top markets per scan"
     range 1 50
-    default 6
+    default 4
 
 config SURVAIV_MAX_TOOL_CALLS_PER_CYCLE
     int "Maximum tool calls per agent cycle"

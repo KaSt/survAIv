@@ -17,14 +17,13 @@ namespace survaiv {
 
 namespace {
 constexpr const char *kTag = "survaiv_http";
-#if CONFIG_IDF_TARGET_ESP32S3
-constexpr size_t kMaxBodySize = 512 * 1024;   // S3: 8MB PSRAM
+#if CONFIG_SPIRAM || CONFIG_IDF_TARGET_ESP32S3
+constexpr size_t kMaxBodySize = 512 * 1024;   // boards with PSRAM
 constexpr size_t kMinFreeHeap = 40 * 1024;
-#elif !CONFIG_SURVAIV_ENABLE_OTA
-constexpr size_t kMaxBodySize = 128 * 1024;   // C3 no-OTA: more flash headroom
-constexpr size_t kMinFreeHeap = 20 * 1024;
 #else
-constexpr size_t kMaxBodySize = 64 * 1024;    // C3 OTA: 400KB SRAM
+// C3: only ~230KB SRAM total, ~148KB free after WiFi+TLS.
+// Keep body cap low so we never exhaust contiguous heap.
+constexpr size_t kMaxBodySize = 48 * 1024;
 constexpr size_t kMinFreeHeap = 20 * 1024;
 #endif
 
@@ -216,25 +215,41 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
       if (event->data != nullptr && event->data_len > 0) {
         size_t new_size = context->response->body.size() + event->data_len;
         if (new_size > kMaxBodySize) {
-          ESP_LOGW(kTag, "HTTP response exceeds 64 KB — aborting transfer");
+          ESP_LOGW(kTag, "HTTP response exceeds max body — aborting");
           context->truncated = true;
           return ESP_FAIL;
         }
-        // When the string must reallocate, verify enough heap remains.
-        // Peak usage: new buffer allocated before old buffer is freed.
+        // When the string must reallocate, verify enough contiguous heap
+        // and pre-reserve so std::string doesn't pick its own capacity.
         if (new_size > context->response->body.capacity()) {
+          size_t largest_block =
+              heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
           size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
-          size_t new_cap = context->response->body.capacity() * 2;
-          if (new_cap < new_size) new_cap = new_size;
-          if (free_heap < new_cap + kMinFreeHeap) {
-            ESP_LOGW(kTag, "HTTP body stopped at %uB: heap %uB, need %uB+%uB",
-                     static_cast<unsigned>(context->response->body.size()),
-                     static_cast<unsigned>(free_heap),
-                     static_cast<unsigned>(new_cap),
-                     static_cast<unsigned>(kMinFreeHeap));
-            context->truncated = true;
-            return ESP_FAIL;
+          // reserve() needs new_cap bytes contiguous, plus the old buffer
+          // stays alive until the copy is done → need new_cap + old_cap.
+          size_t old_cap = context->response->body.capacity();
+          size_t new_cap = new_size + new_size / 4;
+          if (new_cap > kMaxBodySize) new_cap = kMaxBodySize;
+          size_t peak = new_cap + old_cap;
+          if (largest_block < peak + kMinFreeHeap ||
+              free_heap < peak + kMinFreeHeap) {
+            // Try exact fit as last resort.
+            new_cap = new_size;
+            peak = new_cap + old_cap;
+            if (largest_block < peak + kMinFreeHeap ||
+                free_heap < peak + kMinFreeHeap) {
+              ESP_LOGW(kTag,
+                       "HTTP body stopped at %uB: largest_block %uB, "
+                       "need %uB+%uB",
+                       static_cast<unsigned>(context->response->body.size()),
+                       static_cast<unsigned>(largest_block),
+                       static_cast<unsigned>(peak),
+                       static_cast<unsigned>(kMinFreeHeap));
+              context->truncated = true;
+              return ESP_FAIL;
+            }
           }
+          context->response->body.reserve(new_cap);
         }
         context->response->body.append(
             static_cast<const char *>(event->data), event->data_len);
