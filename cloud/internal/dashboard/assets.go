@@ -616,14 +616,16 @@ function renderWisdom(d) {
   if (!d) { el.innerHTML = '<div class="no-data">Collecting data...</div>'; return; }
   let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:0.85em">';
   html += '<span>Tracked: <strong>' + (d.total_tracked || 0) + '</strong></span>';
+  var pending = (d.total_tracked || 0) - (d.total_resolved || 0);
+  html += '<span>Pending: <strong>' + pending + '</strong></span>';
   html += '<span>Resolved: <strong>' + (d.total_resolved || 0) + '</strong></span>';
   html += '<span>Correct: <strong>' + (d.total_correct || 0) + '</strong></span>';
   var acc = d.total_resolved > 0 ? ((d.total_correct / d.total_resolved) * 100).toFixed(1) + '%' : '\u2014';
   html += '<span>Accuracy: <strong>' + acc + '</strong></span>';
-  var buyAcc = d.buy_resolved > 0 ? ((d.buy_correct / d.buy_resolved) * 100).toFixed(1) + '%' : '\u2014';
-  html += '<span>Buy Acc: <strong>' + buyAcc + '</strong></span>';
-  var holdAcc = d.hold_resolved > 0 ? ((d.hold_correct / d.hold_resolved) * 100).toFixed(1) + '%' : '\u2014';
-  html += '<span>Hold Acc: <strong>' + holdAcc + '</strong></span>';
+  var buyAcc = d.buy_resolved > 0 ? (d.buy_correct + '/' + d.buy_resolved) : '\u2014';
+  html += '<span>Buy: <strong>' + buyAcc + '</strong></span>';
+  var holdAcc = d.hold_resolved > 0 ? (d.hold_correct + '/' + d.hold_resolved) : '\u2014';
+  html += '<span>Hold: <strong>' + holdAcc + '</strong></span>';
   if (d.frozen) html += '<span style="color:var(--yellow)">🧊 Frozen</span>';
   html += '</div>';
   html += '<label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--fg2);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="wisdom-freeze" onchange="toggleWisdomFreeze(this.checked)" ' + (d.frozen ? 'checked' : '') + '> Freeze learning</label>';

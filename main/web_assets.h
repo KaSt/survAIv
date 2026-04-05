@@ -199,7 +199,8 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
     <label class="freeze-toggle"><input type="checkbox" id="w-freeze" onchange="toggleFreeze(this.checked)"> Freeze learning</label>
   </h2>
   <div class="wisdom-stats" id="wisdom-stats">
-    <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Decisions</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Tracked</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-pending">–</div><div class="lbl">Pending</div></div>
     <div class="wisdom-stat"><div class="val" id="w-resolved">–</div><div class="lbl">Resolved</div></div>
     <div class="wisdom-stat"><div class="val" id="w-accuracy">–</div><div class="lbl">Accuracy</div></div>
     <div class="wisdom-stat"><div class="val" id="w-buys">–</div><div class="lbl">Buy Acc</div></div>
@@ -839,12 +840,13 @@ function updateScouted(list) {
 function updateWisdom(w) {
   const el = (id) => document.getElementById(id);
   el('w-total').textContent = w.total_tracked || 0;
+  el('w-pending').textContent = (w.total_tracked || 0) - (w.total_resolved || 0);
   el('w-resolved').textContent = w.total_resolved || 0;
   const acc = w.total_resolved > 0 ? ((w.total_correct / w.total_resolved) * 100).toFixed(0) + '%' : '–';
   el('w-accuracy').textContent = acc;
-  const ba = w.buy_resolved > 0 ? ((w.buy_correct / w.buy_resolved) * 100).toFixed(0) + '%' : '–';
+  const ba = w.buy_resolved > 0 ? (w.buy_correct + '/' + w.buy_resolved) : '–';
   el('w-buys').textContent = ba;
-  const ha = w.hold_resolved > 0 ? ((w.hold_correct / w.hold_resolved) * 100).toFixed(0) + '%' : '–';
+  const ha = w.hold_resolved > 0 ? (w.hold_correct + '/' + w.hold_resolved) : '–';
   el('w-holds').textContent = ha;
   el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
   // Frozen state.
