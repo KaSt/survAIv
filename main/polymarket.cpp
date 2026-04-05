@@ -60,8 +60,11 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
   std::ostringstream url;
   url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
 
-  // Log usable heap (internal only on SPIRAM_USE_CAPS_ALLOC boards).
-#if CONFIG_SPIRAM
+  // Log usable heap — with SPIRAM_USE_MALLOC, count all 8-bit memory;
+  // with CAPS_ALLOC, only internal SRAM is usable by standard allocators.
+#if CONFIG_SPIRAM && CONFIG_SPIRAM_USE_MALLOC
+  constexpr uint32_t kLogHeapCaps = MALLOC_CAP_8BIT;
+#elif CONFIG_SPIRAM
   constexpr uint32_t kLogHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
 #else
   constexpr uint32_t kLogHeapCaps = MALLOC_CAP_8BIT;

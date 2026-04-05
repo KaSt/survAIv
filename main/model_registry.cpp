@@ -18,9 +18,11 @@ namespace models {
 
 static const char *kTag = "models";
 
-// Usable heap caps: with SPIRAM_USE_CAPS_ALLOC, standard malloc only uses
-// internal SRAM, so heap checks must exclude PSRAM.
-#if CONFIG_SPIRAM
+// Usable heap caps: with SPIRAM_USE_MALLOC, malloc can use PSRAM so count
+// all 8-bit capable memory.  With CAPS_ALLOC, malloc is internal-only.
+#if CONFIG_SPIRAM && CONFIG_SPIRAM_USE_MALLOC
+static constexpr uint32_t kHeapCaps = MALLOC_CAP_8BIT;
+#elif CONFIG_SPIRAM
 static constexpr uint32_t kHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
 #else
 static constexpr uint32_t kHeapCaps = MALLOC_CAP_8BIT;

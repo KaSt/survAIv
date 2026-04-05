@@ -20,9 +20,13 @@ constexpr const char *kTag = "survaiv_http";
 #if CONFIG_SPIRAM
 constexpr size_t kMaxBodySize = 512 * 1024;   // boards with PSRAM
 constexpr size_t kMinFreeHeap = 40 * 1024;
-// With SPIRAM_USE_CAPS_ALLOC, standard malloc/new only uses internal SRAM.
-// Heap checks must use MALLOC_CAP_INTERNAL to avoid counting unusable PSRAM.
+#if CONFIG_SPIRAM_USE_MALLOC
+// SPIRAM_USE_MALLOC: standard malloc falls back to PSRAM for large allocs.
+constexpr uint32_t kHeapCaps = MALLOC_CAP_8BIT;
+#else
+// SPIRAM_USE_CAPS_ALLOC: malloc only uses internal SRAM.
 constexpr uint32_t kHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+#endif
 #else
 // C3: only ~230KB SRAM total, ~148KB free after WiFi+TLS.
 // Keep body cap low so we never exhaust contiguous heap.
