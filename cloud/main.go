@@ -34,6 +34,7 @@ func main() {
 	listenFlag := flag.String("listen", "", "Listen address (e.g. 127.0.0.1 for local-only, 0.0.0.0 for all)")
 	portFlag := flag.Int("port", 0, "Dashboard HTTP port (default: 8080)")
 	coresFlag := flag.String("cores", "", "Max CPU cores to use (number or percentage, e.g. 4 or 50%)")
+	mdnsFlag := flag.Bool("mdns", false, "Enable mDNS hostname advertising (<agent-name>.local)")
 	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
 
@@ -63,6 +64,9 @@ func main() {
 	}
 	if *coresFlag != "" {
 		cfg.MaxCores = config.ParseCoresFlag(*coresFlag)
+	}
+	if *mdnsFlag {
+		cfg.MDNS = true
 	}
 
 	// Apply core limit before starting any goroutines.
