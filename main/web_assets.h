@@ -561,8 +561,10 @@ function drawPnlChart() {
   const pnl = equityData.map(d => d[1] - baseline);
   const mn = Math.min(...pnl, 0);
   const mx = Math.max(...pnl, 0);
-  const range = (mx - mn) || 0.01;
-  const zeroY = h - ((-mn) / range) * h;
+  const rawRange = mx - mn;
+  const range = rawRange > 0.005 ? rawRange : 0.01;
+  const flat = rawRange < 0.005;
+  const zeroY = flat ? h / 2 : h - ((-mn) / range) * h;
 
   // Grid + zero line.
   ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e0e0e0';
@@ -574,6 +576,16 @@ function drawPnlChart() {
   ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
   ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
   ctx.setLineDash([]);
+
+  // When P&L is essentially flat, show a clean zero line instead of noisy bars.
+  if (flat) {
+    ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#999'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('P&L: $0.00', w/2, zeroY - 8);
+    return;
+  }
 
   // Bars.
   const barW = Math.max(1, (w / pnl.length) - 1);
