@@ -278,6 +278,7 @@ border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
           <input type="file" id="ota-file" accept=".bin" style="display:none"
             onchange="otaUpdate(this.files[0])">
         </label>
+        <button onclick="restartDevice()" class="badge" style="padding:6px 14px;background:#fce4ec;color:var(--red);border:1px solid var(--red);cursor:pointer">🔄 Restart</button>
       </div>
       <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
     </div>
@@ -1253,6 +1254,23 @@ function otaUpdate(file) {
   };
   xhr.onerror = () => { msg.textContent = 'Upload failed'; msg.style.color = 'var(--red)'; };
   xhr.send(file);
+}
+
+function restartDevice() {
+  if (!confirm('Restart device? It will be offline for a few seconds.')) return;
+  const msg = $('settings-msg');
+  msg.textContent = 'Restarting…';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/restart', {
+    method: 'POST',
+    headers: authToken ? {'X-Auth-Token': authToken} : {}
+  }).then(r => {
+    if (r.ok) { msg.textContent = 'Restarting… reconnecting shortly'; msg.style.color = 'var(--green)'; }
+    else { msg.textContent = 'Restart failed'; msg.style.color = 'var(--red)'; }
+  }).catch(() => {
+    msg.textContent = 'Restarting… reconnecting shortly';
+    msg.style.color = 'var(--green)';
+  });
 }
 
 // Dashboard initialization (called after auth).

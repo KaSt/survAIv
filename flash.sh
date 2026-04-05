@@ -226,9 +226,10 @@ if [[ -n "$OTA_IP" ]]; then
   fi
 
   echo "  Uploading firmware..."
-  HTTP_CODE=$(curl -s -w '%{http_code}' --connect-timeout 10 --max-time 120 \
+  HTTP_CODE=$(curl -s -w '%{http_code}' --connect-timeout 10 --max-time 300 \
     -X POST \
     -H "Content-Type: application/octet-stream" \
+    -H "Expect: " \
     --data-binary "@$BIN_PATH" \
     -o /tmp/survaiv-ota-response.txt \
     "$OTA_URL" 2>&1) || true

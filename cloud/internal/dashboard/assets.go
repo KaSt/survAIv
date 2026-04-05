@@ -326,6 +326,7 @@ canvas { width: 100% !important; height: 100% !important; }
         <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Restore Config
           <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreConfig(this.files[0])">
         </label>
+        <button onclick="restartDevice()" class="btn" style="font-size:0.8em;background:#fce4ec;color:#c62828;border:1px solid #c62828;cursor:pointer">🔄 Restart</button>
       </div>
     </div>
     <div class="setting-section">
@@ -954,6 +955,14 @@ function restoreConfig(file) {
     if (r.ok) alert('Restored! Restarting...');
     else alert('Restore failed');
   }).catch(function(e) { alert('Error: ' + e.message); });
+}
+
+function restartDevice() {
+  if (!confirm('Restart agent? It will be offline briefly.')) return;
+  fetch('/api/restart', {method:'POST', headers:authHeaders()})
+    .then(function() {})
+    .catch(function() {});
+  alert('Restarting\u2026 page will reconnect shortly.');
 }
 
 function downloadKnowledge() {

@@ -612,15 +612,16 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
     return ESP_FAIL;
   }
 
-  char buf[1024];
+  char buf[4096];
   int total = 0;
+  int content_len = req->content_len;
   bool failed = false;
 
   while (true) {
     int received = httpd_req_recv(req, buf, sizeof(buf));
     if (received < 0) {
       if (received == HTTPD_SOCK_ERR_TIMEOUT) continue;
-      ESP_LOGE(kTag, "OTA recv error");
+      ESP_LOGE(kTag, "OTA recv error at %d/%d bytes", total, content_len);
       failed = true;
       break;
     }
@@ -628,11 +629,15 @@ static esp_err_t ApiOtaHandler(httpd_req_t *req) {
 
     err = esp_ota_write(ota_handle, buf, received);
     if (err != ESP_OK) {
-      ESP_LOGE(kTag, "esp_ota_write failed: %s", esp_err_to_name(err));
+      ESP_LOGE(kTag, "esp_ota_write failed at %d bytes: %s", total, esp_err_to_name(err));
       failed = true;
       break;
     }
     total += received;
+    if (content_len > 0 && (total % (64 * 1024)) < received) {
+      ESP_LOGI(kTag, "OTA progress: %d/%d (%d%%)", total, content_len,
+               total * 100 / content_len);
+    }
   }
 
   if (failed) {
@@ -799,6 +804,19 @@ static esp_err_t ApiAuthPostHandler(httpd_req_t *req) {
   return httpd_resp_send(req, err, strlen(err));
 }
 
+// ─── POST /api/restart ──────────────────────────────────────────
+static esp_err_t ApiRestartHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
+  httpd_resp_set_type(req, "application/json");
+  const char *ok = "{\"ok\":true,\"msg\":\"Restarting…\"}";
+  httpd_resp_send(req, ok, strlen(ok));
+  xTaskCreate([](void *) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    config::Reboot();
+  }, "reboot", 2048, nullptr, 5, nullptr);
+  return ESP_OK;
+}
+
 // ─── POST /api/config ───────────────────────────────────────────
 // Partial config update (e.g. paper_only toggle) without reboot.
 static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
@@ -949,6 +967,9 @@ void StartDashboard(int port) {
   config.max_uri_handlers = 40;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
+  config.recv_wait_timeout = 30;   // 30s — needed for OTA uploads over slow WiFi
+  config.send_wait_timeout = 30;
+  config.stack_size = 8192;        // OTA handler needs more stack for 4KB buffer
 
   if (httpd_start(&g_server, &config) != ESP_OK) {
     ESP_LOGE(kTag, "Failed to start dashboard server");
@@ -977,6 +998,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/auth", HTTP_GET, ApiAuthGetHandler);
   RegisterUri("/api/auth", HTTP_POST, ApiAuthPostHandler);
   RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
+  RegisterUri("/api/restart", HTTP_POST, ApiRestartHandler);
   RegisterUri("/api/reset-paper", HTTP_POST, ApiResetPaperHandler);
   RegisterUri("/api/telemetry-config", HTTP_POST, ApiTelemetryConfigHandler);
 
@@ -986,7 +1008,7 @@ void StartDashboard(int port) {
     "/api/scouted", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
     "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
     "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
-    "/api/reset-paper", "/api/telemetry-config",
+    "/api/restart", "/api/reset-paper", "/api/telemetry-config",
   };
   for (const char *p : cors_paths) {
     RegisterUri(p, HTTP_OPTIONS, OptionsHandler);

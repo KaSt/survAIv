@@ -9,9 +9,11 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"survaiv/internal/config"
 	"survaiv/internal/wisdom"
@@ -110,6 +112,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Post("/api/llm-config", handleLLMConfig(cfg, state))
 	r.Post("/api/telemetry-config", handleTelemetryConfig(cfg))
 	r.Post("/api/reset-paper", handleResetPaper(state))
+	r.Post("/api/restart", handleRestart())
 	r.Get("/api/backup", handleBackup(cfg))
 	r.Post("/api/restore", handleRestore(cfg))
 	r.Post("/api/ota", func(w http.ResponseWriter, r *http.Request) {
@@ -484,6 +487,21 @@ func handleResetPaper(state *State) http.HandlerFunc {
 		slog.Info("paper trading state reset by user")
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+func handleRestart() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		slog.Info("restart requested via dashboard")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":true,"msg":"Restarting…"}`))
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			os.Exit(0)
+		}()
 	}
 }
 
