@@ -19,6 +19,7 @@ WALLET_KEY=""
 MONITOR=false
 NO_OTA=false
 OTA_IP=""
+OTA_TOKEN=""
 BUILD_ONLY=false
 JUST_FLASH=false
 POSITIONAL=()
@@ -35,6 +36,8 @@ while [[ $# -gt 0 ]]; do
     --ota)      NO_OTA=false; shift ;;
     --flash-ota)   OTA_IP="$2"; shift 2 ;;
     --flash-ota=*) OTA_IP="${1#*=}"; shift ;;
+    --auth)        OTA_TOKEN="$2"; shift 2 ;;
+    --auth=*)      OTA_TOKEN="${1#*=}"; shift ;;
     --build-only)  BUILD_ONLY=true; shift ;;
     --just-flash)  JUST_FLASH=true; shift ;;
     --list)
@@ -58,6 +61,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --flash-ota <ip>     Build then flash over WiFi via HTTP to device at <ip>"
       echo "                       Device must be running with OTA enabled. Port 80 default;"
       echo "                       use ip:port for custom port (e.g. 192.168.1.42:8080)"
+      echo "  --auth <token>       Auth token for OTA flash (from dashboard session)"
       echo "  --build-only         Build firmware without flashing"
       echo "  --just-flash         Flash existing binary without rebuilding"
       echo "  --wallet <hex>       Provision wallet private key (64 hex chars)"
@@ -75,6 +79,7 @@ while [[ $# -gt 0 ]]; do
       echo "  ./flash.sh --board c3oled                      # dot — C3 SuperMini OLED"
       echo "  ./flash.sh --board s3 --wallet <key> -m        # core — S3 + wallet + monitor"
       echo "  ./flash.sh --board c3 --flash-ota 192.168.1.42 # pico — OTA flash over WiFi"
+      echo "  ./flash.sh --flash-ota 192.168.1.42 --auth abc123 # OTA with auth token"
       echo "  ./flash.sh --board s3 --build-only             # core — build only, no flash"
       echo "  ./flash.sh --board s3 --just-flash             # core — flash last build, skip rebuild"
       exit 0
@@ -225,11 +230,17 @@ if [[ -n "$OTA_IP" ]]; then
     [[ "$confirm" != [yY] ]] && exit 1
   fi
 
+  AUTH_HEADER=()
+  if [[ -n "$OTA_TOKEN" ]]; then
+    AUTH_HEADER=(-H "X-Auth-Token: $OTA_TOKEN")
+  fi
+
   echo "  Uploading firmware..."
   HTTP_CODE=$(curl -s -w '%{http_code}' --connect-timeout 10 --max-time 300 \
     -X POST \
     -H "Content-Type: application/octet-stream" \
     -H "Expect: " \
+    "${AUTH_HEADER[@]}" \
     --data-binary "@$BIN_PATH" \
     -o /tmp/survaiv-ota-response.txt \
     "$OTA_URL" 2>&1) || true
