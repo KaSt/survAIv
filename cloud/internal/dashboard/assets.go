@@ -616,7 +616,7 @@ function renderWisdom(d) {
   if (!d) { el.innerHTML = '<div class="no-data">Collecting data...</div>'; return; }
   let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:0.85em">';
   html += '<span>Tracked: <strong>' + (d.total_tracked || 0) + '</strong></span>';
-  var pending = (d.total_tracked || 0) - (d.total_resolved || 0);
+  var pending = Math.max(0, (d.total_tracked || 0) - (d.total_resolved || 0));
   html += '<span>Pending: <strong>' + pending + '</strong></span>';
   html += '<span>Resolved: <strong>' + (d.total_resolved || 0) + '</strong></span>';
   html += '<span>Correct: <strong>' + (d.total_correct || 0) + '</strong></span>';

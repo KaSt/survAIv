@@ -852,7 +852,7 @@ function updateScouted(list) {
 function updateWisdom(w) {
   const el = (id) => document.getElementById(id);
   el('w-total').textContent = w.total_tracked || 0;
-  el('w-pending').textContent = (w.total_tracked || 0) - (w.total_resolved || 0);
+  el('w-pending').textContent = Math.max(0, (w.total_tracked || 0) - (w.total_resolved || 0));
   el('w-resolved').textContent = w.total_resolved || 0;
   const acc = w.total_resolved > 0 ? ((w.total_correct / w.total_resolved) * 100).toFixed(0) + '%' : '–';
   el('w-accuracy').textContent = acc;
