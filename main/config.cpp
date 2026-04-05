@@ -119,6 +119,8 @@ int ToolUsageLevel() {
 std::string TelemetryUrl()     { return GetNvsString("telem_url", ""); }
 int TelemetryIntervalSec()     { return GetNvsInt("telem_sec", 300); }
 
+bool MdnsEnabled() { return GetNvsInt("mdns_en", 1) != 0; }
+
 void Reboot() {
   ESP_LOGI(kTag, "Rebooting...");
   vTaskDelay(pdMS_TO_TICKS(500));

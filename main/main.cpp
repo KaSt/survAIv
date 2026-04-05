@@ -106,9 +106,13 @@ extern "C" void app_main(void) {
   ESP_LOGI(kTag, "Dashboard available at http://<device-ip>/");
 
   // Advertise via mDNS so the device is reachable as <name>.local.
-  std::string agent_name = survaiv::config::AgentName();
-  std::string mdns_host = agent_name.empty() ? "survaiv" : agent_name;
-  survaiv::mdns_adv::Start(mdns_host.c_str(), 80);
+  if (survaiv::config::MdnsEnabled()) {
+    std::string agent_name = survaiv::config::AgentName();
+    std::string mdns_host = agent_name.empty() ? "survaiv" : agent_name;
+    survaiv::mdns_adv::Start(mdns_host.c_str(), 80);
+  } else {
+    ESP_LOGI(kTag, "mDNS advertising disabled");
+  }
 
 #ifdef CONFIG_SURVAIV_HAS_DISPLAY
   screen_init();

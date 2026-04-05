@@ -47,6 +47,9 @@ std::string NewsProvider();  // "tavily" (default) or "brave"
 // Tool usage level: 0=frugal, 1=balanced(default), 2=generous.
 int ToolUsageLevel();
 
+// mDNS LAN advertising (default: on).
+bool MdnsEnabled();
+
 // Telemetry hub config.
 std::string TelemetryUrl();
 int TelemetryIntervalSec();
