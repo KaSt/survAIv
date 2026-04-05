@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -190,6 +191,10 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 			slog.Info("model selected", "name", sel.Model.Name, "price", sel.Price)
 			a.dash.SetActiveModel(sel.Model.Name, sel.Price)
 		}
+	}
+	// Show the configured model when x402 doesn't override it.
+	if modelID == "" && a.cfg.OaiModel != "" {
+		a.dash.SetActiveModel(a.cfg.OaiModel, 0)
 	}
 
 	// 7. Call LLM.
@@ -402,7 +407,10 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 		headers["Authorization"] = "Bearer " + apiKey
 	}
 
-	url := baseURL + "/v1/chat/completions"
+	url := strings.TrimRight(baseURL, "/") + "/v1/chat/completions"
+	if strings.HasSuffix(strings.TrimRight(baseURL, "/"), "/v1") {
+		url = strings.TrimRight(baseURL, "/") + "/chat/completions"
+	}
 	if adapter != nil {
 		url = adapter.BuildInferenceURL(baseURL, model)
 	}

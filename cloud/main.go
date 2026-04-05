@@ -169,7 +169,11 @@ func main() {
 		<-ctx.Done()
 		slog.Info("shutting down")
 	} else {
-		p := tea.NewProgram(tui.NewModel(dashState), tea.WithAltScreen())
+		// Redirect slog to a ring buffer so logs don't corrupt the alt-screen.
+		ringLog := tui.NewRingHandler(200)
+		slog.SetDefault(slog.New(ringLog))
+
+		p := tea.NewProgram(tui.NewModel(dashState, ringLog), tea.WithAltScreen())
 		if _, err := p.Run(); err != nil {
 			slog.Error("TUI error", "err", err)
 			os.Exit(1)

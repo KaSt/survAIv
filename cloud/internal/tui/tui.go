@@ -12,14 +12,15 @@ type refreshMsg struct{}
 
 type Model struct {
 	state     *dashboard.State
+	ringLog   *RingHandler
 	width     int
 	height    int
 	logScroll int
 	ready     bool
 }
 
-func NewModel(state *dashboard.State) Model {
-	return Model{state: state}
+func NewModel(state *dashboard.State, ringLog *RingHandler) Model {
+	return Model{state: state, ringLog: ringLog}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -67,8 +68,9 @@ func (m Model) View() string {
 	markets := renderMarkets(snap, m.width)
 	log := renderLog(snap, m.width, m.logScroll)
 	wisdomPanel := renderWisdom(m.width)
+	sysLog := renderSysLog(m.ringLog, m.width)
 
-	return header + "\n" + budget + "\n" + positions + "\n" + markets + "\n" + log + "\n" + wisdomPanel
+	return header + "\n" + budget + "\n" + positions + "\n" + markets + "\n" + log + "\n" + wisdomPanel + "\n" + sysLog
 }
 
 func tickRefresh() tea.Cmd {
