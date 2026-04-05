@@ -111,11 +111,12 @@ func (l *Ledger) equityLocked(markets []types.MarketSnapshot) float64 {
 }
 
 // CanSpendOnInference returns true if the agent can afford usdc for inference
-// without dipping into the reserve.
+// without dipping into the reserve.  Cash already reflects prior llmSpend
+// (DebitInference subtracts from cash), so we only subtract the reserve.
 func (l *Ledger) CanSpendOnInference(usdc float64, markets []types.MarketSnapshot) bool {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	return l.equityLocked(markets)-l.llmSpend-l.reserve > usdc
+	return l.cash-l.reserve > usdc
 }
 
 // DebitInference records an LLM inference cost.
@@ -138,6 +139,10 @@ func (l *Ledger) OpenPaperPosition(market types.MarketSnapshot, side string, siz
 
 	if len(l.positions) >= l.maxPositions {
 		slog.Warn("max positions reached", "max", l.maxPositions)
+		return false
+	}
+	if sizeUsdc <= 0 {
+		slog.Warn("zero or negative position size", "size", sizeUsdc)
 		return false
 	}
 	if sizeUsdc > l.cash {
@@ -180,6 +185,10 @@ func (l *Ledger) ClosePaperPosition(marketID string, markets []types.MarketSnaps
 	for i, pos := range l.positions {
 		if pos.MarketID == marketID {
 			exitPrice := currentPrice(markets, pos.MarketID, pos.Side)
+			if exitPrice == 0 {
+				slog.Warn("cannot close position: market not in snapshot", "market", marketID)
+				return 0, false
+			}
 			pnl := pos.Shares*exitPrice - pos.StakeUsdc
 
 			l.cash += pos.StakeUsdc + pnl

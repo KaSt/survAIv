@@ -287,7 +287,44 @@ func (s *State) RecordEquity(snap types.EquitySnapshot) {
 
 // ── JSON serialization (called by handlers) ─────────────────────
 
+// sampleCPU computes CPU usage since last sample.  Must hold a full write lock
+// because it mutates prev* fields.
+func (s *State) sampleCPU() ([]int, float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	numCPU := runtime.NumCPU()
+	if userUs, sysUs, ok := getCPUUsage(); ok {
+		elapsed := time.Since(s.prevCPUTime).Microseconds()
+		if elapsed > 0 {
+			cpuUs := (userUs - s.prevCPUUser) + (sysUs - s.prevCPUSys)
+			totalPct := float64(cpuUs) * 100.0 / float64(elapsed)
+			perCore := int(totalPct / float64(numCPU))
+			if perCore > 100 {
+				perCore = 100
+			}
+			if perCore < 0 {
+				perCore = 0
+			}
+			pcts := make([]int, numCPU)
+			for i := range pcts {
+				pcts[i] = perCore
+			}
+			s.cpuPercent = totalPct
+			s.prevCPUUser = userUs
+			s.prevCPUSys = sysUs
+			s.prevCPUTime = time.Now()
+			return pcts, totalPct
+		}
+		s.prevCPUUser = userUs
+		s.prevCPUSys = sysUs
+		s.prevCPUTime = time.Now()
+	}
+	return make([]int, numCPU), 0
+}
+
 func (s *State) ToJSON() []byte {
+	cpuPcts, _ := s.sampleCPU()
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -347,41 +384,12 @@ func (s *State) ToJSON() []byte {
 		}
 	}
 
-	// System stats + CPU sampling.
+	// System stats.
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	// Sample process CPU usage.
-	numCPU := runtime.NumCPU()
-	var cpuPcts []int
-	if userUs, sysUs, ok := getCPUUsage(); ok {
-		elapsed := time.Since(s.prevCPUTime).Microseconds()
-		if elapsed > 0 {
-			cpuUs := (userUs - s.prevCPUUser) + (sysUs - s.prevCPUSys)
-			totalPct := float64(cpuUs) * 100.0 / float64(elapsed)
-			perCore := int(totalPct / float64(numCPU))
-			if perCore > 100 {
-				perCore = 100
-			}
-			if perCore < 0 {
-				perCore = 0
-			}
-			cpuPcts = make([]int, numCPU)
-			for i := range cpuPcts {
-				cpuPcts[i] = perCore
-			}
-			s.cpuPercent = totalPct
-		}
-		s.prevCPUUser = userUs
-		s.prevCPUSys = sysUs
-		s.prevCPUTime = time.Now()
-	}
-	if cpuPcts == nil {
-		cpuPcts = make([]int, numCPU) // zeros
-	}
-
 	data["sys"] = map[string]interface{}{
-		"cores":       numCPU,
+		"cores":       runtime.NumCPU(),
 		"goroutines":  runtime.NumGoroutine(),
 		"alloc":       memStats.Alloc,
 		"total_alloc": memStats.TotalAlloc,

@@ -116,6 +116,7 @@ func main() {
 	// 11. Start agent loop in background goroutine.
 	go func() {
 		cycle := 0
+		lastResetDay := -1
 		for {
 			select {
 			case <-ctx.Done():
@@ -125,6 +126,14 @@ func main() {
 
 			retryDelay := agnt.RunCycle(ctx)
 			cycle++
+
+			// Reset daily loss accumulator at UTC midnight.
+			today := time.Now().UTC().YearDay()
+			if lastResetDay >= 0 && today != lastResetDay {
+				ldgr.ResetDailyLoss()
+				slog.Info("daily loss reset", "utc_yday", today)
+			}
+			lastResetDay = today
 
 			// Periodically check outcomes and update wisdom rules.
 			if cycle%4 == 0 {

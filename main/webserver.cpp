@@ -6,6 +6,7 @@
 #include "cJSON.h"
 #include "config.h"
 #include "dashboard_state.h"
+#include "json_util.h"
 #include "wallet.h"
 #include "web_assets.h"
 #include "wisdom.h"
@@ -35,9 +36,41 @@ bool g_is_onboard = false;
 struct SseClient {
   int fd = -1;
   bool active = false;
+  int slot = -1;  // self-index for task reference
 };
 SseClient g_sse_clients[kMaxSseClients] = {};
 SemaphoreHandle_t g_sse_mutex = nullptr;
+
+// Keepalive task for SSE: sends heartbeat every 15s using raw socket send
+// so the httpd task stays free for other requests.
+static void SseKeepaliveTask(void *arg) {
+  int slot = reinterpret_cast<intptr_t>(arg);
+  const char *keepalive = ": keepalive\n\n";
+
+  while (true) {
+    vTaskDelay(pdMS_TO_TICKS(15000));
+
+    if (!g_sse_mutex || !g_server) break;
+
+    xSemaphoreTake(g_sse_mutex, portMAX_DELAY);
+    bool active = g_sse_clients[slot].active;
+    int fd = g_sse_clients[slot].fd;
+    xSemaphoreGive(g_sse_mutex);
+
+    if (!active) break;
+
+    int err = httpd_socket_send(g_server, fd, keepalive, strlen(keepalive), 0);
+    if (err < 0) {
+      xSemaphoreTake(g_sse_mutex, portMAX_DELAY);
+      g_sse_clients[slot].active = false;
+      g_sse_clients[slot].fd = -1;
+      ESP_LOGI(kTag, "SSE client disconnected via keepalive (slot=%d)", slot);
+      xSemaphoreGive(g_sse_mutex);
+      break;
+    }
+  }
+  vTaskDelete(nullptr);
+}
 
 // ─── Auth state ─────────────────────────────────────────────────
 static std::string g_pending_pin;
@@ -256,25 +289,38 @@ static esp_err_t ApiWisdomRulesHandler(httpd_req_t *req) {
   return httpd_resp_send(req, resp, strlen(resp));
 }
 
-// SSE endpoint — keeps connection open and sends events.
+// SSE endpoint — registers client and returns immediately so httpd stays responsive.
 static esp_err_t ApiEventsHandler(httpd_req_t *req) {
   REQUIRE_AUTH(req);
-  httpd_resp_set_type(req, "text/event-stream");
-  httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
-  httpd_resp_set_hdr(req, "Connection", "keep-alive");
 
-  // Send initial state.
-  std::string initial = "event: state\ndata: " + GetDashboardState().SseStateEvent() + "\n\n";
-  httpd_resp_send_chunk(req, initial.c_str(), initial.size());
-
-  // Register this socket for SSE push.
   int fd = httpd_req_to_sockfd(req);
+
+  // Send raw HTTP response headers + initial SSE event directly on the socket.
+  // This avoids httpd's chunked encoding so subsequent raw sends are consistent.
+  std::string initial =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/event-stream\r\n"
+      "Cache-Control: no-cache\r\n"
+      "Connection: keep-alive\r\n"
+      "\r\n"
+      "event: state\ndata: " + GetDashboardState().SseStateEvent() + "\n\n";
+
+  int sent = httpd_socket_send(g_server, fd, initial.c_str(), initial.size(), 0);
+  if (sent < 0) {
+    ESP_LOGW(kTag, "SSE initial send failed (fd=%d)", fd);
+    return ESP_OK;
+  }
+
+  // Register this socket for SSE push and spawn a keepalive task.
+  int slot = -1;
   if (g_sse_mutex) {
     xSemaphoreTake(g_sse_mutex, portMAX_DELAY);
     for (int i = 0; i < kMaxSseClients; ++i) {
       if (!g_sse_clients[i].active) {
         g_sse_clients[i].fd = fd;
         g_sse_clients[i].active = true;
+        g_sse_clients[i].slot = i;
+        slot = i;
         ESP_LOGI(kTag, "SSE client connected (fd=%d, slot=%d)", fd, i);
         break;
       }
@@ -282,30 +328,9 @@ static esp_err_t ApiEventsHandler(httpd_req_t *req) {
     xSemaphoreGive(g_sse_mutex);
   }
 
-  // Keep connection alive — the client will receive events via PushSseEvent().
-  // We send a keepalive comment every 15 seconds.
-  while (true) {
-    vTaskDelay(pdMS_TO_TICKS(15000));
-    const char *keepalive = ": keepalive\n\n";
-    esp_err_t err = httpd_send(req, keepalive, strlen(keepalive));
-    if (err != ESP_OK) {
-      // Client disconnected.
-      break;
-    }
-  }
-
-  // Unregister.
-  if (g_sse_mutex) {
-    xSemaphoreTake(g_sse_mutex, portMAX_DELAY);
-    for (int i = 0; i < kMaxSseClients; ++i) {
-      if (g_sse_clients[i].fd == fd) {
-        g_sse_clients[i].active = false;
-        g_sse_clients[i].fd = -1;
-        ESP_LOGI(kTag, "SSE client disconnected (slot=%d)", i);
-        break;
-      }
-    }
-    xSemaphoreGive(g_sse_mutex);
+  if (slot >= 0) {
+    xTaskCreate(SseKeepaliveTask, "sse_ka", 2048,
+                reinterpret_cast<void *>(static_cast<intptr_t>(slot)), 5, nullptr);
   }
 
   return ESP_OK;
@@ -341,7 +366,7 @@ static esp_err_t ApiScanHandler(httpd_req_t *req) {
   for (int i = 0; i < ap_count; ++i) {
     if (i > 0) json += ",";
     json += "{\"ssid\":\"";
-    json += reinterpret_cast<const char *>(records[i].ssid);
+    json += JsonEscape(reinterpret_cast<const char *>(records[i].ssid));
     json += "\",\"rssi\":";
     json += std::to_string(records[i].rssi);
     json += "}";
@@ -964,7 +989,7 @@ void StartDashboard(int port) {
 
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = port;
-  config.max_uri_handlers = 40;
+  config.max_uri_handlers = 48;
   config.lru_purge_enable = true;
   config.max_open_sockets = 7;
   config.recv_wait_timeout = 30;   // 30s — needed for OTA uploads over slow WiFi

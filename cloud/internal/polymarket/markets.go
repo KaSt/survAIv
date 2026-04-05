@@ -19,6 +19,11 @@ func FetchMarkets(ctx context.Context, client *httpclient.Client, limit, offset 
 	if order == "" {
 		order = "liquidity"
 	}
+	if limit <= 0 {
+		limit = 4
+	} else if limit > 100 {
+		limit = 100
+	}
 
 	url := fmt.Sprintf("%s?active=true&closed=false&ascending=false&limit=%d&offset=%d&order=%s",
 		marketsBaseURL, limit, offset, order)

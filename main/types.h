@@ -15,6 +15,7 @@ struct HttpResponse {
   std::string body;
   std::map<std::string, std::string> headers;
   esp_err_t err = ESP_OK;
+  bool truncated = false;
 };
 
 struct HttpContext {
@@ -54,7 +55,7 @@ struct ToolCall {
   std::string tool;       // "search_markets" or "search_news"
   // search_markets fields
   std::string order = "liquidity";
-  int limit = 6;
+  int limit = 4;
   int offset = 0;
   // search_news fields
   std::string query;

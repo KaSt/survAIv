@@ -156,13 +156,16 @@ func ParseToolCall(text string) types.ToolCall {
 			}
 			if args.Limit > 0 {
 				tc.Limit = int(args.Limit)
-				if tc.Limit > 12 {
-					tc.Limit = 12
+				if tc.Limit > 50 {
+					tc.Limit = 50
 				}
 			}
 			if args.Offset >= 0 {
 				tc.Offset = int(args.Offset)
 			}
+		}
+		if tc.Limit <= 0 {
+			tc.Limit = 4
 		}
 	} else if raw.Tool == "search_news" {
 		var args struct {

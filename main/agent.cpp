@@ -312,8 +312,10 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
         ESP_LOGE(kTag, "x402 payment construction failed");
         return false;
       }
-      headers.emplace_back("X-PAYMENT", payment);
-      response = HttpRequest(url, HTTP_METHOD_POST, headers, body.str(), kLlmTimeoutMs);
+      // Build fresh headers with the payment to avoid stale duplicates.
+      auto paid_headers = headers;
+      paid_headers.emplace_back("X-PAYMENT", payment);
+      response = HttpRequest(url, HTTP_METHOD_POST, paid_headers, body.str(), kLlmTimeoutMs);
       GetDashboardState().SetInferenceSpend(x402::TotalSpentUsdc());
     }
 
@@ -407,7 +409,7 @@ ToolCall ParseToolCall(const std::string &json_text) {
       int offset =
           static_cast<int>(JsonToDouble(cJSON_GetObjectItemCaseSensitive(arguments, "offset")));
       if (limit > 0) {
-        call.limit = std::min(limit, 12);
+        call.limit = std::min(limit, config::MarketLimit());
       }
       if (offset >= 0) {
         call.offset = offset;
@@ -789,6 +791,10 @@ int RunAgentCycle(BudgetLedger *ledger) {
       ESP_LOGW(kTag, "Live buy rejected: paper-only mode is active.");
       return 0;
     }
+    if (ledger->OpenPositionCount() >= config::MaxOpenPositions()) {
+      ESP_LOGI(kTag, "Live buy rejected: max open positions reached.");
+      return 0;
+    }
     if (InCooldown()) {
       ESP_LOGW(kTag, "Live buy rejected: in post-loss cooldown.");
       return 0;
@@ -825,7 +831,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
       price = market->yes_price;
     } else {
       token_id = market->clob_token_no;
-      price = 1.0 - market->yes_price;
+      price = market->no_price;
     }
 
     if (token_id.empty() || price <= 0.0 || price >= 1.0) {

@@ -189,8 +189,22 @@ extern "C" void app_main(void) {
   });
 
   int cycle = 0;
+  int last_reset_day = -1;  // Track last daily-loss reset (UTC day-of-year).
   while (true) {
     int retry_delay = survaiv::RunAgentCycle(&ledger);
+
+    // Reset daily loss accumulator at UTC midnight.
+    {
+      time_t now;
+      time(&now);
+      struct tm utc;
+      gmtime_r(&now, &utc);
+      if (utc.tm_yday != last_reset_day && last_reset_day >= 0) {
+        ledger.ResetDailyLoss();
+        ESP_LOGI("main", "Daily loss reset (new UTC day %d)", utc.tm_yday);
+      }
+      last_reset_day = utc.tm_yday;
+    }
 
     // Check market outcomes and update wisdom every 4th cycle.
     if (++cycle % 4 == 0) {

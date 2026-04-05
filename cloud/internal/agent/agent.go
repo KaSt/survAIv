@@ -576,7 +576,8 @@ func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userProm
 }
 
 func isPaperBuy(t string) bool {
-	return t == "paper_buy_yes" || t == "paper_buy_no"
+	return t == "paper_buy_yes" || t == "paper_buy_no" ||
+		t == "buy_yes" || t == "buy_no"
 }
 
 func headersToMap(h map[string][]string) map[string]string {

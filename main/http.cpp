@@ -17,7 +17,7 @@ namespace survaiv {
 
 namespace {
 constexpr const char *kTag = "survaiv_http";
-#if CONFIG_SPIRAM || CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_SPIRAM
 constexpr size_t kMaxBodySize = 512 * 1024;   // boards with PSRAM
 constexpr size_t kMinFreeHeap = 40 * 1024;
 #else
@@ -303,6 +303,7 @@ HttpResponse HttpRequest(const std::string &url, esp_http_client_method_t method
     int code = esp_http_client_get_status_code(client);
     response.status_code = code > 0 ? code : 200;
     response.err = ESP_OK;
+    response.truncated = true;
     ESP_LOGW(kTag, "Response truncated for %s (%uB kept)",
              url.c_str(), static_cast<unsigned>(response.body.size()));
   } else {
