@@ -513,12 +513,16 @@ function updateState(d) {
   if (lks) {
     if (d.oai_url) {
       lks.className = 'key-status configured';
-      lks.textContent = '\u2713 Configured';
+      lks.textContent = d.has_api_key ? '\u2713 Configured' : '\u2713 URL set (no key)';
     } else {
       lks.className = 'key-status missing';
       lks.textContent = 'Not configured';
     }
   }
+  var cfgUrl = document.getElementById('cfg-url');
+  var cfgModel = document.getElementById('cfg-model');
+  if (d.oai_url && cfgUrl && !cfgUrl.dataset.touched) cfgUrl.value = d.oai_url;
+  if (d.oai_model && cfgModel && !cfgModel.dataset.touched) cfgModel.value = d.oai_model;
   var walletSec = document.getElementById('wallet-section');
   if (walletSec) walletSec.style.display = d.live_mode ? 'block' : 'none';
   if (d.wallet) {

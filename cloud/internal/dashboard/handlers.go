@@ -133,6 +133,9 @@ func handleState(state *State, cfg *config.Config) http.HandlerFunc {
 		data["news_provider"] = cfg.NewsProvider()
 		data["has_news_key"] = cfg.NewsAPIKey() != ""
 		data["tool_usage"] = cfg.ToolUsageLevel()
+		data["oai_url"] = cfg.OaiURL
+		data["oai_model"] = cfg.OaiModel
+		data["has_api_key"] = cfg.ApiKey != ""
 		data["telemetry_url"] = cfg.TelemetryUrl()
 		data["telemetry_sec"] = cfg.TelemetryInterval()
 		b, _ := json.Marshal(data)

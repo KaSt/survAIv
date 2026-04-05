@@ -309,6 +309,11 @@ std::string DashboardState::ToJson() const {
   // Tool usage level for settings UI.
   o << ",\"tool_usage\":" << config::ToolUsageLevel();
 
+  // LLM endpoint config for settings UI.
+  o << ",\"oai_url\":\"" << JsonEscape(config::OpenaiBaseUrl()) << "\""
+    << ",\"oai_model\":\"" << JsonEscape(config::OpenaiModel()) << "\""
+    << ",\"has_api_key\":" << (config::ApiKey().empty() ? "false" : "true");
+
   // News search config presence.
   o << ",\"news_provider\":\"" << JsonEscape(config::NewsProvider()) << "\"";
   o << ",\"has_news_key\":" << (config::NewsApiKey().empty() ? "false" : "true");

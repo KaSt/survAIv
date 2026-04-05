@@ -826,12 +826,14 @@ function updateState(s) {
   if (lks) {
     if (s.oai_url) {
       lks.className = 'key-status configured';
-      lks.textContent = '✓ Configured';
+      lks.textContent = s.has_api_key ? '✓ Configured' : '✓ URL set (no key)';
     } else {
       lks.className = 'key-status missing';
       lks.textContent = 'Not configured';
     }
   }
+  if (s.oai_url && !$('cfg-url').dataset.touched) $('cfg-url').value = s.oai_url;
+  if (s.oai_model && !$('cfg-model').dataset.touched) $('cfg-model').value = s.oai_model;
 
   // Tool usage slider
   const tus = $('tool-usage-slider');
