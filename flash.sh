@@ -20,6 +20,7 @@ MONITOR=false
 NO_OTA=false
 OTA_IP=""
 BUILD_ONLY=false
+JUST_FLASH=false
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -35,6 +36,7 @@ while [[ $# -gt 0 ]]; do
     --flash-ota)   OTA_IP="$2"; shift 2 ;;
     --flash-ota=*) OTA_IP="${1#*=}"; shift ;;
     --build-only)  BUILD_ONLY=true; shift ;;
+    --just-flash)  JUST_FLASH=true; shift ;;
     --list)
       echo "Available boards:"
       for b in "${ALL_BOARDS[@]}"; do
@@ -57,6 +59,7 @@ while [[ $# -gt 0 ]]; do
       echo "                       Device must be running with OTA enabled. Port 80 default;"
       echo "                       use ip:port for custom port (e.g. 192.168.1.42:8080)"
       echo "  --build-only         Build firmware without flashing"
+      echo "  --just-flash         Flash existing binary without rebuilding"
       echo "  --wallet <hex>       Provision wallet private key (64 hex chars)"
       echo "  -m, --monitor        Open serial monitor after flash"
       echo "  --list               List all supported boards"
@@ -73,6 +76,7 @@ while [[ $# -gt 0 ]]; do
       echo "  ./flash.sh --board s3 --wallet <key> -m        # core — S3 + wallet + monitor"
       echo "  ./flash.sh --board c3 --flash-ota 192.168.1.42 # pico — OTA flash over WiFi"
       echo "  ./flash.sh --board s3 --build-only             # core — build only, no flash"
+      echo "  ./flash.sh --board s3 --just-flash             # core — flash last build, skip rebuild"
       exit 0
       ;;
     *) POSITIONAL+=("$1"); shift ;;
@@ -92,6 +96,10 @@ fi
 # ── OTA flash conflicts ──────────────────────────────────────
 if [[ -n "$OTA_IP" && "$NO_OTA" == "true" ]]; then
   echo "❌ Cannot use --flash-ota with --no-ota (device must have OTA partitions)"
+  exit 1
+fi
+if $BUILD_ONLY && $JUST_FLASH; then
+  echo "❌ Cannot use --build-only with --just-flash"
   exit 1
 fi
 
@@ -134,31 +142,17 @@ if [[ -n "$WALLET_KEY" ]]; then
 fi
 echo ""
 
-# Check IDF environment.
-if ! command -v idf.py &>/dev/null; then
-  echo "❌ idf.py not found. Source ESP-IDF first:"
-  echo "   . \$IDF_PATH/export.sh"
-  exit 1
+# Check IDF environment (not needed for --just-flash with OTA).
+if ! $JUST_FLASH || [[ -z "$OTA_IP" ]]; then
+  if ! command -v idf.py &>/dev/null; then
+    echo "❌ idf.py not found. Source ESP-IDF first:"
+    echo "   . \$IDF_PATH/export.sh"
+    exit 1
+  fi
 fi
 
 # Move to board build directory.
 cd "$SCRIPT_DIR/$BUILD_DIR"
-
-idf.py set-target "$TARGET"
-
-# ── Build with optional no-OTA overlay ──────────────────────────
-BUILD_ARGS=()
-if $NO_OTA; then
-  if [[ ! -f "sdkconfig.defaults.no_ota" ]]; then
-    echo "❌ No-OTA overlay not found: $BUILD_DIR/sdkconfig.defaults.no_ota"
-    exit 1
-  fi
-  BUILD_ARGS+=(-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.no_ota")
-  rm -f sdkconfig
-fi
-
-echo "── Building ──────────────────────"
-idf.py "${BUILD_ARGS[@]}" build
 
 # Locate the output .bin — project name varies per board (survaiv.bin, survaiv-s3.bin, etc.)
 find_bin() {
@@ -166,6 +160,32 @@ find_bin() {
   f="$(find "$(pwd)/build" -maxdepth 1 -name 'survaiv*.bin' ! -name 'bootloader*' | head -1)"
   echo "$f"
 }
+
+# ── Build (skip if --just-flash) ────────────────────────────────
+if $JUST_FLASH; then
+  BIN_PATH="$(find_bin)"
+  if [[ -z "$BIN_PATH" || ! -f "$BIN_PATH" ]]; then
+    echo "❌ No existing binary found in $(pwd)/build/ — run a build first"
+    exit 1
+  fi
+  echo "── Skipping build (--just-flash) ──"
+  echo "   Binary: $BIN_PATH ($(du -h "$BIN_PATH" | cut -f1 | tr -d ' '))"
+else
+  idf.py set-target "$TARGET"
+
+  BUILD_ARGS=()
+  if $NO_OTA; then
+    if [[ ! -f "sdkconfig.defaults.no_ota" ]]; then
+      echo "❌ No-OTA overlay not found: $BUILD_DIR/sdkconfig.defaults.no_ota"
+      exit 1
+    fi
+    BUILD_ARGS+=(-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.no_ota")
+    rm -f sdkconfig
+  fi
+
+  echo "── Building ──────────────────────"
+  idf.py "${BUILD_ARGS[@]}" build
+fi
 
 # ── Flash method ────────────────────────────────────────────────
 if $BUILD_ONLY; then
