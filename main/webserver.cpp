@@ -1,6 +1,7 @@
 #include "webserver.h"
 
 #include <cstring>
+#include <unistd.h>
 #include <vector>
 
 #include "cJSON.h"
@@ -40,6 +41,23 @@ struct SseClient {
 };
 SseClient g_sse_clients[kMaxSseClients] = {};
 SemaphoreHandle_t g_sse_mutex = nullptr;
+
+// Cleanup callback — httpd calls this when any session socket is closed.
+// Ensures SSE slot is released so the keepalive task exits promptly.
+static void SseCloseCallback(httpd_handle_t hd, int fd) {
+  if (g_sse_mutex) {
+    xSemaphoreTake(g_sse_mutex, portMAX_DELAY);
+    for (int i = 0; i < kMaxSseClients; ++i) {
+      if (g_sse_clients[i].active && g_sse_clients[i].fd == fd) {
+        g_sse_clients[i].active = false;
+        g_sse_clients[i].fd = -1;
+        ESP_LOGI(kTag, "SSE slot %d released (fd=%d closed by httpd)", i, fd);
+      }
+    }
+    xSemaphoreGive(g_sse_mutex);
+  }
+  close(fd);
+}
 
 // Keepalive task for SSE: sends heartbeat every 15s using raw socket send
 // so the httpd task stays free for other requests.
@@ -991,10 +1009,11 @@ void StartDashboard(int port) {
   config.server_port = port;
   config.max_uri_handlers = 48;
   config.lru_purge_enable = true;
-  config.max_open_sockets = 7;
+  config.max_open_sockets = 4;
   config.recv_wait_timeout = 30;   // 30s — needed for OTA uploads over slow WiFi
   config.send_wait_timeout = 30;
   config.stack_size = 8192;        // OTA handler needs more stack for 4KB buffer
+  config.close_fn = SseCloseCallback;
 
   if (httpd_start(&g_server, &config) != ESP_OK) {
     ESP_LOGE(kTag, "Failed to start dashboard server");
