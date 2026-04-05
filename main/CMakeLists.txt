@@ -1,3 +1,9 @@
+set(_requires app_update esp_event esp_http_client esp_http_server esp_netif esp_timer esp_wifi json mbedtls nvs_flash)
+
+if(SURVAIV_HAS_DISPLAY OR DEFINED ENV{SURVAIV_DISPLAY})
+    list(APPEND _requires screen)
+endif()
+
 idf_component_register(
     SRCS "main.cpp"
          "json_util.cpp"
@@ -20,5 +26,5 @@ idf_component_register(
          "wisdom.cpp"
          "news.cpp"
     INCLUDE_DIRS "."
-    REQUIRES app_update esp_event esp_http_client esp_http_server esp_netif esp_timer esp_wifi json mbedtls nvs_flash
+    REQUIRES ${_requires}
 )

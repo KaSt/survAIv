@@ -12,6 +12,9 @@ Three deployment targets, one codebase philosophy:
 |----------|----------|------|--------|
 | **ESP32-C3** | Seeed XIAO · 400 KB SRAM · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
 | **ESP32-S3** | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
+| **T-QT Pro** | ESP32-S3 · 2 MB PSRAM · 4 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
+| **AtomS3** | ESP32-S3 · 8 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
+| **StickC PLUS2** | ESP32 · 2 MB PSRAM · 8 MB flash · 1.14" LCD | Shares C3 source | ✅ Ready |
 | **Cloud / TUI** | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
 
 ## How It Works
@@ -81,6 +84,7 @@ Every cycle the agent:
 - **Captive portal onboarding** — wizard guides through WiFi, trading mode, provider, wallet setup.
 - **OTA firmware updates** — dual-partition layout, upload via dashboard.
 - **mDNS resolution** — connects to `.local` hostnames for local LLM servers.
+- **On-board LCD display** — boards with screens (T-QT Pro, AtomS3, StickC PLUS2) show live stats: equity, P&L, positions, cycle count, and mode badge. 30-second auto-dim with button wake. Powered by [LovyanGFX](https://github.com/lovyan03/LovyanGFX).
 
 ### Cloud Specific
 - **Bubbletea TUI** — full terminal UI with budget cards, positions, market scanner, decision log, wisdom stats. Dark/light themes.
@@ -128,6 +132,29 @@ cd s3
 ```
 
 Same firmware, higher limits: 50 markets (vs 6), 512 KB HTTP bodies, full provider catalog.
+
+### Boards with Displays
+
+Three boards include on-device LCD screens showing live agent stats:
+
+| Board | SoC | Screen | Resolution | Buttons |
+|-------|-----|--------|------------|---------|
+| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | ESP32-S3 | 0.85" GC9107 | 128×128 | 2 (GPIO0, GPIO47) |
+| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | ESP32-S3 | 0.85" GC9107 | 128×128 | 1 (GPIO41) |
+| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | ESP32 | 1.14" ST7789V2 | 135×240 | 2 (GPIO37, GPIO39) |
+
+```bash
+. $IDF_PATH/export.sh
+
+cd tqt       # LilyGO T-QT Pro
+cd atoms3    # M5Stack AtomS3
+cd stickc2   # M5StickC PLUS2
+
+./flash.sh       # build + flash (auto-fetches LovyanGFX on first build)
+./flash.sh -m    # with monitor
+```
+
+The screen auto-dims after 30 seconds of inactivity; press any button to wake it.
 
 ### Cloud / TUI
 
@@ -362,7 +389,10 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 |----------|---------|-------------|--------|----------|--------|-----------|
 | ESP32-C3 (OTA) | 2 | 0 | 0 | 2 | 1 | **~12** |
 | ESP32-C3 (no-OTA) | 4 | 0 | 0 | 5 | 4 | **~22** |
-| ESP32-S3 | 8 | 5 | 0 | 20 | 7 | **~38** |
+| T-QT Pro | 8 | 5 | 0 | 20 | 7 | **~38** |
+| AtomS3 | 8 | 5 | 0 | 20 | 7 | **~38** |
+| StickC PLUS2 | 4 | 0 | 0 | 5 | 4 | **~22** |
+| ESP32-S3 N16R8 | 8 | 5 | 0 | 20 | 7 | **~38** |
 | Cloud (4-core, 128K model) | 30 | 10 | 10–15 | 8 | 15 | **~75** |
 | Cloud (8-core, 128K model) | 30 | 20 | 15 | 8 | 15 | **~88** |
 | Cloud (8-core, 1M model) | 30 | 20 | 15 | 20 | 15 | **~100** |
@@ -432,6 +462,17 @@ s3/                       — ESP32-S3 build variant (shares main/ source)
 ├── partitions.csv        — 16 MB flash layout (2×7 MB OTA slots)
 ├── sdkconfig.defaults    — S3 + PSRAM config
 └── flash.sh              — S3 build/flash script
+
+tqt/                      — LilyGO T-QT Pro (ESP32-S3, 128×128 GC9107 LCD)
+atoms3/                   — M5Stack AtomS3 (ESP32-S3, 128×128 GC9107 LCD)
+stickc2/                  — M5StickC PLUS2 (ESP32, 135×240 ST7789V2 LCD)
+└── Each: CMakeLists.txt, sdkconfig.defaults, partitions.csv, flash.sh
+
+boards/
+├── screen/               — LovyanGFX display driver component
+│   ├── screen.cpp        — Per-board pin configs, layout rendering, backlight/button handling
+│   └── include/screen.h  — ScreenData struct, public API
+└── LovyanGFX/            — Auto-cloned on first display-board build (gitignored)
 ```
 
 ### Cloud — `cloud/`
@@ -460,21 +501,19 @@ cloud/
 
 ## Platform Differences
 
-| Feature | C3 (OTA) | C3 (no-OTA) | S3 | Cloud |
-|---------|----------|-------------|----|----|
-| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | adaptive (up to 32K) |
-| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
-| Markets per scan | 6 | 12 | 50 | adaptive (up to 50) |
-| HTTP body size | 64 KB | 128 KB | 512 KB | unlimited |
-| Wisdom budget | 800 B | 2,000 B | 4,000 B | 8,000 B |
-| Parallel execution | — | — | — | ≥4 cores |
-| Model registry | 40 dynamic | 80 dynamic | 200 dynamic | unlimited |
-| OTA updates | ✅ | — | ✅ | N/A |
-| x402 providers | tx402 only* | tx402 only* | all 4 | all 4 |
-| Persistence | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
-| UI | Web dashboard | Web dashboard | Web dashboard | TUI + web |
-| Efficiency score | ~12 | ~22 | ~38 | ~75–100 |
-| Deployment | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
+| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+ 2 | Cloud |
+|---------|----------|-------------|----|----|----|----|-----|
+| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 8,000 tok | 8,000 tok | 4,000 tok | adaptive (up to 32K) |
+| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
+| Markets per scan | 6 | 12 | 50 | 50 | 50 | 12 | adaptive (up to 50) |
+| HTTP body size | 64 KB | 128 KB | 512 KB | 64 KB | 512 KB | 128 KB | unlimited |
+| Wisdom budget | 800 B | 2,000 B | 4,000 B | 4,000 B | 4,000 B | 2,000 B | 8,000 B |
+| On-board LCD | — | — | — | 128×128 | 128×128 | 135×240 | N/A |
+| OTA updates | ✅ | — | ✅ | ✅ | ✅ | ✅ | N/A |
+| x402 providers | tx402 only* | tx402 only* | all 4 | tx402 only* | all 4 | tx402 only* | all 4 |
+| Persistence | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
+| UI | Web dashboard | Web dashboard | Web dashboard | LCD + web | LCD + web | LCD + web | TUI + web |
+| Deployment | USB flash | USB flash | USB flash | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
 
 \* x402engine catalog too large for C3's 400 KB SRAM.
 

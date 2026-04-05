@@ -72,6 +72,10 @@ class DashboardState {
   std::string EquityHistoryJson() const;
   std::string ScoutedMarketsJson() const;
 
+  // Budget accessors for on-board display.
+  double GetEquity() const;
+  double GetCash() const;
+
   // Read current inference spend.
   double InferenceSpentUsdc() const;
 

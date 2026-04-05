@@ -172,6 +172,20 @@ double DashboardState::InferenceSpentUsdc() const {
   return val;
 }
 
+double DashboardState::GetEquity() const {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  double val = equity_;
+  xSemaphoreGive(mutex_);
+  return val;
+}
+
+double DashboardState::GetCash() const {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  double val = cash_;
+  xSemaphoreGive(mutex_);
+  return val;
+}
+
 void DashboardState::IncrementCycleCount() {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   cycle_count_++;

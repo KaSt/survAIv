@@ -27,6 +27,10 @@
 #include "nvs_flash.h"
 #include "sdkconfig.h"
 
+#ifdef CONFIG_SURVAIV_HAS_DISPLAY
+#include "screen.h"
+#endif
+
 namespace {
 constexpr const char *kTag = "survaiv";
 }
@@ -39,6 +43,7 @@ extern "C" void app_main(void) {
   esp_chip_info(&chip);
   const char *chip_name = "ESP32";
   switch (chip.model) {
+    case CHIP_ESP32:   chip_name = "ESP32";    break;
     case CHIP_ESP32C3: chip_name = "ESP32-C3"; break;
     case CHIP_ESP32S3: chip_name = "ESP32-S3"; break;
     default: break;
@@ -97,6 +102,11 @@ extern "C" void app_main(void) {
   // Start the dashboard web server.
   survaiv::webserver::StartDashboard(80);
   ESP_LOGI(kTag, "Dashboard available at http://<device-ip>/");
+
+#ifdef CONFIG_SURVAIV_HAS_DISPLAY
+  screen_init();
+  ESP_LOGI(kTag, "On-board display initialised");
+#endif
 
   // Register provider adapters (must happen before x402::IsConfigured).
   survaiv::providers::Init();
@@ -181,6 +191,40 @@ extern "C" void app_main(void) {
     survaiv::GetDashboardState().SetNextCycleEpoch(
         static_cast<int64_t>(now) + delay_sec);
 
+#ifdef CONFIG_SURVAIV_HAS_DISPLAY
+    // Update on-board display after each cycle.
+    {
+      auto &ds = survaiv::GetDashboardState();
+      double equity = ds.GetEquity();
+      double cash   = ds.GetCash();
+      double start  = static_cast<double>(
+          survaiv::config::StartingBankrollCents()) / 100.0;
+      ScreenData sd = {};
+      sd.status         = "Running";
+      sd.countdown_secs = delay_sec;
+      sd.equity         = static_cast<float>(equity);
+      sd.cash           = static_cast<float>(cash);
+      sd.pnl            = static_cast<float>(equity - start);
+      sd.pnl_pct        = start > 0
+                            ? static_cast<float>((equity - start) / start * 100.0)
+                            : 0.0f;
+      sd.cycle          = cycle;
+      sd.positions      = static_cast<int>(ledger.OpenPositionCount());
+      sd.max_positions  = survaiv::config::MaxOpenPositions();
+      sd.last_action    = "";
+      sd.accuracy_correct = 0;
+      sd.accuracy_total   = 0;
+      sd.paper_mode     = survaiv::config::PaperTradingOnly();
+      screen_update(sd);
+    }
+
+    // Sleep in 1-second increments so button checks stay responsive.
+    for (int remaining = delay_sec; remaining > 0; --remaining) {
+      screen_check_buttons();
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+#else
     vTaskDelay(pdMS_TO_TICKS(delay_sec * 1000));
+#endif
   }
 }

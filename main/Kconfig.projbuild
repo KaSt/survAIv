@@ -137,4 +137,51 @@ config SURVAIV_COOLDOWN_AFTER_LOSS_SECONDS
 
 endmenu
 
+menu "On-board Display"
+
+config SURVAIV_HAS_DISPLAY
+    bool "Board has built-in display"
+    default n
+    help
+        Enable LCD display support for boards with built-in screens.
+        Requires the screen component in EXTRA_COMPONENT_DIRS.
+
+choice SURVAIV_DISPLAY_TYPE
+    prompt "Display controller and board"
+    depends on SURVAIV_HAS_DISPLAY
+
+config SURVAIV_DISPLAY_GC9107_TQT
+    bool "LilyGO T-QT Pro (128x128 GC9107)"
+    help
+        0.85 inch 128x128 IPS LCD with GC9107 controller.
+        SPI pins: SCLK=3, MOSI=2, DC=6, CS=5, RST=1, BL=10.
+        Buttons: GPIO0 (BOOT) + GPIO47.
+
+config SURVAIV_DISPLAY_GC9107_ATOMS3
+    bool "M5Stack AtomS3 (128x128 GC9107)"
+    help
+        0.85 inch 128x128 IPS LCD with GC9107 controller.
+        SPI pins: SCK=17, MOSI=21, DC=33, CS=15, RST=34, BL=16.
+        Button: GPIO41 (programmable, under screen).
+
+config SURVAIV_DISPLAY_ST7789_STICKC2
+    bool "M5StickC PLUS2 (135x240 ST7789V2)"
+    help
+        1.14 inch 135x240 TFT LCD with ST7789V2 controller.
+        SPI pins: CLK=13, MOSI=15, DC=14, CS=5, RST=12, BL=27.
+        Buttons: A=GPIO37, B=GPIO39.
+
+endchoice
+
+config SURVAIV_SCREEN_TIMEOUT_SEC
+    int "Screen auto-off timeout (seconds)"
+    depends on SURVAIV_HAS_DISPLAY
+    range 5 300
+    default 30
+    help
+        Turn off the backlight after this many seconds of inactivity.
+        Any button press wakes the display.
+
+endmenu
+
 endmenu
