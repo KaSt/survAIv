@@ -5,12 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 # ── Board registry ────────────────────────────────────────────
 # Each board: dir | target | label | display info
 declare -A BOARD_DIR BOARD_TARGET BOARD_LABEL BOARD_DISPLAY
-BOARD_DIR[c3]="."           ; BOARD_TARGET[c3]="esp32c3"  ; BOARD_LABEL[c3]="ESP32-C3 (Seeed XIAO)"         ; BOARD_DISPLAY[c3]=""
-BOARD_DIR[s3]="s3"          ; BOARD_TARGET[s3]="esp32s3"  ; BOARD_LABEL[s3]="ESP32-S3 N16R8"                ; BOARD_DISPLAY[s3]=""
-BOARD_DIR[tqt]="tqt"        ; BOARD_TARGET[tqt]="esp32s3" ; BOARD_LABEL[tqt]="LilyGO T-QT Pro"              ; BOARD_DISPLAY[tqt]="128×128 GC9107"
-BOARD_DIR[atoms3]="atoms3"  ; BOARD_TARGET[atoms3]="esp32s3"; BOARD_LABEL[atoms3]="M5Stack AtomS3"           ; BOARD_DISPLAY[atoms3]="128×128 GC9107"
-BOARD_DIR[stickc2]="stickc2"; BOARD_TARGET[stickc2]="esp32"; BOARD_LABEL[stickc2]="M5StickC PLUS2"           ; BOARD_DISPLAY[stickc2]="135×240 ST7789V2"
-BOARD_DIR[c3oled]="c3oled"  ; BOARD_TARGET[c3oled]="esp32c3"; BOARD_LABEL[c3oled]="ESP32-C3 SuperMini OLED"  ; BOARD_DISPLAY[c3oled]="72×40 SSD1306"
+BOARD_DIR[c3]="."           ; BOARD_TARGET[c3]="esp32c3"  ; BOARD_LABEL[c3]="pico · ESP32-C3 SuperMini"     ; BOARD_DISPLAY[c3]=""
+BOARD_DIR[s3]="s3"          ; BOARD_TARGET[s3]="esp32s3"  ; BOARD_LABEL[s3]="core · ESP32-S3 N16R8"         ; BOARD_DISPLAY[s3]=""
+BOARD_DIR[tqt]="tqt"        ; BOARD_TARGET[tqt]="esp32s3" ; BOARD_LABEL[tqt]="nano · LilyGO T-QT Pro"      ; BOARD_DISPLAY[tqt]="128×128 GC9107"
+BOARD_DIR[atoms3]="atoms3"  ; BOARD_TARGET[atoms3]="esp32s3"; BOARD_LABEL[atoms3]="atom · M5Stack AtomS3"    ; BOARD_DISPLAY[atoms3]="128×128 GC9107"
+BOARD_DIR[stickc2]="stickc2"; BOARD_TARGET[stickc2]="esp32"; BOARD_LABEL[stickc2]="spark · M5StickC PLUS2"   ; BOARD_DISPLAY[stickc2]="135×240 ST7789V2"
+BOARD_DIR[c3oled]="c3oled"  ; BOARD_TARGET[c3oled]="esp32c3"; BOARD_LABEL[c3oled]="dot · ESP32-C3 SuperMini OLED"; BOARD_DISPLAY[c3oled]="72×40 SSD1306"
 ALL_BOARDS=(c3 s3 tqt atoms3 stickc2 c3oled)
 
 # ── Parse arguments ───────────────────────────────────────────
@@ -54,12 +54,14 @@ while [[ $# -gt 0 ]]; do
       echo "  -h, --help       Show this help"
       echo ""
       echo "Examples:"
-      echo "  ./flash.sh                              # C3 with OTA"
-      echo "  ./flash.sh --board c3 --no-ota          # C3 without OTA"
-      echo "  ./flash.sh --board tqt -m               # T-QT Pro + monitor"
-      echo "  ./flash.sh --board stickc2 --no-ota     # StickC PLUS2 without OTA"
-      echo "  ./flash.sh --board c3oled                # C3 SuperMini OLED"
-      echo "  ./flash.sh --board s3 --wallet <key> -m  # S3 + wallet + monitor"
+      echo "  ./flash.sh                              # pico — C3 (default, OTA)"
+      echo "  ./flash.sh --board c3 --no-ota          # pico — C3 (no OTA)"
+      echo "  ./flash.sh --board s3                    # core — S3 N16R8"
+      echo "  ./flash.sh --board tqt -m               # nano — T-QT Pro + monitor"
+      echo "  ./flash.sh --board atoms3               # atom — AtomS3"
+      echo "  ./flash.sh --board stickc2 --no-ota     # spark — StickC PLUS2 (no OTA)"
+      echo "  ./flash.sh --board c3oled                # dot — C3 SuperMini OLED"
+      echo "  ./flash.sh --board s3 --wallet <key> -m  # core — S3 + wallet + monitor"
       exit 0
       ;;
     *) POSITIONAL+=("$1"); shift ;;

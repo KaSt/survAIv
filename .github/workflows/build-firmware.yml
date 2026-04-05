@@ -16,66 +16,66 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: esp32c3-ota
+          - name: pico-ota
             target: esp32c3
             build_dir: .
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-esp32c3-ota
-          - name: esp32c3-no-ota
+            artifact: survaiv-pico-ota
+          - name: pico-no-ota
             target: esp32c3
             build_dir: .
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-esp32c3-no-ota
-          - name: esp32s3
+            artifact: survaiv-pico-no-ota
+          - name: core
             target: esp32s3
             build_dir: s3
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-esp32s3
-          - name: esp32s3-no-ota
+            artifact: survaiv-core
+          - name: core-no-ota
             target: esp32s3
             build_dir: s3
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-esp32s3-no-ota
-          - name: tqt-pro
+            artifact: survaiv-core-no-ota
+          - name: nano
             target: esp32s3
             build_dir: tqt
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-tqt-pro
-          - name: tqt-pro-no-ota
+            artifact: survaiv-nano
+          - name: nano-no-ota
             target: esp32s3
             build_dir: tqt
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-tqt-pro-no-ota
-          - name: atoms3
+            artifact: survaiv-nano-no-ota
+          - name: atom
             target: esp32s3
             build_dir: atoms3
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-atoms3
-          - name: atoms3-no-ota
+            artifact: survaiv-atom
+          - name: atom-no-ota
             target: esp32s3
             build_dir: atoms3
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-atoms3-no-ota
-          - name: stickc-plus2
+            artifact: survaiv-atom-no-ota
+          - name: spark
             target: esp32
             build_dir: stickc2
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-stickc-plus2
-          - name: stickc-plus2-no-ota
+            artifact: survaiv-spark
+          - name: spark-no-ota
             target: esp32
             build_dir: stickc2
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-stickc-plus2-no-ota
-          - name: c3-oled
+            artifact: survaiv-spark-no-ota
+          - name: dot
             target: esp32c3
             build_dir: c3oled
             sdkconfig_defaults: sdkconfig.defaults
-            artifact: survaiv-c3-oled
-          - name: c3-oled-no-ota
+            artifact: survaiv-dot
+          - name: dot-no-ota
             target: esp32c3
             build_dir: c3oled
             sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
-            artifact: survaiv-c3-oled-no-ota
+            artifact: survaiv-dot-no-ota
 
     steps:
       - uses: actions/checkout@v4
@@ -231,7 +231,7 @@ jobs:
         run: |
           mkdir -p site/firmware
           # Copy firmware artifacts
-          for dir in firmware/survaiv-esp32*; do
+          for dir in firmware/survaiv-*; do
             name=$(basename "$dir")
             cp -r "$dir" "site/firmware/$name"
           done

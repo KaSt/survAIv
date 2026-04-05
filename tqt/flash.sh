@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
-      echo "Board: LilyGO T-QT Pro (128×128 GC9107, 4 MB flash)"
+      echo "Board: nano · LilyGO T-QT Pro (128×128 GC9107, 4 MB flash)"
       echo ""
       echo "Options:"
       echo "  --no-ota         Disable OTA: single ~3.9 MB app partition"
@@ -43,10 +43,10 @@ if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
 fi
 
 echo "╔═══════════════════════════════════╗"
-echo "║  ⟁ SURVAIV — T-QT Pro            ║"
+echo "║  ⟁ SURVAIV nano — T-QT Pro        ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
-echo "  Board  : LilyGO T-QT Pro (128×128 GC9107)"
+echo "  Board  : nano · LilyGO T-QT Pro (128×128 GC9107)"
 if $NO_OTA; then
   echo "  OTA    : disabled (single app partition)"
 else

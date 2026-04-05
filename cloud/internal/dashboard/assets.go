@@ -567,7 +567,7 @@ function updateEfficiency(eff) {
   }
   if (compare && eff.platforms) {
     var html = '';
-    var names = {esp32_c3_ota:'ESP32-C3 OTA',esp32_c3:'ESP32-C3',esp32_s3:'ESP32-S3',cloud:'Cloud'};
+    var names = {esp32_c3_ota:'pico (OTA)',esp32_c3:'pico',esp32_s3:'core',cloud:'giga'};
     var keys = ['esp32_c3_ota','esp32_c3','esp32_s3','cloud'];
     keys.forEach(function(k) {
       var v = eff.platforms[k] || 0;

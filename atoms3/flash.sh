@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
-      echo "Board: M5Stack AtomS3 (128×128 GC9107, 8 MB flash)"
+      echo "Board: atom · M5Stack AtomS3 (128×128 GC9107, 8 MB flash)"
       echo ""
       echo "Options:"
       echo "  --no-ota         Disable OTA: single ~7.9 MB app partition"
@@ -43,10 +43,10 @@ if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
 fi
 
 echo "╔═══════════════════════════════════╗"
-echo "║  ⟁ SURVAIV — AtomS3              ║"
+echo "║  ⟁ SURVAIV atom — AtomS3           ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
-echo "  Board  : M5Stack AtomS3 (128×128 GC9107)"
+echo "  Board  : atom · M5Stack AtomS3 (128×128 GC9107)"
 if $NO_OTA; then
   echo "  OTA    : disabled (single app partition)"
 else

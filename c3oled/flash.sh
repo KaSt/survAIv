@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
-      echo "Board: ESP32-C3 SuperMini (72×40 SSD1306 OLED, 4 MB flash)"
+      echo "Board: dot · ESP32-C3 SuperMini (72×40 SSD1306, 4 MB flash)"
       echo ""
       echo "Options:"
       echo "  --no-ota         Disable OTA: single ~3.9 MB app partition"
@@ -43,10 +43,10 @@ if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
 fi
 
 echo "╔═══════════════════════════════════╗"
-echo "║  ⟁ SURVAIV — C3 SuperMini OLED   ║"
+echo "║  ⟁ SURVAIV dot — C3 SuperMini OLED ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
-echo "  Board  : ESP32-C3 SuperMini (72×40 SSD1306 OLED)"
+echo "  Board  : dot · ESP32-C3 SuperMini (72×40 SSD1306 OLED)"
 if $NO_OTA; then
   echo "  OTA    : disabled (single app partition)"
 else

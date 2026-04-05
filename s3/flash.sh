@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
-      echo "Board: ESP32-S3 N16R8 (16 MB flash)"
+      echo "Board: core · ESP32-S3 N16R8 (16 MB flash)"
       echo ""
       echo "Options:"
       echo "  --no-ota         Disable OTA: single ~15.9 MB app partition"
@@ -43,7 +43,7 @@ if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
 fi
 
 echo "╔═══════════════════════════════════╗"
-echo "║  ⟁ SURVAIV — ESP32-S3 N16R8      ║"
+echo "║  ⟁ SURVAIV core — ESP32-S3 N16R8  ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
 if $NO_OTA; then

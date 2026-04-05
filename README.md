@@ -8,15 +8,15 @@
 
 Seven deployment targets, one codebase philosophy:
 
-| Platform | Hardware | Code | Status |
-|----------|----------|------|--------|
-| **ESP32-C3** | Seeed XIAO · 400 KB SRAM · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
-| **ESP32-S3** | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
-| **T-QT Pro** | ESP32-S3 · 2 MB PSRAM · 4 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
-| **AtomS3** | ESP32-S3 · 8 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
-| **StickC PLUS2** | ESP32 · 2 MB PSRAM · 8 MB flash · 1.14" LCD | Shares C3 source | ✅ Ready |
-| **C3 SuperMini OLED** | ESP32-C3 · 4 MB flash · 0.42" OLED | Shares C3 source | ✅ Ready |
-| **Cloud / TUI** | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
+| Target | Tier | Hardware | Source | Status |
+|--------|------|----------|--------|--------|
+| **ESP32-C3** | `pico` | Seeed XIAO SuperMini · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
+| **ESP32-S3** | `core` | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
+| **T-QT Pro** | `nano` | ESP32-S3 · 2 MB PSRAM · 4 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
+| **AtomS3** | `atom` | ESP32-S3 · 8 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
+| **StickC PLUS2** | `spark` | ESP32 · 2 MB PSRAM · 8 MB flash · 1.14" LCD | Shares C3 source | ✅ Ready |
+| **C3 SuperMini OLED** | `dot` | ESP32-C3 · 4 MB flash · 0.42" OLED | Shares C3 source | ✅ Ready |
+| **Cloud / TUI** | `giga` | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
 
 ## How It Works
 
@@ -108,12 +108,12 @@ Every cycle the agent:
 . $IDF_PATH/export.sh
 
 # Unified flash script — builds any board from the repo root
-./flash.sh                              # C3 with OTA (default)
-./flash.sh --board s3                   # S3 N16R8
-./flash.sh --board tqt                  # T-QT Pro (LCD)
-./flash.sh --board atoms3               # AtomS3 (LCD)
-./flash.sh --board stickc2              # StickC PLUS2 (LCD)
-./flash.sh --board c3oled               # C3 SuperMini OLED
+./flash.sh                              # pico — C3 (default, OTA)
+./flash.sh --board s3                   # core — S3 N16R8
+./flash.sh --board tqt                  # nano — T-QT Pro (LCD)
+./flash.sh --board atoms3               # atom — AtomS3 (LCD)
+./flash.sh --board stickc2              # spark — StickC PLUS2 (LCD)
+./flash.sh --board c3oled               # dot — C3 SuperMini OLED
 ./flash.sh --list                       # list all supported boards
 
 # Common options (work with any board):
@@ -133,19 +133,19 @@ On first boot, connect to the **SURVAIV-SETUP** WiFi AP and follow the captive p
 
 Four boards include on-device screens showing live agent stats:
 
-| Board | SoC | Screen | Resolution | Interface | Buttons |
-|-------|-----|--------|------------|-----------|---------|
-| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 2 (GPIO0, GPIO47) |
-| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 1 (GPIO41) |
-| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | ESP32 | 1.14" ST7789V2 | 135×240 | SPI | 2 (GPIO37, GPIO39) |
-| ESP32-C3 SuperMini OLED | ESP32-C3 | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
+| Board | Tier | SoC | Screen | Resolution | Interface | Buttons |
+|-------|------|-----|--------|------------|-----------|---------|
+| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | `nano` | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 2 (GPIO0, GPIO47) |
+| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | `atom` | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 1 (GPIO41) |
+| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | `spark` | ESP32 | 1.14" ST7789V2 | 135×240 | SPI | 2 (GPIO37, GPIO39) |
+| ESP32-C3 SuperMini OLED | `dot` | ESP32-C3 | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
 
 ```bash
 # From repo root:
-./flash.sh --board tqt          # LilyGO T-QT Pro
-./flash.sh --board atoms3       # M5Stack AtomS3
-./flash.sh --board stickc2      # M5StickC PLUS2
-./flash.sh --board c3oled       # ESP32-C3 SuperMini OLED
+./flash.sh --board tqt          # nano — LilyGO T-QT Pro
+./flash.sh --board atoms3       # atom — M5Stack AtomS3
+./flash.sh --board stickc2      # spark — M5StickC PLUS2
+./flash.sh --board c3oled       # dot — ESP32-C3 SuperMini OLED
 
 # Or from board subdirectory:
 cd tqt && ./flash.sh            # auto-fetches LovyanGFX on first build
@@ -307,13 +307,13 @@ Custom rules are:
 Export the full knowledge state as a JSON file and import it on any platform:
 
 ```
-Pi + Opus 4 (cloud)          →  export  →  survaiv-knowledge-v2.json
+Pi + Opus 4 (giga/cloud)          →  export  →  survaiv-knowledge-v2.json
                                                │
-ESP32-C3 (paper)             ←  import  ←──────┘  (auto-truncated to 800B budget)
-C3 SuperMini OLED            ←  import  ←──────┘  (800B budget, same as C3)
-T-QT Pro / AtomS3            ←  import  ←──────┘  (2–4 KB budget)
-ESP32-S3 N16R8 (live)        ←  import  ←──────┘  (4 KB budget, full fidelity)
-Another cloud agent          ←  import  ←──────┘  (8 KB budget)
+ESP32-C3 (pico, paper)             ←  import  ←──────┘  (auto-truncated to 800B budget)
+C3 SuperMini OLED (dot)        ←  import  ←──────┘  (800B budget, same as pico)
+T-QT Pro / AtomS3 (nano/atom)  ←  import  ←──────┘  (2–4 KB budget)
+ESP32-S3 N16R8 (core, live)        ←  import  ←──────┘  (4 KB budget, full fidelity)
+Another cloud agent (giga)     ←  import  ←──────┘  (8 KB budget)
 ```
 
 The export includes:
@@ -334,7 +334,7 @@ The intended workflow for maximum knowledge quality:
 2. **Accumulate outcomes** — the agent tracks hundreds of decisions and their resolutions, building statistical confidence.
 3. **Distill into rules** — periodically review outcomes and craft (or let the LLM generate) custom rules that capture the highest-signal patterns.
 4. **Export knowledge** — download the `survaiv-knowledge-v2.json` from the dashboard.
-5. **Import to target** — upload to any agent (C3, T-QT Pro, AtomS3, StickC PLUS2, S3, another cloud instance). The rules are compressed to fit.
+5. **Import to target** — upload to any agent (pico, nano, atom, spark, core, dot, another giga instance). The rules are compressed to fit.
 6. **Freeze learning** — on resource-constrained devices, freeze learning to prevent the small model from overwriting good rules with noisy ones.
 7. **Deploy** — the C3 now carries months of curated wisdom in 800 bytes, making better decisions with a cheap model.
 
@@ -359,16 +359,16 @@ Since the export format is a standard JSON file, knowledge can be shared between
 
 ### Platform Wisdom Budgets
 
-| Platform | Budget | Typical Content |
-|----------|--------|-----------------|
-| C3 (OTA) | 800 bytes | 10–12 terse rules + compact stats |
-| C3 (no-OTA) | 2,000 bytes | 25+ rules with context |
-| C3 OLED | 800 bytes | 10–12 terse rules + compact stats |
-| T-QT Pro | 2,000 bytes | 25+ rules with context |
-| StickC PLUS2 | 2,000 bytes | 25+ rules with context |
-| AtomS3 | 4,000 bytes | Full rule set + verbose stats |
-| S3 N16R8 | 4,000 bytes | Full rule set + verbose stats |
-| Cloud | 8,000 bytes | Comprehensive rules + category breakdowns |
+| Platform | Tier | Budget | Typical Content |
+|----------|------|--------|-----------------|
+| C3 (OTA) | `pico` | 800 bytes | 10–12 terse rules + compact stats |
+| C3 (no-OTA) | `pico` | 2,000 bytes | 25+ rules with context |
+| C3 OLED | `dot` | 800 bytes | 10–12 terse rules + compact stats |
+| T-QT Pro | `nano` | 2,000 bytes | 25+ rules with context |
+| StickC PLUS2 | `spark` | 2,000 bytes | 25+ rules with context |
+| AtomS3 | `atom` | 4,000 bytes | Full rule set + verbose stats |
+| S3 N16R8 | `core` | 4,000 bytes | Full rule set + verbose stats |
+| Cloud | `giga` | 8,000 bytes | Comprehensive rules + category breakdowns |
 
 ## Efficiency Score
 
@@ -390,18 +390,18 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 
 ### Platform Comparison
 
-| Platform | Context | Parallelism | Memory | Coverage | Wisdom | **Total** |
-|----------|---------|-------------|--------|----------|--------|-----------|
-| ESP32-C3 (OTA) | 2 | 0 | 0 | 2 | 1 | **~12** |
-| ESP32-C3 (no-OTA) | 4 | 0 | 0 | 5 | 4 | **~22** |
-| C3 SuperMini OLED | 2 | 0 | 0 | 2 | 1 | **~12** |
-| T-QT Pro | 4 | 5 | 5 | 5 | 4 | **~26** |
-| StickC PLUS2 | 4 | 0 | 5 | 5 | 4 | **~22** |
-| AtomS3 | 4 | 5 | 0 | 5 | 7 | **~25** |
-| ESP32-S3 N16R8 | 8 | 5 | 10 | 20 | 7 | **~48** |
-| Cloud (4-core, 128K model) | 30 | 10 | 10–15 | 8 | 15 | **~75** |
-| Cloud (8-core, 128K model) | 30 | 20 | 15 | 8 | 15 | **~88** |
-| Cloud (8-core, 1M model) | 30 | 20 | 15 | 20 | 15 | **~100** |
+| Platform | Tier | Context | Parallelism | Memory | Coverage | Wisdom | **Total** |
+|----------|------|---------|-------------|--------|----------|--------|-----------|
+| ESP32-C3 (OTA) | `pico` | 2 | 0 | 0 | 2 | 1 | **~12** |
+| ESP32-C3 (no-OTA) | `pico` | 4 | 0 | 0 | 5 | 4 | **~22** |
+| C3 SuperMini OLED | `dot` | 2 | 0 | 0 | 2 | 1 | **~12** |
+| T-QT Pro | `nano` | 4 | 5 | 5 | 5 | 4 | **~26** |
+| StickC PLUS2 | `spark` | 4 | 0 | 5 | 5 | 4 | **~22** |
+| AtomS3 | `atom` | 4 | 5 | 0 | 5 | 7 | **~25** |
+| ESP32-S3 N16R8 | `core` | 8 | 5 | 10 | 20 | 7 | **~48** |
+| Cloud (4-core, 128K model) | `giga` | 30 | 10 | 10–15 | 8 | 15 | **~75** |
+| Cloud (8-core, 128K model) | `giga` | 30 | 20 | 15 | 8 | 15 | **~88** |
+| Cloud (8-core, 1M model) | `giga` | 30 | 20 | 15 | 20 | 15 | **~100** |
 
 ### How Context Adapts to the Model
 
@@ -469,10 +469,10 @@ s3/                       — ESP32-S3 build variant (shares main/ source)
 ├── sdkconfig.defaults    — S3 + PSRAM config
 └── flash.sh              — S3 build/flash script (--no-ota supported)
 
-tqt/                      — LilyGO T-QT Pro (ESP32-S3, 128×128 GC9107 LCD)
-atoms3/                   — M5Stack AtomS3 (ESP32-S3, 128×128 GC9107 LCD)
-stickc2/                  — M5StickC PLUS2 (ESP32, 135×240 ST7789V2 LCD)
-c3oled/                   — ESP32-C3 SuperMini (72×40 SSD1306 OLED)
+tqt/                      — nano · LilyGO T-QT Pro (ESP32-S3, 128×128 GC9107 LCD)
+atoms3/                   — atom · M5Stack AtomS3 (ESP32-S3, 128×128 GC9107 LCD)
+stickc2/                  — spark · M5StickC PLUS2 (ESP32, 135×240 ST7789V2 LCD)
+c3oled/                   — dot · ESP32-C3 SuperMini (72×40 SSD1306 OLED)
 └── Each: CMakeLists.txt, sdkconfig.defaults[.no_ota], partitions[_no_ota].csv, flash.sh
 
 boards/
@@ -508,7 +508,7 @@ cloud/
 
 ## Platform Differences
 
-| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+2 | C3 OLED | Cloud |
+| Feature | pico (OTA) | pico (no-OTA) | core | nano | atom | spark | dot | giga |
 |---------|----------|-------------|----|----|----|----|-----|-----|
 | Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 4,000 tok | 4,000 tok | 4,000 tok | 2,000 tok | adaptive (up to 32K) |
 | Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |

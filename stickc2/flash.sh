@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     -h|--help)
       echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
       echo ""
-      echo "Board: M5StickC PLUS2 (135×240 ST7789V2, 8 MB flash)"
+      echo "Board: spark · M5StickC PLUS2 (135×240 ST7789V2, 8 MB flash)"
       echo ""
       echo "Options:"
       echo "  --no-ota         Disable OTA: single ~7.9 MB app partition"
@@ -43,10 +43,10 @@ if [[ ! -e "$PORT" && "$(uname)" == "Darwin" ]]; then
 fi
 
 echo "╔═══════════════════════════════════╗"
-echo "║  ⟁ SURVAIV — M5StickC PLUS2      ║"
+echo "║  ⟁ SURVAIV spark — M5StickC PLUS2  ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
-echo "  Board  : M5StickC PLUS2 (135×240 ST7789V2)"
+echo "  Board  : spark · M5StickC PLUS2 (135×240 ST7789V2)"
 if $NO_OTA; then
   echo "  OTA    : disabled (single app partition)"
 else
