@@ -160,19 +160,26 @@ fi
 echo "── Building ──────────────────────"
 idf.py "${BUILD_ARGS[@]}" build
 
+# Locate the output .bin — project name varies per board (survaiv.bin, survaiv-s3.bin, etc.)
+find_bin() {
+  local f
+  f="$(find "$(pwd)/build" -maxdepth 1 -name 'survaiv*.bin' ! -name 'bootloader*' | head -1)"
+  echo "$f"
+}
+
 # ── Flash method ────────────────────────────────────────────────
 if $BUILD_ONLY; then
   echo ""
   echo "✅ Build complete (no flash)"
-  BIN_PATH="$(pwd)/build/survaiv.bin"
-  [[ -f "$BIN_PATH" ]] && echo "   Binary: $BIN_PATH ($(du -h "$BIN_PATH" | cut -f1 | tr -d ' '))"
+  BIN_PATH="$(find_bin)"
+  [[ -n "$BIN_PATH" && -f "$BIN_PATH" ]] && echo "   Binary: $BIN_PATH ($(du -h "$BIN_PATH" | cut -f1 | tr -d ' '))"
   exit 0
 fi
 
 if [[ -n "$OTA_IP" ]]; then
   # ── OTA flash over WiFi ──────────────────────────────────────
-  BIN_PATH="$(pwd)/build/survaiv.bin"
-  if [[ ! -f "$BIN_PATH" ]]; then
+  BIN_PATH="$(find_bin)"
+  if [[ -z "$BIN_PATH" || ! -f "$BIN_PATH" ]]; then
     echo "❌ Build output not found: $BIN_PATH"
     exit 1
   fi
