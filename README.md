@@ -6,7 +6,7 @@
 
 > Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets. A social experiment in AI autonomy, not a trading strategy.
 
-Six deployment targets, one codebase philosophy:
+Seven deployment targets, one codebase philosophy:
 
 | Platform | Hardware | Code | Status |
 |----------|----------|------|--------|
@@ -15,6 +15,7 @@ Six deployment targets, one codebase philosophy:
 | **T-QT Pro** | ESP32-S3 · 2 MB PSRAM · 4 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
 | **AtomS3** | ESP32-S3 · 8 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
 | **StickC PLUS2** | ESP32 · 2 MB PSRAM · 8 MB flash · 1.14" LCD | Shares C3 source | ✅ Ready |
+| **C3 SuperMini OLED** | ESP32-C3 · 4 MB flash · 0.42" OLED | Shares C3 source | ✅ Ready |
 | **Cloud / TUI** | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
 
 ## How It Works
@@ -135,13 +136,14 @@ Same firmware, higher limits: 50 markets (vs 6), 512 KB HTTP bodies, full provid
 
 ### Boards with Displays
 
-Three boards include on-device LCD screens showing live agent stats:
+Four boards include on-device screens showing live agent stats:
 
-| Board | SoC | Screen | Resolution | Buttons |
-|-------|-----|--------|------------|---------|
-| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | ESP32-S3 | 0.85" GC9107 | 128×128 | 2 (GPIO0, GPIO47) |
-| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | ESP32-S3 | 0.85" GC9107 | 128×128 | 1 (GPIO41) |
-| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | ESP32 | 1.14" ST7789V2 | 135×240 | 2 (GPIO37, GPIO39) |
+| Board | SoC | Screen | Resolution | Interface | Buttons |
+|-------|-----|--------|------------|-----------|---------|
+| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 2 (GPIO0, GPIO47) |
+| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 1 (GPIO41) |
+| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | ESP32 | 1.14" ST7789V2 | 135×240 | SPI | 2 (GPIO37, GPIO39) |
+| ESP32-C3 SuperMini OLED | ESP32-C3 | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
 
 ```bash
 . $IDF_PATH/export.sh
@@ -149,12 +151,14 @@ Three boards include on-device LCD screens showing live agent stats:
 cd tqt       # LilyGO T-QT Pro
 cd atoms3    # M5Stack AtomS3
 cd stickc2   # M5StickC PLUS2
+cd c3oled    # ESP32-C3 SuperMini OLED
 
 ./flash.sh       # build + flash (auto-fetches LovyanGFX on first build)
 ./flash.sh -m    # with monitor
 ```
 
 The screen auto-dims after 30 seconds of inactivity; press any button to wake it.
+The C3 OLED uses a compact 5-line monochrome layout (mode, equity, P&L, positions, status).
 
 ### Cloud / TUI
 
@@ -311,6 +315,7 @@ Export the full knowledge state as a JSON file and import it on any platform:
 Pi + Opus 4 (cloud)          →  export  →  survaiv-knowledge-v2.json
                                                │
 ESP32-C3 (paper)             ←  import  ←──────┘  (auto-truncated to 800B budget)
+C3 SuperMini OLED            ←  import  ←──────┘  (800B budget, same as C3)
 T-QT Pro / AtomS3            ←  import  ←──────┘  (2–4 KB budget)
 ESP32-S3 N16R8 (live)        ←  import  ←──────┘  (4 KB budget, full fidelity)
 Another cloud agent          ←  import  ←──────┘  (8 KB budget)
@@ -363,6 +368,7 @@ Since the export format is a standard JSON file, knowledge can be shared between
 |----------|--------|-----------------|
 | C3 (OTA) | 800 bytes | 10–12 terse rules + compact stats |
 | C3 (no-OTA) | 2,000 bytes | 25+ rules with context |
+| C3 OLED | 800 bytes | 10–12 terse rules + compact stats |
 | T-QT Pro | 2,000 bytes | 25+ rules with context |
 | StickC PLUS2 | 2,000 bytes | 25+ rules with context |
 | AtomS3 | 4,000 bytes | Full rule set + verbose stats |
@@ -393,6 +399,7 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 |----------|---------|-------------|--------|----------|--------|-----------|
 | ESP32-C3 (OTA) | 2 | 0 | 0 | 2 | 1 | **~12** |
 | ESP32-C3 (no-OTA) | 4 | 0 | 0 | 5 | 4 | **~22** |
+| C3 SuperMini OLED | 2 | 0 | 0 | 2 | 1 | **~12** |
 | T-QT Pro | 4 | 5 | 5 | 5 | 4 | **~26** |
 | StickC PLUS2 | 4 | 0 | 5 | 5 | 4 | **~22** |
 | AtomS3 | 4 | 5 | 0 | 5 | 7 | **~25** |
@@ -505,19 +512,19 @@ cloud/
 
 ## Platform Differences
 
-| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+2 | Cloud |
-|---------|----------|-------------|----|----|----|----|-----|
-| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 4,000 tok | 4,000 tok | 4,000 tok | adaptive (up to 32K) |
-| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
-| Markets per scan | 6 | 12 | 50 | 12 | 12 | 12 | adaptive (up to 50) |
-| HTTP body size | 64 KB | 128 KB | 512 KB | 128 KB | 128 KB | 128 KB | unlimited |
-| Wisdom budget | 800 B | 2,000 B | 4,000 B | 2,000 B | 4,000 B | 2,000 B | 8,000 B |
-| On-board LCD | — | — | — | 128×128 | 128×128 | 135×240 | N/A |
-| OTA updates | ✅ | — | ✅ | ✅ | ✅ | ✅ | N/A |
-| x402 providers | tx402 only* | tx402 only* | all 4 | tx402 only* | all 4 | all 4 | all 4 |
-| Persistence | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
-| UI | Web dashboard | Web dashboard | Web dashboard | LCD + web | LCD + web | LCD + web | TUI + web |
-| Deployment | USB flash | USB flash | USB flash | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
+| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+2 | C3 OLED | Cloud |
+|---------|----------|-------------|----|----|----|----|-----|-----|
+| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 4,000 tok | 4,000 tok | 4,000 tok | 2,000 tok | adaptive (up to 32K) |
+| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
+| Markets per scan | 6 | 12 | 50 | 12 | 12 | 12 | 6 | adaptive (up to 50) |
+| HTTP body size | 64 KB | 128 KB | 512 KB | 128 KB | 128 KB | 128 KB | 64 KB | unlimited |
+| Wisdom budget | 800 B | 2,000 B | 4,000 B | 2,000 B | 4,000 B | 2,000 B | 800 B | 8,000 B |
+| On-board display | — | — | — | 128×128 LCD | 128×128 LCD | 135×240 LCD | 72×40 OLED | N/A |
+| OTA updates | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ | N/A |
+| x402 providers | tx402 only* | tx402 only* | all 4 | tx402 only* | all 4 | all 4 | tx402 only* | all 4 |
+| Persistence | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
+| UI | Web dashboard | Web dashboard | Web dashboard | LCD + web | LCD + web | LCD + web | OLED + web | TUI + web |
+| Deployment | USB flash | USB flash | USB flash | USB flash | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
 
 \* x402engine catalog too large for boards with ≤4 MB flash / no PSRAM.
 

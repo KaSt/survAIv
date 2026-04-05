@@ -171,6 +171,13 @@ config SURVAIV_DISPLAY_ST7789_STICKC2
         SPI pins: CLK=13, MOSI=15, DC=14, CS=5, RST=12, BL=27.
         Buttons: A=GPIO37, B=GPIO39.
 
+config SURVAIV_DISPLAY_SSD1306_C3OLED
+    bool "ESP32-C3 SuperMini (72x40 SSD1306 OLED)"
+    help
+        0.42 inch 72x40 monochrome OLED with SSD1306 controller.
+        I2C: SDA=5, SCL=6.  Button: GPIO9 (BOOT).
+        Compact layout — shows equity, P&L, positions, and status.
+
 endchoice
 
 config SURVAIV_SCREEN_TIMEOUT_SEC

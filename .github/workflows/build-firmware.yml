@@ -46,6 +46,11 @@ jobs:
             build_dir: stickc2
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-stickc-plus2
+          - name: c3-oled
+            target: esp32c3
+            build_dir: c3oled
+            sdkconfig_defaults: sdkconfig.defaults
+            artifact: survaiv-c3-oled
 
     steps:
       - uses: actions/checkout@v4

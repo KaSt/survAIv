@@ -73,12 +73,59 @@ static const char *kTag = "screen";
   #define BTN_B      GPIO_NUM_39
   using PanelType = lgfx::Panel_ST7789;
 
+#elif defined(CONFIG_SURVAIV_DISPLAY_SSD1306_C3OLED)
+  // ESP32-C3 SuperMini  (0.42" SSD1306 72×40 I2C OLED)
+  #define PIN_SDA     5
+  #define PIN_SCL     6
+  #define SCR_W      72
+  #define SCR_H      40
+  #define SCR_MEM_W 128
+  #define SCR_MEM_H  64
+  #define SCR_ROT     0
+  #define SCR_OFF_X  30   // (132 − 72) / 2
+  #define SCR_OFF_Y  12   // (64  − 40) / 2
+  #define BTN_A      GPIO_NUM_9   // BOOT button
+  #define OLED_MONO  1
+  using PanelType = lgfx::Panel_SSD1306;
+
 #else
   #error "No display board type selected in Kconfig"
 #endif
 
 // ── LovyanGFX device ────────────────────────────────────────────────────────
 
+#if defined(OLED_MONO)
+// I2C monochrome OLED (SSD1306).
+class LGFX : public lgfx::LGFX_Device {
+  PanelType      _panel;
+  lgfx::Bus_I2C  _bus;
+
+ public:
+  LGFX() {
+    {
+      auto cfg         = _bus.config();
+      cfg.freq_write   = 400000;
+      cfg.pin_sda      = PIN_SDA;
+      cfg.pin_scl      = PIN_SCL;
+      cfg.i2c_addr     = 0x3C;
+      _bus.config(cfg);
+      _panel.setBus(&_bus);
+    }
+    {
+      auto cfg            = _panel.config();
+      cfg.memory_width    = SCR_MEM_W;
+      cfg.memory_height   = SCR_MEM_H;
+      cfg.panel_width     = SCR_W;
+      cfg.panel_height    = SCR_H;
+      cfg.offset_x        = SCR_OFF_X;
+      cfg.offset_y        = SCR_OFF_Y;
+      _panel.config(cfg);
+    }
+    setPanel(&_panel);
+  }
+};
+#else
+// SPI colour LCD (GC9107 / ST7789).
 class LGFX : public lgfx::LGFX_Device {
   PanelType      _panel;
   lgfx::Bus_SPI  _bus;
@@ -121,6 +168,7 @@ class LGFX : public lgfx::LGFX_Device {
     setPanel(&_panel);
   }
 };
+#endif  // OLED_MONO
 
 // ── State ────────────────────────────────────────────────────────────────────
 
@@ -267,6 +315,19 @@ void screen_init() {
 #endif
 
   // Boot splash
+#if defined(OLED_MONO)
+  lcd.setTextColor(FG, BG);
+  lcd.setTextSize(1);
+  int cx = (lcd.width() - 7 * 6) / 2;
+  int cy = lcd.height() / 2 - 8;
+  if (cx < 0) cx = 0;
+  lcd.setCursor(cx, cy);
+  lcd.print("SURVAIV");
+  lcd.setTextColor(FG, BG);
+  lcd.setCursor(cx, cy + 10);
+  lcd.print("booting..");
+  lcd.setBrightness(255);
+#else
   lcd.setTextColor(CYAN, BG);
   lcd.setTextSize(2);
   int cx = (lcd.width() - 7 * 12) / 2;
@@ -279,6 +340,7 @@ void screen_init() {
   lcd.setCursor(cx, cy + 24);
   lcd.print("Starting...");
   lcd.setBrightness(128);
+#endif
 
   ESP_LOGI(kTag, "Display %dx%d initialised", lcd.width(), lcd.height());
 }
@@ -288,6 +350,51 @@ void screen_update(const ScreenData &d) {
 
   lcd.startWrite();
   lcd.fillScreen(BG);
+
+#if defined(OLED_MONO)
+  {
+    // ── Tiny 72×40 monochrome layout (12 chars × 5 lines @ 6×8) ──
+    lcd.setTextSize(1);
+    lcd.setTextColor(FG, BG);
+    char buf[14];
+
+    // Line 0: mode + equity
+    lcd.setCursor(0, 0);
+    lcd.print(d.paper_mode ? "P " : "L ");
+    snprintf(buf, sizeof(buf), "$%.1f", (double)d.equity);
+    lcd.print(buf);
+
+    // Line 1: P&L
+    lcd.setCursor(0, 8);
+    snprintf(buf, sizeof(buf), "PL%+.1f", (double)d.pnl);
+    lcd.print(buf);
+
+    // Line 2: positions / cycle
+    lcd.setCursor(0, 16);
+    snprintf(buf, sizeof(buf), "%dP C%d", d.positions, d.cycle);
+    lcd.print(buf);
+
+    // Line 3: status
+    lcd.setCursor(0, 24);
+    const char *st = d.status ? d.status : "---";
+    snprintf(buf, sizeof(buf), "%.12s", st);
+    lcd.print(buf);
+
+    // Line 4: countdown or last action hint
+    lcd.setCursor(0, 32);
+    if (d.countdown_secs > 0) {
+      snprintf(buf, sizeof(buf), "%dm%02ds", d.countdown_secs / 60,
+               d.countdown_secs % 60);
+      lcd.print(buf);
+    } else if (d.last_action && d.last_action[0]) {
+      snprintf(buf, sizeof(buf), "%.12s", d.last_action);
+      lcd.print(buf);
+    }
+
+    lcd.endWrite();
+    return;
+  }
+#endif
 
   // Choose layout based on display size.
   // Landscape 240×135 (StickC) vs. 128×128 (TQT/Atoms3).
