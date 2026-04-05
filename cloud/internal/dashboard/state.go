@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"runtime"
 	"sync"
-	"syscall"
 	"time"
 
 	"survaiv/internal/dynconfig"
@@ -68,10 +67,9 @@ func NewState() *State {
 		prevCPUTime: time.Now(),
 	}
 	// Initialize CPU baseline.
-	var ru syscall.Rusage
-	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		s.prevCPUUser = int64(ru.Utime.Sec)*1e6 + int64(ru.Utime.Usec)
-		s.prevCPUSys = int64(ru.Stime.Sec)*1e6 + int64(ru.Stime.Usec)
+	if u, sys, ok := getCPUUsage(); ok {
+		s.prevCPUUser = u
+		s.prevCPUSys = sys
 	}
 	return s
 }
@@ -356,15 +354,11 @@ func (s *State) ToJSON() []byte {
 	// Sample process CPU usage.
 	numCPU := runtime.NumCPU()
 	var cpuPcts []int
-	var ru syscall.Rusage
-	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		userUs := int64(ru.Utime.Sec)*1e6 + int64(ru.Utime.Usec)
-		sysUs := int64(ru.Stime.Sec)*1e6 + int64(ru.Stime.Usec)
+	if userUs, sysUs, ok := getCPUUsage(); ok {
 		elapsed := time.Since(s.prevCPUTime).Microseconds()
 		if elapsed > 0 {
 			cpuUs := (userUs - s.prevCPUUser) + (sysUs - s.prevCPUSys)
 			totalPct := float64(cpuUs) * 100.0 / float64(elapsed)
-			// Distribute evenly across cores (best we can do without /proc/stat).
 			perCore := int(totalPct / float64(numCPU))
 			if perCore > 100 {
 				perCore = 100

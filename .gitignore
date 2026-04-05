@@ -14,3 +14,4 @@ boards/LovyanGFX/
 nvs_*.csv
 wallet_*.csv
 */sdkconfig
+hub/
