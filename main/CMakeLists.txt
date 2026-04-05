@@ -26,6 +26,7 @@ idf_component_register(
          "wisdom.cpp"
          "news.cpp"
          "telemetry.cpp"
+         "mdns_adv.cpp"
     INCLUDE_DIRS "."
     REQUIRES ${_requires}
 )

@@ -6,6 +6,7 @@
 #include "config.h"
 #include "dashboard_state.h"
 #include "ledger.h"
+#include "mdns_adv.h"
 #include "model_registry.h"
 #include "onboard.h"
 #include "provider.h"
@@ -103,6 +104,11 @@ extern "C" void app_main(void) {
   // Start the dashboard web server.
   survaiv::webserver::StartDashboard(80);
   ESP_LOGI(kTag, "Dashboard available at http://<device-ip>/");
+
+  // Advertise via mDNS so the device is reachable as <name>.local.
+  std::string agent_name = survaiv::config::AgentName();
+  std::string mdns_host = agent_name.empty() ? "survaiv" : agent_name;
+  survaiv::mdns_adv::Start(mdns_host.c_str(), 80);
 
 #ifdef CONFIG_SURVAIV_HAS_DISPLAY
   screen_init();
