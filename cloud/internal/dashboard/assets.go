@@ -130,6 +130,13 @@ canvas { width: 100% !important; height: 100% !important; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .no-data { color: var(--fg2); font-style: italic; font-size: 0.88em; padding: 12px 0; }
+.key-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+.key-status.configured{background:#1b3a1b;color:#66bb6a}
+.key-status.missing{background:#3e2723;color:#ffb74d}
+.light .key-status.configured{background:#e6f4ea;color:#1a7f37}
+.light .key-status.missing{background:#fff3e0;color:#9a6700}
+.setting-section{margin-top:16px;padding:14px 16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.setting-section .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--fg2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
 </style>
 </head>
 <body>
@@ -226,7 +233,9 @@ canvas { width: 100% !important; height: 100% !important; }
 
 <div class="modal-overlay" id="settingsModal">
   <div class="modal">
-    <h3>⚙ LLM Settings</h3>
+    <h3 style="display:flex;align-items:center;gap:8px">⚙ LLM Settings <span id="llm-key-status" class="key-status missing">Not configured</span></h3>
+    <div class="setting-section">
+    <div class="sec-title">🤖 Model Configuration</div>
     <div id="llm-presets" style="display:none">
     <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
       <button onclick="setLlmPreset('local')" class="btn" style="font-size:0.75em;padding:2px 8px">Local</button>
@@ -242,8 +251,9 @@ canvas { width: 100% !important; height: 100% !important; }
     <input id="settingsModel" placeholder="model-name">
     <label>API Key</label>
     <input id="settingsKey" type="password" placeholder="sk-...">
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Trading Mode</div>
+    </div>
+    <div class="setting-section">
+      <div class="sec-title">📊 Trading Mode</div>
       <div style="display:flex;gap:10px;align-items:center">
         <button id="mode-paper-btn" onclick="setTradingMode(true)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x1F4DD; Paper</button>
         <button id="mode-real-btn" onclick="setTradingMode(false)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x27C1; Real</button>
@@ -255,8 +265,8 @@ canvas { width: 100% !important; height: 100% !important; }
         <span id="reset-msg" style="font-size:10px;color:var(--fg2);margin-left:6px"></span>
       </div>
     </div>
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Tool Usage</div>
+    <div class="setting-section">
+      <div class="sec-title">🔧 Tool Usage</div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:10px;color:var(--fg2)">Frugal</span>
         <input type="range" id="tool-usage-slider" min="0" max="2" value="1" step="1"
@@ -265,8 +275,8 @@ canvas { width: 100% !important; height: 100% !important; }
       </div>
       <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--fg2);margin-top:2px">Balanced</div>
     </div>
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">News Search</div>
+    <div class="setting-section">
+      <div class="sec-title">📰 News Search <span id="news-key-status" class="key-status missing">No key</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
         <label style="font-size:10px;color:var(--fg2);flex:1">Provider<br>
           <select id="cfg-news-prov" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)">
@@ -281,10 +291,10 @@ canvas { width: 100% !important; height: 100% !important; }
       </div>
       <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
     </div>
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Agent Efficiency</div>
+    <div class="setting-section">
+      <div class="sec-title">⚡ Agent Efficiency</div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-        <div style="flex:1;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden">
+        <div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
           <div id="eff-bar" style="height:100%;border-radius:4px;transition:width 0.5s"></div>
         </div>
         <span id="eff-score" style="font-size:1.2em;font-weight:700;min-width:40px"></span>
@@ -295,8 +305,8 @@ canvas { width: 100% !important; height: 100% !important; }
         <div id="eff-compare" style="display:grid;grid-template-columns:1fr auto;gap:2px 8px"></div>
       </div>
     </div>
-    <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Data Management</div>
+    <div class="setting-section">
+      <div class="sec-title">💾 Data Management</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <a class="btn" href="/api/backup?full=1" download="survaiv-backup.json" style="font-size:0.8em;text-decoration:none">⬇ Backup Config</a>
         <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Restore Config
@@ -304,8 +314,8 @@ canvas { width: 100% !important; height: 100% !important; }
         </label>
       </div>
     </div>
-    <div style="margin-top:12px">
-      <div style="font-size:12px;font-weight:600;margin-bottom:8px">Knowledge</div>
+    <div class="setting-section">
+      <div class="sec-title">🧠 Knowledge</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button onclick="downloadKnowledge()" class="btn" style="font-size:0.8em">⬇ Export Knowledge</button>
         <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Import Knowledge
@@ -362,7 +372,11 @@ function saveSettings() {
   if (m) body.model = m;
   if (k) body.key = k;
   fetch('/api/llm-config', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
-    .then(function(r) { return r.json(); }).then(function() { closeSettings(); }).catch(console.error);
+    .then(function(r) { return r.json(); }).then(function() {
+      var lks = document.getElementById('llm-key-status');
+      if (lks && u) { lks.className = 'key-status configured'; lks.textContent = '\u2713 Configured'; }
+      closeSettings();
+    }).catch(console.error);
   var tusVal = document.getElementById('tool-usage-slider');
   if (tusVal) {
     fetch('/api/config', {method:'POST', body:JSON.stringify({tool_usage: parseInt(tusVal.value)}), headers:authHeaders()});
@@ -459,6 +473,26 @@ function updateState(d) {
   if (tus && d.tool_usage !== undefined) { tus.value = d.tool_usage; updateToolLabel(); }
   var newsMsg = document.getElementById('news-cfg-msg');
   if (newsMsg) newsMsg.textContent = d.has_news_key ? 'Key configured' : '';
+  var nks = document.getElementById('news-key-status');
+  if (nks) {
+    if (d.has_news_key) {
+      nks.className = 'key-status configured';
+      nks.textContent = '\u2713 Key saved';
+    } else {
+      nks.className = 'key-status missing';
+      nks.textContent = 'No key';
+    }
+  }
+  var lks = document.getElementById('llm-key-status');
+  if (lks) {
+    if (d.oai_url) {
+      lks.className = 'key-status configured';
+      lks.textContent = '\u2713 Configured';
+    } else {
+      lks.className = 'key-status missing';
+      lks.textContent = 'Not configured';
+    }
+  }
   var walletSec = document.getElementById('wallet-section');
   if (walletSec) walletSec.style.display = d.live_mode ? 'block' : 'none';
   if (d.wallet) {
@@ -1026,6 +1060,8 @@ function saveNewsConfig() {
       msg.textContent = '\u2713 Saved';
       msg.style.color = 'var(--green)';
       setTimeout(function() { msg.textContent = ''; }, 3000);
+      var nks = document.getElementById('news-key-status');
+      if (nks) { nks.className = 'key-status configured'; nks.textContent = '\u2713 Key saved'; }
     }).catch(function() {
       var msg = document.getElementById('news-cfg-msg');
       msg.textContent = '\u2717 Failed';

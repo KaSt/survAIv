@@ -114,6 +114,32 @@ cursor:pointer;color:var(--dim);line-height:1}
 margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
 .modal .setting-group{margin-bottom:16px}
 .modal .setting-group label{font-size:10px;color:var(--dim)}
+.modal .setting-section{margin-bottom:18px;padding:14px 16px;background:var(--input-bg);
+border-radius:8px;border:1px solid var(--border)}
+.modal .setting-section:last-child{margin-bottom:0}
+.modal .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.modal .section-title .icon{font-size:14px}
+.key-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;
+border-radius:10px;font-weight:600}
+.key-status.configured{background:#e8f5e9;color:#2e7d32}
+.key-status.missing{background:#fff3e0;color:#e65100}
+@media(prefers-color-scheme:dark){
+.key-status.configured{background:#1b3a1b;color:#66bb6a}
+.key-status.missing{background:#3e2723;color:#ffb74d}
+}
+.preset-btn{font-size:10px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;
+background:var(--input-bg);color:var(--text);cursor:pointer;transition:all .15s}
+.preset-btn:hover{border-color:var(--blue);color:var(--blue)}
+.cfg-input{width:100%;font-size:11px;padding:5px 8px;border:1px solid var(--border);
+border-radius:6px;background:var(--input-bg);color:var(--text);transition:border-color .15s}
+.cfg-input:focus{border-color:var(--blue);outline:none}
+.btn-primary{background:var(--blue);color:#fff;border:none;padding:6px 14px;border-radius:6px;
+cursor:pointer;font-size:11px;font-weight:600;transition:opacity .15s}
+.btn-primary:hover{opacity:.85}
+.btn-danger{background:none;border:1px solid var(--red);color:var(--red);padding:4px 12px;
+border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
+.btn-danger:hover{background:var(--red);color:#fff}
 </style>
 </head>
 <body>
@@ -238,11 +264,12 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
     <button class="modal-close" onclick="closeSettings()">&times;</button>
     <h2>Settings</h2>
 
-    <div class="setting-group">
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">🔧</span> System</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup Config</a>
+        <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup</a>
         <label class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">
-          ⬆ Restore Config
+          ⬆ Restore
           <input type="file" id="restore-file" accept=".json" style="display:none"
             onchange="restoreConfig(this.files[0])">
         </label>
@@ -255,18 +282,18 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
       <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
     </div>
 
-    <div class="setting-group">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Knowledge</div>
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">🧠</span> Knowledge</div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button onclick="downloadKnowledge()" class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">⬇ Export Knowledge</button>
+        <button onclick="downloadKnowledge()" class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">⬇ Export</button>
         <label class="badge" style="padding:6px 14px;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">
-          ⬆ Import Knowledge
+          ⬆ Import
           <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
         </label>
         <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
       </div>
       <div class="custom-rules-editor" style="margin-top:10px">
-        <div style="font-size:11px;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--dim)">(LLM-distilled or hand-crafted insights, injected into prompt)</span></div>
+        <div style="font-size:11px;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--dim)">(injected into prompt)</span></div>
         <textarea id="rules-editor" placeholder="AVOID: sports match outcomes — no edge vs oddsmakers&#10;EDGE: geopolitical binary events — markets overreact&#10;RULE: >0.85 yes_price = skip, edge too thin"></textarea>
         <div class="rules-footer">
           <span class="char-count" id="rules-count">0 / ? bytes</span>
@@ -276,67 +303,68 @@ margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
       </div>
     </div>
 
-    <div class="setting-group">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Trading Mode</div>
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">📈</span> Trading</div>
       <div style="display:flex;gap:10px;align-items:center">
         <button id="mode-paper-btn" onclick="setTradingMode(true)" class="badge" style="padding:6px 14px;cursor:pointer">📝 Paper</button>
         <button id="mode-real-btn" onclick="setTradingMode(false)" class="badge" style="padding:6px 14px;cursor:pointer">⟁ Real</button>
         <span id="mode-msg" style="font-size:11px;color:var(--dim)"></span>
       </div>
-      <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions continue in their original mode.</div>
       <div id="paper-reset-row" style="display:none;margin-top:8px">
-        <button onclick="confirmResetPaper()" class="badge" style="padding:4px 12px;color:var(--red);border:1px solid var(--red);cursor:pointer;font-size:10px">🗑 Reset Paper Trading</button>
+        <button onclick="confirmResetPaper()" class="btn-danger">🗑 Reset Paper Trading</button>
         <span id="reset-msg" style="font-size:10px;color:var(--dim);margin-left:6px"></span>
       </div>
     </div>
 
-    <div class="setting-group">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">Tool Usage</div>
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">⚡</span> Tool Usage</div>
       <div style="display:flex;align-items:center;gap:8px">
         <span style="font-size:10px;color:var(--dim)">Frugal</span>
         <input type="range" id="tool-usage-slider" min="0" max="2" value="1" step="1"
-          style="flex:1;accent-color:var(--accent)" oninput="updateToolLabel()" onchange="saveToolUsage()">
+          style="flex:1;accent-color:var(--blue)" oninput="updateToolLabel()" onchange="saveToolUsage()">
         <span style="font-size:10px;color:var(--dim)">Generous</span>
       </div>
       <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--dim);margin-top:2px">Balanced</div>
     </div>
 
-    <div class="setting-group" id="llm-cfg" style="display:none">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">LLM Endpoint (paper mode)</div>
+    <div class="setting-section" id="llm-cfg" style="display:none">
+      <div class="section-title"><span class="icon">🤖</span> LLM Endpoint <span id="llm-key-status" class="key-status missing">Not configured</span></div>
       <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
-        <button onclick="setLlmPreset('local')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">Local</button>
-        <button onclick="setLlmPreset('openrouter')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">OpenRouter</button>
-        <button onclick="setLlmPreset('openai')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">OpenAI</button>
-        <button onclick="setLlmPreset('groq')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">Groq</button>
-        <button onclick="setLlmPreset('x402')" class="preset-btn" style="font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text);cursor:pointer">x402 (auto)</button>
+        <button onclick="setLlmPreset('local')" class="preset-btn">Local</button>
+        <button onclick="setLlmPreset('openrouter')" class="preset-btn">OpenRouter</button>
+        <button onclick="setLlmPreset('openai')" class="preset-btn">OpenAI</button>
+        <button onclick="setLlmPreset('groq')" class="preset-btn">Groq</button>
+        <button onclick="setLlmPreset('x402')" class="preset-btn">x402 (auto)</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
         <label style="font-size:10px;color:var(--dim);flex:2">Base URL<br>
-          <input id="cfg-url" oninput="this.dataset.touched='1'" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="https://…/v1">
+          <input id="cfg-url" class="cfg-input" oninput="this.dataset.touched='1'" placeholder="https://…/v1">
         </label>
         <label style="font-size:10px;color:var(--dim);flex:1">Model<br>
-          <input id="cfg-model" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="model-id">
+          <input id="cfg-model" class="cfg-input" placeholder="model-id">
         </label>
         <label style="font-size:10px;color:var(--dim);flex:1">API Key<br>
-          <input id="cfg-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="sk-…">
+          <input id="cfg-key" type="password" class="cfg-input" placeholder="sk-…">
         </label>
-        <button onclick="saveLlmConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Apply</button>
+        <button onclick="saveLlmConfig()" class="btn-primary">Apply</button>
       </div>
       <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
-    <div class="setting-group">
-      <div style="font-size:12px;font-weight:600;margin-bottom:6px">News Search</div>
+
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">🔍</span> News Search <span id="news-key-status" class="key-status missing">No key</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
         <label style="font-size:10px;color:var(--dim);flex:1">Provider<br>
-          <select id="cfg-news-prov" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)">
+          <select id="cfg-news-prov" class="cfg-input">
             <option value="tavily">Tavily</option>
             <option value="brave">Brave Search</option>
           </select>
         </label>
         <label style="font-size:10px;color:var(--dim);flex:2">API Key<br>
-          <input id="cfg-news-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--input-bg);color:var(--text)" placeholder="tvly-xxx or BSA-xxx">
+          <input id="cfg-news-key" type="password" class="cfg-input" placeholder="tvly-xxx or BSA-xxx">
         </label>
-        <button onclick="saveNewsConfig()" style="background:var(--blue);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+        <button onclick="saveNewsConfig()" class="btn-primary">Save</button>
       </div>
       <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
@@ -763,6 +791,28 @@ function updateState(s) {
     const sel = $('cfg-news-prov');
     if (sel) sel.value = s.news_provider;
   }
+  const nks = $('news-key-status');
+  if (nks) {
+    if (s.has_news_key) {
+      nks.className = 'key-status configured';
+      nks.textContent = '✓ Key saved';
+    } else {
+      nks.className = 'key-status missing';
+      nks.textContent = 'No key';
+    }
+  }
+
+  // LLM endpoint status
+  const lks = $('llm-key-status');
+  if (lks) {
+    if (s.oai_url) {
+      lks.className = 'key-status configured';
+      lks.textContent = '✓ Configured';
+    } else {
+      lks.className = 'key-status missing';
+      lks.textContent = 'Not configured';
+    }
+  }
 
   // Tool usage slider
   const tus = $('tool-usage-slider');
@@ -1065,6 +1115,8 @@ function saveLlmConfig() {
         $('cfg-model').value = d.oai_model;
         $('cfg-key').value = '';
         $('cfg-url').dataset.touched = '1';
+        const lks = $('llm-key-status');
+        if (lks) { lks.className = 'key-status configured'; lks.textContent = '✓ Configured'; }
       } else {
         msg.textContent = 'Error: ' + (d.error || 'unknown');
         msg.style.color = 'var(--red)';
@@ -1104,6 +1156,8 @@ function saveNewsConfig() {
       msg.textContent = '\u2713 Saved';
       msg.style.color = 'var(--green)';
       $('cfg-news-key').value = '';
+      const nks = $('news-key-status');
+      if (nks) { nks.className = 'key-status configured'; nks.textContent = '✓ Key saved'; }
       setTimeout(() => msg.textContent = '', 3000);
     }).catch(() => {
       msg.textContent = '\u2717 Failed';
