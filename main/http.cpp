@@ -20,11 +20,15 @@ constexpr const char *kTag = "survaiv_http";
 #if CONFIG_SPIRAM
 constexpr size_t kMaxBodySize = 512 * 1024;   // boards with PSRAM
 constexpr size_t kMinFreeHeap = 40 * 1024;
+// With SPIRAM_USE_CAPS_ALLOC, standard malloc/new only uses internal SRAM.
+// Heap checks must use MALLOC_CAP_INTERNAL to avoid counting unusable PSRAM.
+constexpr uint32_t kHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
 #else
 // C3: only ~230KB SRAM total, ~148KB free after WiFi+TLS.
 // Keep body cap low so we never exhaust contiguous heap.
 constexpr size_t kMaxBodySize = 48 * 1024;
 constexpr size_t kMinFreeHeap = 20 * 1024;
+constexpr uint32_t kHeapCaps = MALLOC_CAP_8BIT;  // all heap is internal
 #endif
 
 // ─── Lightweight mDNS A-record resolver ─────────────────────────
@@ -223,8 +227,8 @@ static esp_err_t HttpEventHandler(esp_http_client_event_t *event) {
         // and pre-reserve so std::string doesn't pick its own capacity.
         if (new_size > context->response->body.capacity()) {
           size_t largest_block =
-              heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
-          size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+              heap_caps_get_largest_free_block(kHeapCaps);
+          size_t free_heap = heap_caps_get_free_size(kHeapCaps);
           // reserve() needs new_cap bytes contiguous, plus the old buffer
           // stays alive until the copy is done → need new_cap + old_cap.
           size_t old_cap = context->response->body.capacity();

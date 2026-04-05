@@ -18,6 +18,14 @@ namespace models {
 
 static const char *kTag = "models";
 
+// Usable heap caps: with SPIRAM_USE_CAPS_ALLOC, standard malloc only uses
+// internal SRAM, so heap checks must exclude PSRAM.
+#if CONFIG_SPIRAM
+static constexpr uint32_t kHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+#else
+static constexpr uint32_t kHeapCaps = MALLOC_CAP_8BIT;
+#endif
+
 // ── Built-in model catalog ──────────────────────────────────────────
 //
 // Cross-referenced from tx402.ai /v1/models and x402engine.app discovery.
@@ -572,7 +580,7 @@ static void IngestCatalog(const providers::LlmAdapter *adapter, int adapter_idx,
 
 void RefreshRegistry() {
   ESP_LOGI(kTag, "Refreshing dynamic model registry (free heap: %lu)",
-           static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+           static_cast<unsigned long>(heap_caps_get_free_size(kHeapCaps)));
 
   std::vector<MergeEntry> entries;
   entries.reserve(kMaxDynamic);
@@ -594,7 +602,7 @@ void RefreshRegistry() {
 
     ESP_LOGI(kTag, "Fetching catalog: %s (heap: %lu)",
              adapter->display_name,
-             static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+             static_cast<unsigned long>(heap_caps_get_free_size(kHeapCaps)));
 
     HttpResponse resp =
         HttpRequest(adapter->catalog_url, HTTP_METHOD_GET, {});
@@ -605,7 +613,7 @@ void RefreshRegistry() {
     }
 
     // Skip if available heap is too low to safely parse a large JSON.
-    size_t free_heap = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    size_t free_heap = heap_caps_get_free_size(kHeapCaps);
     if (resp.body.size() > 16384 && free_heap < resp.body.size() * 3) {
       ESP_LOGW(kTag, "%s catalog too large for available heap (%uB body, %uB free) — skipped",
                adapter->display_name, static_cast<unsigned>(resp.body.size()),

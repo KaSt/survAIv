@@ -49,9 +49,9 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
   // Each market is ~7 KB in the API response; cap fetch to keep response
   // within heap budget alongside TLS buffers.
 #if CONFIG_IDF_TARGET_ESP32S3
-  int fetch_limit = std::min(limit, 50);  // S3: PSRAM allows more
+  int fetch_limit = std::min(limit, 25);  // S3: internal SRAM limits JSON parsing
 #elif defined(CONFIG_SPIRAM)
-  int fetch_limit = std::min(limit, 30);  // ESP32 with PSRAM (e.g. StickC2)
+  int fetch_limit = std::min(limit, 20);  // ESP32 with PSRAM (e.g. StickC2)
 #elif !CONFIG_SURVAIV_ENABLE_OTA
   int fetch_limit = std::min(limit, 12);  // C3 no-OTA: more flash headroom
 #else
@@ -60,8 +60,14 @@ std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
   std::ostringstream url;
   url << kPolymarketMarketsUrl << fetch_limit << "&offset=" << offset << "&order=" << order;
 
+  // Log usable heap (internal only on SPIRAM_USE_CAPS_ALLOC boards).
+#if CONFIG_SPIRAM
+  constexpr uint32_t kLogHeapCaps = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
+#else
+  constexpr uint32_t kLogHeapCaps = MALLOC_CAP_8BIT;
+#endif
   ESP_LOGI(kTag, "Fetching %d markets (heap: %lu)", fetch_limit,
-           static_cast<unsigned long>(heap_caps_get_free_size(MALLOC_CAP_8BIT)));
+           static_cast<unsigned long>(heap_caps_get_free_size(kLogHeapCaps)));
 
   HttpResponse response = HttpRequest(url.str(), HTTP_METHOD_GET, {});
   std::vector<MarketSnapshot> markets;
