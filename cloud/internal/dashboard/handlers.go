@@ -42,10 +42,14 @@ func generateToken() string {
 }
 
 func extractToken(r *http.Request) string {
-	// Check Authorization header first.
+	// Check Authorization: Bearer header first.
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		return auth[7:]
+	}
+	// ESP32-compatible X-Auth-Token header.
+	if t := r.Header.Get("X-Auth-Token"); t != "" {
+		return t
 	}
 	// Fallback: query param ?token= (for EventSource which can't set headers).
 	if t := r.URL.Query().Get("token"); t != "" {
@@ -98,7 +102,9 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Get("/api/state", handleState(state, cfg))
 	r.Get("/api/positions", handlePositions(state))
 	r.Get("/api/decisions", handleDecisions(state))
+	r.Get("/api/history", handleDecisions(state)) // ESP32-compatible alias
 	r.Get("/api/equity-history", handleEquityHistory(state))
+	r.Get("/api/equity", handleEquityHistory(state)) // ESP32-compatible alias
 	r.Get("/api/scouted", handleScouted(state))
 	r.Get("/api/wisdom", handleWisdom)
 	r.Get("/api/knowledge", handleKnowledgeExport)

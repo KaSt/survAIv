@@ -4,139 +4,138 @@ package dashboard
 var IndexHTML = []byte(`<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>⟁ SURVAIV Dashboard</title>
-<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAA9ElEQVR42mNkIBJELPv/n4EEsCKKkZEYdUwMAwxYiPWxwb7VpJmMph9XiAy+EID5HN3HzzTkGBgYGBikbjzCayBMHUaIQc1FD4kBDwFGXD7H5WNKxS84haKkicGbC2AuRvcBuji6elLTzMCnAUpTPSGAyxxYWhj8aQAGWtfmovCrgycTJT/o0wDJDthz4BDDngOHyJYf+iHg4mDH4OJgR7b84C8HqJX/CZUHg7ccwFUHULskHPztAVxge+gyBgYGBgbP1VFEiaODodMewAVgPoT5GF2c5gURzdIAqWmBVIAe94M3BKjVM4L5eND3jBgZRnrvGAAoapLuoUL8fAAAAABJRU5ErkJggg==">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>survaiv</title>
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2ElEQVR42qVTOw6DMAx9jnIKBmbGnqCqUBcOgFTlDhyDqyAkxNylqqqegJGZgWukS02NCR+pnmyH94mDCYG4Vd6H+rUj0j0bAp6eDYLxPZdEVoIZOCYxon6YYcck/hFX3jOJkeAxiQEAUT9MuSZkInZrpIoEcq7B2hntWdchv+nSfOkAAMq2QNkWU1/WWsCsKT1e7816l+B6OW/Wixkcub+ew2wG+umODBEATO2IujRfDOieV8FcvkDtiOyaUta4CZg1btURhX7lvWD1GcGRZeKrymWif9f5A1aLiC4N5q46AAAAAElFTkSuQmCC">
 <style>
-:root {
-  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d; --fg: #c9d1d9; --fg2: #8b949e;
-  --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922;
-  --border: #30363d; --card-bg: linear-gradient(135deg, #161b22 0%, #1c2128 100%);
-  --radius: 10px; --shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-.light {
-  --bg: #f6f8fa; --bg2: #ffffff; --bg3: #f0f2f5; --fg: #24292f; --fg2: #656d76;
-  --accent: #0969da; --green: #1a7f37; --red: #cf222e; --yellow: #9a6700;
-  --border: #d0d7de; --card-bg: linear-gradient(135deg, #ffffff 0%, #f6f8fa 100%);
-  --shadow: 0 2px 8px rgba(0,0,0,0.08);
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-  background: var(--bg); color: var(--fg); line-height: 1.5; min-height: 100vh; }
-.container { max-width: 1400px; margin: 0 auto; padding: 16px; }
-
-/* Header */
-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 0;
-  border-bottom: 1px solid var(--border); margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
-.logo { font-size: 1.4em; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--green));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 0.8em; font-weight: 600; }
-.status-ok { background: rgba(63,185,80,0.15); color: var(--green); }
-.status-err { background: rgba(248,81,73,0.15); color: var(--red); }
-.header-meta { font-size: 0.85em; color: var(--fg2); display: flex; gap: 16px; align-items: center; }
-.header-actions { display: flex; gap: 8px; }
-.btn { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg2);
-  color: var(--fg); cursor: pointer; font-size: 0.82em; transition: all 0.2s; }
-.btn:hover { border-color: var(--accent); color: var(--accent); }
-
-/* Cards */
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px; margin-bottom: 16px; }
-.card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 14px 16px; box-shadow: var(--shadow); }
-.card-label { font-size: 0.72em; text-transform: uppercase; letter-spacing: 0.05em;
-  color: var(--fg2); margin-bottom: 4px; }
-.card-value { font-size: 1.5em; font-weight: 700; }
-.card-sub { font-size: 0.75em; color: var(--fg2); margin-top: 2px; }
-.v-green { color: var(--green); }
-.v-red { color: var(--red); }
-.v-yellow { color: var(--yellow); }
-.v-accent { color: var(--accent); }
-
-/* Sections */
-.section { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px; margin-bottom: 16px; box-shadow: var(--shadow); }
-.section-title { font-size: 0.9em; font-weight: 600; color: var(--accent); margin-bottom: 12px;
-  display: flex; align-items: center; gap: 6px; }
-
-/* Tables */
-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
-th { text-align: left; padding: 8px 10px; color: var(--fg2); font-weight: 500;
-  border-bottom: 1px solid var(--border); font-size: 0.78em; text-transform: uppercase; }
-td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
-tr:hover td { background: var(--bg3); }
-.side-yes { color: var(--green); font-weight: 600; }
-.side-no { color: var(--red); font-weight: 600; }
-
-/* Scouted Markets */
-.scouted-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; }
-.scouted-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-  border-radius: 6px; background: var(--bg3); font-size: 0.84em; }
-.signal-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.sig-bullish { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.sig-bearish { background: var(--red); box-shadow: 0 0 6px var(--red); }
-.sig-skip { background: var(--fg2); }
-.sig-neutral { background: var(--yellow); }
-.scouted-q { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.scouted-meta { color: var(--fg2); font-size: 0.82em; white-space: nowrap; }
-
-/* Decision Log */
-.log-list { max-height: 320px; overflow-y: auto; }
-.log-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 0.84em; }
-.log-type { font-weight: 600; display: inline-block; min-width: 90px; }
-.log-type-hold { color: var(--yellow); }
-.log-type-buy { color: var(--green); }
-.log-type-close { color: var(--red); }
-.log-type-tool { color: var(--accent); }
-.log-rationale { color: var(--fg2); font-size: 0.9em; margin-top: 2px; }
-.log-meta { color: var(--fg2); font-size: 0.82em; }
-
-/* Equity Chart */
-.chart-container { position: relative; height: 200px; }
-canvas { width: 100% !important; height: 100% !important; }
-
-/* Wisdom */
-.wisdom-text { color: var(--fg2); font-size: 0.88em; white-space: pre-wrap;
-  background: var(--bg3); padding: 10px; border-radius: 6px; max-height: 140px; overflow-y: auto; }
-.custom-rules-editor textarea { width: 100%; min-height: 80px; font-size: 0.85em; font-family: monospace;
-  line-height: 1.4; background: var(--bg3); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px; resize: vertical; }
-.custom-rules-editor .rules-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
-.custom-rules-editor .rules-footer .char-count { font-size: 0.8em; color: var(--fg2); }
-.custom-rules-editor .rules-footer button { font-size: 0.85em; padding: 4px 12px; background: var(--accent);
-  color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-
-/* Grid layout */
-.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } }
-
-/* Modal */
-.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-  z-index: 100; justify-content: center; align-items: center; }
-.modal-overlay.active { display: flex; }
-.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 24px; max-width: 460px; width: 90%; box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
-.modal h3 { margin-bottom: 16px; color: var(--accent); }
-.modal label { display: block; font-size: 0.82em; color: var(--fg2); margin-bottom: 4px; margin-top: 12px; }
-.modal input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg3); color: var(--fg); font-size: 0.9em; }
-.modal input:focus { outline: none; border-color: var(--accent); }
-.modal-actions { display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end; }
-.btn-primary { background: var(--accent); color: #fff; border: none; }
-.btn-primary:hover { opacity: 0.85; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-.no-data { color: var(--fg2); font-style: italic; font-size: 0.88em; padding: 12px 0; }
-.key-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#fafafa;--card:#fff;--border:#e0e0e0;--text:#1a1a1a;--dim:#999;
+--green:#0d9e50;--red:#d32f2f;--blue:#1565c0;--yellow:#e6a700;--purple:#7b1fa2;
+--overlay:rgba(0,0,0,.45);--modal:#fff;--input-bg:#fff}
+[data-theme="dark"]{--bg:#121212;--card:#1e1e1e;--border:#333;--text:#e0e0e0;--dim:#777;
+--green:#4caf50;--red:#ef5350;--blue:#42a5f5;--yellow:#ffca28;--purple:#ab47bc;
+--overlay:rgba(0,0,0,.7);--modal:#1e1e1e;--input-bg:#2a2a2a}
+body{font-family:'SF Mono',Monaco,'Fira Code',monospace;background:var(--bg);color:var(--text);
+font-size:13px;line-height:1.5;max-width:960px;margin:0 auto}
+.error-banner{display:none;border:1px solid var(--red);color:var(--red);
+border-radius:6px;padding:10px 16px;margin:8px 20px;font-size:12px;font-weight:600;
+background:color-mix(in srgb, var(--red) 10%, var(--card))}
+.error-banner.visible{display:block}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;
+border-bottom:1px solid var(--border);background:var(--card)}
+.top h1{font-size:16px;font-weight:600;letter-spacing:2px;color:var(--green)}
+.top .status{display:flex;align-items:center;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+.dot.err{background:var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes spin-r{to{transform:rotate(360deg)}}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin-r .8s linear infinite;vertical-align:middle;margin-right:6px}
+.meta{color:var(--dim);font-size:11px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px 20px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.card .label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin-bottom:4px}
+.card .value{font-size:22px;font-weight:700}
+.card .sub{font-size:11px;color:var(--dim);margin-top:2px}
+.pos{color:var(--green)}.neg{color:var(--red)}
+.section{padding:0 20px 16px}
+.section h2{font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);
+margin:16px 0 8px;border-bottom:1px solid var(--border);padding-bottom:6px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--dim);font-weight:400;padding:6px 8px;
+border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:1px}
+td{padding:6px 8px;border-bottom:1px solid var(--border)}
+.log{max-height:300px;overflow-y:auto;background:var(--card);border:1px solid var(--border);
+border-radius:8px;padding:10px 14px;font-size:11px}
+.log-entry{padding:4px 0;border-bottom:1px solid #1a1a24}
+.log-entry:last-child{border:none}
+.log-time{color:var(--dim);margin-right:8px}
+.log-type{display:inline-block;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;
+margin-right:6px}
+.log-type.hold{background:#f0f0f0;color:#888}
+.log-type.buy{background:#e8f5e9;color:var(--green)}
+.log-type.close{background:#ffebee;color:var(--red)}
+.log-type.tool{background:#e3f2fd;color:var(--blue)}
+.scout-grid{display:grid;grid-template-columns:1fr;gap:6px;max-height:320px;overflow-y:auto}
+.scout-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;
+display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+.scout-signal{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.scout-signal.bullish{background:var(--green)}.scout-signal.bearish{background:var(--red)}
+.scout-signal.neutral{background:var(--yellow)}.scout-signal.skip{background:var(--dim)}
+.scout-q{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.scout-meta{font-size:10px;color:var(--dim);display:flex;gap:8px;flex-wrap:wrap}
+.scout-right{text-align:right;white-space:nowrap}
+.scout-price{font-size:14px;font-weight:700}
+.wisdom-section{margin-top:16px}
+.wisdom-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.wisdom-stat{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.wisdom-stat .val{font-size:20px;font-weight:700;color:var(--green)}
+.wisdom-stat .lbl{font-size:10px;color:var(--dim);text-transform:uppercase;margin-top:2px}
+.wisdom-rules{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:12px;
+font-size:11px;line-height:1.5;white-space:pre-wrap;color:var(--fg);max-height:200px;overflow-y:auto}
+.custom-rules-editor{margin-top:10px}
+.custom-rules-editor textarea{width:100%;min-height:80px;font-size:11px;font-family:monospace;line-height:1.4;
+background:var(--card);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:8px;resize:vertical}
+.custom-rules-editor .rules-footer{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.custom-rules-editor .rules-footer .char-count{font-size:10px;color:var(--dim)}
+.custom-rules-editor .rules-footer button{font-size:11px;padding:4px 12px;background:var(--blue);color:#fff;
+border:none;border-radius:4px;cursor:pointer}
+.freeze-toggle{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);cursor:pointer;float:right;margin-top:-2px}
+.freeze-toggle input{accent-color:var(--blue);cursor:pointer}
+.frozen-badge{display:inline-block;background:var(--blue);color:#fff;font-size:9px;padding:1px 6px;
+border-radius:3px;margin-left:6px;vertical-align:middle;letter-spacing:.5px}
+.scout-conf{font-size:10px;color:var(--dim)}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;
+height:120px;position:relative}
+canvas{width:100%!important;height:100%!important}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600}
+.badge.live{background:#e8f5e9;color:var(--green);border:1px solid var(--green)}
+.badge.paper{background:#fff8e1;color:var(--yellow);border:1px solid var(--yellow)}
+.empty{text-align:center;padding:20px;color:var(--dim);font-style:italic}
+.top-icons{display:flex;align-items:center;gap:6px}
+.icon-btn{background:none;border:none;cursor:pointer;font-size:18px;padding:4px;line-height:1;
+color:var(--dim);border-radius:4px;transition:color .2s}
+.icon-btn:hover{color:var(--text)}
+.modal-overlay{display:none;position:fixed;inset:0;background:var(--overlay);z-index:100;
+justify-content:center;align-items:flex-start;padding-top:60px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--modal);border:1px solid var(--border);border-radius:10px;
+width:90%;max-width:560px;max-height:80vh;overflow-y:auto;padding:20px 24px;
+box-shadow:0 8px 32px rgba(0,0,0,.25);position:relative}
+.modal-close{position:absolute;top:10px;right:14px;background:none;border:none;font-size:20px;
+cursor:pointer;color:var(--dim);line-height:1}
+.modal-close:hover{color:var(--red)}
+.modal h2{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--dim);
+margin:0 0 14px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.modal .setting-group{margin-bottom:16px}
+.modal .setting-group label{font-size:10px;color:var(--dim)}
+.modal .setting-section{margin-bottom:18px;padding:14px 16px;background:var(--input-bg);
+border-radius:8px;border:1px solid var(--border)}
+.modal .setting-section:last-child{margin-bottom:0}
+.modal .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;
+color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.modal .section-title .icon{font-size:14px}
+.key-status{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;
+border-radius:10px;font-weight:600}
+.key-status.configured{background:#e8f5e9;color:#2e7d32}
+.key-status.missing{background:#fff3e0;color:#e65100}
+@media(prefers-color-scheme:dark){
 .key-status.configured{background:#1b3a1b;color:#66bb6a}
 .key-status.missing{background:#3e2723;color:#ffb74d}
-.light .key-status.configured{background:#e6f4ea;color:#1a7f37}
-.light .key-status.missing{background:#fff3e0;color:#9a6700}
-.setting-section{margin-top:16px;padding:14px 16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
-.setting-section .sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--fg2);margin-bottom:10px;display:flex;align-items:center;gap:6px}
+}
+.preset-btn{font-size:10px;padding:4px 10px;border:1px solid var(--border);border-radius:6px;
+background:var(--input-bg);color:var(--text);cursor:pointer;transition:all .15s}
+.preset-btn:hover{border-color:var(--blue);color:var(--blue)}
+.cfg-input{width:100%;font-size:11px;padding:5px 8px;border:1px solid var(--border);
+border-radius:6px;background:var(--input-bg);color:var(--text);transition:border-color .15s}
+.cfg-input:focus{border-color:var(--blue);outline:none}
+.btn-primary{background:var(--blue);color:#fff;border:none;padding:6px 14px;border-radius:6px;
+cursor:pointer;font-size:11px;font-weight:600;transition:opacity .15s}
+.btn-primary:hover{opacity:.85}
+.btn-danger{background:none;border:1px solid var(--red);color:var(--red);padding:4px 12px;
+border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
+.btn-danger:hover{background:var(--red);color:#fff}
 </style>
 </head>
 <body>
@@ -144,414 +143,596 @@ canvas { width: 100% !important; height: 100% !important; }
   <div style="max-width:380px;padding:24px;text-align:center">
     <h1 style="font-size:24px;margin-bottom:8px">⟁ SURVAIV</h1>
     <div id="auth-claim" style="display:none">
-      <p style="font-size:13px;color:var(--fg2);margin-bottom:16px">This is your agent&#39;s secret PIN. Write it down!</p>
-      <div id="auth-pin-display" style="font-size:28px;font-weight:700;letter-spacing:2px;padding:16px;background:var(--bg2);border:2px solid var(--green);border-radius:8px;margin-bottom:16px;font-family:monospace"></div>
-      <input id="auth-confirm-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--fg)" placeholder="Type the PIN above">
-      <button onclick="confirmClaim()" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:16px">This is your agent's secret PIN. Write it down — you'll need it to access this dashboard.</p>
+      <div id="auth-pin-display" style="font-size:28px;font-weight:700;letter-spacing:2px;padding:16px;background:var(--card);border:2px solid var(--green);border-radius:8px;margin-bottom:16px;font-family:monospace"></div>
+      <form id="claim-form" onsubmit="return confirmClaim()">
+        <label style="font-size:12px;color:var(--dim)">Confirm PIN to claim ownership</label>
+        <input type="hidden" name="username" autocomplete="username" value="survaiv-owner">
+        <input id="auth-confirm-input" type="password" name="password" autocomplete="new-password" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;margin-top:6px;background:var(--input-bg);color:var(--text)" placeholder="Type the PIN above">
+        <button type="submit" style="width:100%;margin-top:12px;padding:10px;background:var(--green);color:#000;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Claim Agent</button>
+      </form>
       <div id="auth-claim-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
     </div>
     <div id="auth-login" style="display:none">
-      <p style="font-size:13px;color:var(--fg2);margin-bottom:16px">Enter your PIN to access the dashboard.</p>
-      <input id="auth-login-input" type="text" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--bg3);color:var(--fg)" placeholder="Enter PIN">
-      <button onclick="loginWithPin()" style="width:100%;margin-top:12px;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      <p style="font-size:13px;color:var(--dim);margin-bottom:16px">Enter your PIN to access the dashboard.</p>
+      <form id="login-form" onsubmit="return loginWithPin()">
+        <input type="hidden" name="username" autocomplete="username" value="survaiv-owner">
+        <input id="auth-login-input" type="password" name="password" autocomplete="current-password" style="width:100%;padding:10px;font-size:16px;text-align:center;border:1px solid var(--border);border-radius:6px;background:var(--input-bg);color:var(--text)" placeholder="Enter PIN">
+        <button type="submit" style="width:100%;margin-top:12px;padding:10px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer">Unlock</button>
+      </form>
       <div id="auth-login-err" style="color:var(--red);font-size:12px;margin-top:8px"></div>
     </div>
   </div>
 </div>
-<div class="container">
-  <header>
-    <div style="display:flex;align-items:center;gap:12px">
-      <span class="logo" id="agent-title">⟁ SURVAIV</span>
-      <span id="statusBadge" class="status-badge status-ok">running</span>
-      <span id="countdown" style="font-size:0.8em;opacity:0.6"></span>
-    </div>
-    <div class="header-meta">
-      <span>Model: <strong id="modelName">—</strong></span>
-      <span>Uptime: <strong id="uptime">0h 0m</strong></span>
-      <span>Cycles: <strong id="cycles">0</strong></span>
-    </div>
-    <div class="header-actions">
-      <button class="btn" onclick="toggleTheme()">🌓 Theme</button>
-      <button class="btn" onclick="openSettings()">⚙ Settings</button>
-    </div>
-  </header>
-
-  <div id="errorBanner" style="display:none;border:1px solid var(--red);color:var(--red);border-radius:var(--radius);padding:10px 16px;margin-bottom:12px;font-size:0.85em;font-weight:600;background:rgba(248,81,73,0.08)"></div>
-
-  <div class="cards" id="budgetCards">
-    <div class="card"><div class="card-label">Portfolio</div><div class="card-value v-accent" id="cardEquity">$0.00</div><div class="card-sub"><span id="cardCash">$0.00</span> cash · rest in positions</div></div>
-    <div class="card"><div class="card-label">P&L</div><div class="card-value" id="cardPnl">$0.00</div><div class="card-sub">Realized</div></div>
-    <div class="card"><div class="card-label">LLM Spend</div><div class="card-value v-yellow" id="cardLlm">$0.0000</div><div class="card-sub">Inference cost</div></div>
-    <div class="card"><div class="card-label">Daily Loss</div><div class="card-value v-red" id="cardLoss">$0.0000</div><div class="card-sub">Today&#39;s drawdown</div></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">📈 Equity History</div>
-    <div class="chart-container"><canvas id="equityChart"></canvas></div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">📉 P&amp;L per Cycle</div>
-    <div class="chart-container"><canvas id="pnlChart"></canvas></div>
-  </div>
-
-  <div id="wallet-section" style="display:none">
-  <div class="section">
-    <div class="section-title">💳 Wallet</div>
-    <div style="font-size:0.88em">
-      <span style="color:var(--fg2)">Address:</span> <strong id="walletAddr" style="font-family:monospace;font-size:0.92em">—</strong>
-      <span style="margin-left:16px;color:var(--fg2)">USDC Balance:</span> <strong id="walletBal">—</strong>
+<div class="top">
+  <h1 id="agent-title">⟁ SURVAIV</h1>
+  <div class="status">
+    <span class="badge" id="mode">PAPER</span>
+    <span class="dot" id="dot"></span>
+    <span class="meta" id="status-text">connecting…</span>
+    <span class="meta" id="countdown" style="opacity:0.6"></span>
+    <div class="top-icons">
+      <button class="icon-btn" id="theme-btn" onclick="toggleTheme()" title="Toggle theme">☀</button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
     </div>
   </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="section">
-      <div class="section-title">📊 Open Positions</div>
-      <div id="positionsTable"><div class="no-data">No open positions</div></div>
-    </div>
-    <div class="section">
-      <div class="section-title">🔍 Scouted Markets</div>
-      <div id="scoutedList"><div class="no-data">Waiting for first scan...</div></div>
-    </div>
-  </div>
-
-  <div class="grid-2">
-    <div class="section">
-      <div class="section-title">📋 Decision Log</div>
-      <div class="log-list" id="decisionLog"><div class="no-data">No decisions yet</div></div>
-    </div>
-    <div class="section">
-      <div class="section-title">🧠 Wisdom</div>
-      <div id="wisdomPanel"><div class="no-data">Collecting data...</div></div>
-    </div>
-  </div>
-
-  <div id="sys-stats" style="padding:4px 16px;font-size:0.8em;color:var(--fg2);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
-  <div style="text-align:center;padding:8px 16px;font-size:0.8em;color:var(--fg2)">Build: <span id="v-build">—</span> <span id="v-tier-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;background:#e8f5e9;color:#2e7d32">giga</span> · Model: <span id="v-model-footer">—</span> (<span id="v-model-price">—</span>/req)</div>
 </div>
 
-<div class="modal-overlay" id="settingsModal">
+<div class="error-banner" id="error-banner"></div>
+
+<div class="grid" id="cards">
+  <div class="card"><div class="label">Portfolio</div><div class="value" id="v-equity">—</div>
+    <div class="sub"><span id="v-cash">—</span> cash · <span id="v-numpos">0</span> positions</div></div>
+  <div class="card"><div class="label">P&amp;L</div><div class="value" id="v-pnl">—</div>
+    <div class="sub">Realized profit/loss</div></div>
+  <div class="card"><div class="label">LLM Spend</div><div class="value" id="v-spend">—</div>
+    <div class="sub">Cumulative inference</div></div>
+  <div class="card"><div class="label">Daily Loss</div><div class="value" id="v-dloss">—</div>
+    <div class="sub">Today's drawdown</div></div>
+  <div class="card"><div class="label">Cycles</div><div class="value" id="v-cycles">—</div>
+    <div class="sub" id="v-uptime">—</div></div>
+</div>
+
+<div class="section">
+  <h2>Equity Chart</h2>
+  <div class="chart-wrap"><canvas id="chart"></canvas></div>
+</div>
+
+<div class="section">
+  <h2>P&amp;L per Cycle</h2>
+  <div class="chart-wrap"><canvas id="pnl-chart"></canvas></div>
+</div>
+
+<div class="section">
+  <h2>Open Positions</h2>
+  <table>
+    <thead><tr><th>Market</th><th>Side</th><th>Entry</th><th>Current</th><th>P&amp;L</th><th>Stake</th><th>Type</th></tr></thead>
+    <tbody id="pos-body"><tr><td colspan="7" class="empty">No open positions</td></tr></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Market Scanner</h2>
+  <div class="scout-grid" id="scout-body"><div class="empty">Waiting for first scan…</div></div>
+</div>
+
+<div class="section wisdom-section">
+  <h2>Learning <span id="w-frozen-badge" class="frozen-badge" style="display:none">FROZEN</span>
+    <label class="freeze-toggle"><input type="checkbox" id="w-freeze" onchange="toggleFreeze(this.checked)"> Freeze learning</label>
+  </h2>
+  <div class="wisdom-stats" id="wisdom-stats">
+    <div class="wisdom-stat"><div class="val" id="w-total">–</div><div class="lbl">Tracked</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-pending">–</div><div class="lbl">Pending</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-resolved">–</div><div class="lbl">Resolved</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-accuracy">–</div><div class="lbl">Accuracy</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-buys">–</div><div class="lbl">Buy Acc</div></div>
+    <div class="wisdom-stat"><div class="val" id="w-holds">–</div><div class="lbl">Hold Acc</div></div>
+  </div>
+  <div id="w-models" style="font-size:10px;color:var(--dim);margin-bottom:8px"></div>
+  <div class="wisdom-rules" id="w-rules">No learned rules yet…</div>
+</div>
+
+<div class="section">
+  <h2>Decision Log</h2>
+  <div class="log" id="log"><div class="empty">Waiting for first cycle…</div></div>
+</div>
+
+<div id="sys-stats" style="padding:4px 20px;font-size:11px;color:var(--dim);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
+
+<div class="section" id="wallet-section" style="display:none">
+  <h2>Wallet</h2>
+  <div class="card">
+    <div class="label">Address</div>
+    <div class="value" id="v-wallet" style="font-size:13px;word-break:break-all">—</div>
+    <div class="sub">USDC.e balance: <span id="v-balance">—</span></div>
+  </div>
+</div>
+
+<div class="section" style="text-align:center">
+  <div class="sub">
+    Version: <span id="v-fw">—</span> <span id="v-tier-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;background:#e8f5e9;color:#2e7d32;display:none"></span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div class="modal-overlay" id="settings-overlay" onclick="if(event.target===this)closeSettings()">
   <div class="modal">
-    <h3 style="display:flex;align-items:center;gap:8px">⚙ LLM Settings <span id="llm-key-status" class="key-status missing">Not configured</span></h3>
+    <button class="modal-close" onclick="closeSettings()">&times;</button>
+    <h2>Settings</h2>
+
     <div class="setting-section">
-    <div class="sec-title">🤖 Model Configuration</div>
-    <div id="llm-presets" style="display:none">
-    <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
-      <button onclick="setLlmPreset('local')" class="btn" style="font-size:0.75em;padding:2px 8px">Local</button>
-      <button onclick="setLlmPreset('openrouter')" class="btn" style="font-size:0.75em;padding:2px 8px">OpenRouter</button>
-      <button onclick="setLlmPreset('openai')" class="btn" style="font-size:0.75em;padding:2px 8px">OpenAI</button>
-      <button onclick="setLlmPreset('groq')" class="btn" style="font-size:0.75em;padding:2px 8px">Groq</button>
-      <button onclick="setLlmPreset('x402')" class="btn" style="font-size:0.75em;padding:2px 8px">x402</button>
+      <div class="section-title"><span class="icon">🔧</span> System</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="badge" href="/api/backup?full=1" style="padding:6px 14px;text-decoration:none;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">⬇ Backup</a>
+        <label class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">
+          ⬆ Restore
+          <input type="file" id="restore-file" accept=".json" style="display:none"
+            onchange="restoreConfig(this.files[0])">
+        </label>
+
+        <button onclick="restartDevice()" class="badge" style="padding:6px 14px;background:#fce4ec;color:var(--red);border:1px solid var(--red);cursor:pointer">🔄 Restart</button>
+      </div>
+      <div id="settings-msg" style="margin-top:8px;font-size:11px;color:var(--dim)"></div>
     </div>
-    </div>
-    <label>API Endpoint URL</label>
-    <input id="settingsUrl" placeholder="https://...">
-    <label>Model</label>
-    <input id="settingsModel" placeholder="model-name">
-    <label>API Key</label>
-    <input id="settingsKey" type="password" placeholder="sk-...">
-    </div>
+
     <div class="setting-section">
-      <div class="sec-title">📊 Trading Mode</div>
+      <div class="section-title"><span class="icon">🧠</span> Knowledge</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button onclick="downloadKnowledge()" class="badge" style="padding:6px 14px;background:#e8f5e9;color:var(--green);border:1px solid var(--green);cursor:pointer">⬇ Export</button>
+        <label class="badge" style="padding:6px 14px;background:#e3f2fd;color:var(--blue);border:1px solid var(--blue);cursor:pointer">
+          ⬆ Import
+          <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
+        </label>
+        <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
+      </div>
+      <div class="custom-rules-editor" style="margin-top:10px">
+        <div style="font-size:11px;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--dim)">(injected into prompt)</span></div>
+        <textarea id="rules-editor" placeholder="AVOID: sports match outcomes — no edge vs oddsmakers&#10;EDGE: geopolitical binary events — markets overreact&#10;RULE: >0.85 yes_price = skip, edge too thin"></textarea>
+        <div class="rules-footer">
+          <span class="char-count" id="rules-count">0 / ? bytes</span>
+          <button onclick="saveCustomRules()">Save Rules</button>
+        </div>
+        <div id="rules-status" style="font-size:10px;color:var(--dim);margin-top:2px"></div>
+      </div>
+    </div>
+
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">📈</span> Trading</div>
       <div style="display:flex;gap:10px;align-items:center">
-        <button id="mode-paper-btn" onclick="setTradingMode(true)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x1F4DD; Paper</button>
-        <button id="mode-real-btn" onclick="setTradingMode(false)" style="padding:6px 14px;cursor:pointer;border-radius:6px;border:1px solid var(--border);background:var(--bg3);color:var(--fg);font-size:0.82em">&#x27C1; Real</button>
-        <span id="mode-msg" style="font-size:11px;color:var(--fg2)"></span>
+        <button id="mode-paper-btn" onclick="setTradingMode(true)" class="badge" style="padding:6px 14px;cursor:pointer">📝 Paper</button>
+        <button id="mode-real-btn" onclick="setTradingMode(false)" class="badge" style="padding:6px 14px;cursor:pointer">⟁ Real</button>
+        <span id="mode-msg" style="font-size:11px;color:var(--dim)"></span>
       </div>
-      <div style="font-size:10px;color:var(--fg2);margin-top:4px">Open positions will continue to completion in their original mode.</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:4px">Open positions continue in their original mode.</div>
       <div id="paper-reset-row" style="display:none;margin-top:8px">
-        <button onclick="confirmResetPaper()" class="btn" style="font-size:0.75em;padding:4px 12px;color:var(--red);border-color:var(--red)">&#x1F5D1; Reset Paper Trading</button>
-        <span id="reset-msg" style="font-size:10px;color:var(--fg2);margin-left:6px"></span>
+        <button onclick="confirmResetPaper()" class="btn-danger">🗑 Reset Paper Trading</button>
+        <span id="reset-msg" style="font-size:10px;color:var(--dim);margin-left:6px"></span>
       </div>
     </div>
+
     <div class="setting-section">
-      <div class="sec-title">🔧 Tool Usage</div>
+      <div class="section-title"><span class="icon">⚡</span> Tool Usage</div>
       <div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:10px;color:var(--fg2)">Frugal</span>
+        <span style="font-size:10px;color:var(--dim)">Frugal</span>
         <input type="range" id="tool-usage-slider" min="0" max="2" value="1" step="1"
-          style="flex:1;accent-color:var(--accent)" oninput="updateToolLabel()">
-        <span style="font-size:10px;color:var(--fg2)">Generous</span>
+          style="flex:1;accent-color:var(--blue)" oninput="updateToolLabel()" onchange="saveToolUsage()">
+        <span style="font-size:10px;color:var(--dim)">Generous</span>
       </div>
-      <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--fg2);margin-top:2px">Balanced</div>
+      <div id="tool-usage-label" style="text-align:center;font-size:10px;color:var(--dim);margin-top:2px">Balanced</div>
     </div>
-    <div class="setting-section">
-      <div class="sec-title">📰 News Search <span id="news-key-status" class="key-status missing">No key</span></div>
+
+    <div class="setting-section" id="llm-cfg" style="display:none">
+      <div class="section-title"><span class="icon">🤖</span> LLM Endpoint <span id="llm-key-status" class="key-status missing">Not configured</span></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+        <button onclick="setLlmPreset('local')" class="preset-btn">Local</button>
+        <button onclick="setLlmPreset('openrouter')" class="preset-btn">OpenRouter</button>
+        <button onclick="setLlmPreset('openai')" class="preset-btn">OpenAI</button>
+        <button onclick="setLlmPreset('groq')" class="preset-btn">Groq</button>
+        <button onclick="setLlmPreset('x402')" class="preset-btn">x402 (auto)</button>
+      </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
-        <label style="font-size:10px;color:var(--fg2);flex:1">Provider<br>
-          <select id="cfg-news-prov" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)">
+        <label style="font-size:10px;color:var(--dim);flex:2">Base URL<br>
+          <input id="cfg-url" class="cfg-input" oninput="this.dataset.touched='1'" placeholder="https://…/v1">
+        </label>
+        <label style="font-size:10px;color:var(--dim);flex:1">Model<br>
+          <input id="cfg-model" class="cfg-input" placeholder="model-id">
+        </label>
+        <label style="font-size:10px;color:var(--dim);flex:1">API Key<br>
+          <input id="cfg-key" type="password" class="cfg-input" placeholder="sk-…">
+        </label>
+        <button onclick="saveLlmConfig()" class="btn-primary">Apply</button>
+      </div>
+      <div id="llm-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+    </div>
+
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">🔍</span> News Search <span id="news-key-status" class="key-status missing">No key</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--dim);flex:1">Provider<br>
+          <select id="cfg-news-prov" class="cfg-input">
             <option value="tavily">Tavily</option>
             <option value="brave">Brave Search</option>
           </select>
         </label>
-        <label style="font-size:10px;color:var(--fg2);flex:2">API Key<br>
-          <input id="cfg-news-key" type="password" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="tvly-xxx or BSA-xxx">
+        <label style="font-size:10px;color:var(--dim);flex:2">API Key<br>
+          <input id="cfg-news-key" type="password" class="cfg-input" placeholder="tvly-xxx or BSA-xxx">
         </label>
-        <button onclick="saveNewsConfig()" style="background:var(--accent);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+        <button onclick="saveNewsConfig()" class="btn-primary">Save</button>
       </div>
-      <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
+      <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
     <div class="setting-section">
-      <div class="sec-title">📡 Telemetry Hub <span id="telem-status" class="key-status missing">Disabled</span></div>
-      <div style="font-size:10px;color:var(--fg2);margin-bottom:6px">Send periodic reports to a central hub for monitoring &amp; leaderboards.</div>
+      <div class="section-title"><span class="icon">📡</span> Telemetry Hub <span id="telem-status" class="key-status missing">Disabled</span></div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:6px">Send periodic reports to a central hub for monitoring &amp; leaderboards.</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
-        <label style="font-size:10px;color:var(--fg2);flex:3">Hub URL<br>
-          <input id="cfg-telem-url" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="https://hub.survaiv.io">
+        <label style="font-size:10px;color:var(--dim);flex:3">Hub URL<br>
+          <input id="cfg-telem-url" class="cfg-input" placeholder="https://hub.survaiv.io">
         </label>
-        <label style="font-size:10px;color:var(--fg2);flex:1">Interval (s)<br>
-          <input id="cfg-telem-sec" type="number" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="300" min="60" value="300">
+        <label style="font-size:10px;color:var(--dim);flex:1">Interval (s)<br>
+          <input id="cfg-telem-sec" type="number" class="cfg-input" placeholder="300" min="60" value="300">
         </label>
-        <button onclick="saveTelemetryConfig()" style="background:var(--accent);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+        <button onclick="saveTelemetryConfig()" class="btn-primary">Save</button>
       </div>
-      <div id="telem-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
-    </div>
-    <div class="setting-section">
-      <div class="sec-title">⚡ Agent Efficiency</div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-        <div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
-          <div id="eff-bar" style="height:100%;border-radius:4px;transition:width 0.5s"></div>
-        </div>
-        <span id="eff-score" style="font-size:1.2em;font-weight:700;min-width:40px"></span>
-      </div>
-      <div id="eff-details" style="font-size:10px;color:var(--fg2);line-height:1.6"></div>
-      <div style="margin-top:8px;font-size:10px;color:var(--fg2)">
-        <div style="font-weight:600;margin-bottom:4px">Platform Comparison</div>
-        <div id="eff-compare" style="display:grid;grid-template-columns:1fr auto;gap:2px 8px"></div>
-      </div>
-    </div>
-    <div class="setting-section">
-      <div class="sec-title">💾 Data Management</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <a class="btn" href="/api/backup?full=1" download="survaiv-backup.json" style="font-size:0.8em;text-decoration:none">⬇ Backup Config</a>
-        <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Restore Config
-          <input type="file" id="restore-file" accept=".json" style="display:none" onchange="restoreConfig(this.files[0])">
-        </label>
-        <button onclick="restartDevice()" class="btn" style="font-size:0.8em;background:#fce4ec;color:#c62828;border:1px solid #c62828;cursor:pointer">🔄 Restart</button>
-      </div>
-    </div>
-    <div class="setting-section">
-      <div class="sec-title">🧠 Knowledge</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button onclick="downloadKnowledge()" class="btn" style="font-size:0.8em">⬇ Export Knowledge</button>
-        <label class="btn" style="font-size:0.8em;cursor:pointer">⬆ Import Knowledge
-          <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
-        </label>
-        <span id="kb-status" style="font-size:0.8em;color:var(--fg2)"></span>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn" onclick="closeSettings()">Cancel</button>
-      <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+      <div id="telem-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
   </div>
 </div>
 
 <script>
-var $ = function(s) { return document.querySelector(s); };
-var $$ = function(s) { return document.querySelectorAll(s); };
-var equityData = [];
-var darkMode = localStorage.getItem('theme') !== 'light';
-if (!darkMode) document.body.classList.add('light');
-var authToken = sessionStorage.getItem('survaiv_token') || '';
+const $ = id => document.getElementById(id);
+const fmt = (n, d=4) => n < 0 ? n.toFixed(d) : n.toFixed(d);
+const fmtUsd = n => '$' + Math.abs(n).toFixed(2);
+const cls = n => n >= 0 ? 'pos' : 'neg';
+
+// ── Auth ────────────────────────────────────────────────────────
+let authToken = sessionStorage.getItem('survaiv-token') || '';
 
 function authHeaders() {
-  var h = {'Content-Type': 'application/json'};
+  const h = {'Content-Type':'application/json'};
   if (authToken) h['Authorization'] = 'Bearer ' + authToken;
   return h;
 }
 
-function toggleTheme() {
-  darkMode = !darkMode;
-  document.body.classList.toggle('light', !darkMode);
-  localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-  drawChart();
-  drawPnlChart();
+function checkAuth() {
+  fetch('/api/auth').then(r => r.json()).then(d => {
+    if (!d.claimed) {
+      $('auth-overlay').style.display = 'flex';
+      $('auth-claim').style.display = 'block';
+      $('auth-pin-display').textContent = d.display_pin;
+    } else if (!authToken) {
+      $('auth-overlay').style.display = 'flex';
+      $('auth-login').style.display = 'block';
+    } else {
+      fetch('/api/auth', {headers:{'Authorization': 'Bearer ' + authToken}}).then(r => {
+        if (r.ok) return r.json(); else return {needs_pin:true};
+      }).then(v => {
+        if (v.needs_pin === false) { $('auth-overlay').style.display = 'none'; initDashboard(); }
+        else { authToken = ''; sessionStorage.removeItem('survaiv-token'); checkAuth(); }
+      });
+    }
+  });
 }
 
-function openSettings() { $('#settingsModal').classList.add('active'); }
-function closeSettings() { $('#settingsModal').classList.remove('active'); }
-
-var toolUsageLabels = ['Frugal \u2014 minimize tool calls', 'Balanced \u2014 use when needed', 'Generous \u2014 search freely'];
-function updateToolLabel() {
-  var s = document.getElementById('tool-usage-slider');
-  var l = document.getElementById('tool-usage-label');
-  if (s && l) l.textContent = toolUsageLabels[parseInt(s.value)] || 'Balanced';
+function confirmClaim() {
+  var pin = $('auth-confirm-input').value.trim();
+  fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'claim',pin:pin}),
+    headers:{'Content-Type':'application/json'}})
+    .then(function(r){return r.json()}).then(function(d){
+      if (d.ok) {
+        authToken = d.token;
+        sessionStorage.setItem('survaiv-token', authToken);
+        $('auth-overlay').style.display = 'none';
+        initDashboard();
+      } else { $('auth-claim-err').textContent = d.error || 'PIN mismatch'; }
+    });
+  return false;
 }
 
-function saveSettings() {
-  var body = {};
-  var u = $('#settingsUrl').value.trim();
-  var m = $('#settingsModel').value.trim();
-  var k = $('#settingsKey').value.trim();
-  if (u) body.url = u;
-  if (m) body.model = m;
-  if (k) body.key = k;
-  fetch('/api/llm-config', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
-    .then(function(r) { return r.json(); }).then(function() {
-      var lks = document.getElementById('llm-key-status');
-      if (lks && u) { lks.className = 'key-status configured'; lks.textContent = '\u2713 Configured'; }
-      closeSettings();
-    }).catch(console.error);
-  var tusVal = document.getElementById('tool-usage-slider');
-  if (tusVal) {
-    fetch('/api/config', {method:'POST', body:JSON.stringify({tool_usage: parseInt(tusVal.value)}), headers:authHeaders()});
-  }
+function loginWithPin() {
+  var pin = $('auth-login-input').value.trim();
+  fetch('/api/auth', {method:'POST', body:JSON.stringify({action:'login',pin:pin}),
+    headers:{'Content-Type':'application/json'}})
+    .then(function(r){return r.json()}).then(function(d){
+      if (d.ok) {
+        authToken = d.token;
+        sessionStorage.setItem('survaiv-token', authToken);
+        $('auth-overlay').style.display = 'none';
+        initDashboard();
+      } else { $('auth-login-err').textContent = d.error || 'Wrong PIN'; }
+    });
+  return false;
 }
 
 function setTradingMode(paper) {
   fetch('/api/config', {method:'POST', body:JSON.stringify({paper_only: paper ? 1 : 0}),
     headers: authHeaders()})
-    .then(function(r) { return r.json(); }).then(function(d) {
-      var msg = document.getElementById('mode-msg');
-      msg.textContent = paper ? '\u2713 Paper mode' : '\u2713 Real mode';
+    .then(r => r.json()).then(d => {
+      const msg = $('mode-msg');
+      msg.textContent = paper ? '\u2713 Switched to Paper' : '\u2713 Switched to Real';
       msg.style.color = 'var(--green)';
-      setTimeout(function() { msg.textContent = ''; }, 3000);
-      loadAll();
+      setTimeout(() => msg.textContent = '', 3000);
+    }).catch(() => {
+      $('mode-msg').textContent = '\u2717 Failed'; $('mode-msg').style.color = 'var(--red)';
     });
 }
 
 function confirmResetPaper() {
   if (!confirm('Reset all paper trading data?\n\nThis will clear positions, P&L, equity history, and decision log.\nWisdom and settings are preserved.\n\nThis cannot be undone.')) return;
-  var msg = document.getElementById('reset-msg');
+  const msg = $('reset-msg');
   msg.textContent = 'Resetting...';
-  msg.style.color = 'var(--fg2)';
+  msg.style.color = 'var(--dim)';
   fetch('/api/reset-paper', {method:'POST', headers: authHeaders()})
-    .then(function(r) { return r.json(); }).then(function() {
+    .then(r => r.json()).then(() => {
       msg.textContent = '\u2713 Reset complete';
       msg.style.color = 'var(--green)';
-      setTimeout(function() { msg.textContent = ''; }, 3000);
-      loadAll();
-    }).catch(function() {
+      setTimeout(() => msg.textContent = '', 3000);
+      poll();
+    }).catch(() => {
       msg.textContent = 'Reset failed';
       msg.style.color = 'var(--red)';
     });
 }
 
-function fmtUsd(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(2); }
-function fmtUsd4(n) { return (n < 0 ? '-' : '') + '$' + Math.abs(n).toFixed(4); }
-function fmtDuration(sec) {
-  var h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
-  return h + 'h ' + m + 'm';
+// Theme toggle
+function toggleTheme() {
+  const html = document.documentElement;
+  const dark = html.getAttribute('data-theme') !== 'dark';
+  html.setAttribute('data-theme', dark ? 'dark' : 'light');
+  $('theme-btn').textContent = dark ? '🌙' : '☀';
+  try { localStorage.setItem('survaiv-theme', dark ? 'dark' : 'light'); } catch(e) {}
+}
+(function initTheme() {
+  try {
+    const saved = localStorage.getItem('survaiv-theme');
+    if (saved === 'dark') {
+      document.documentElement.setAttribute('data-theme','dark');
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.textContent = '🌙';
+    }
+  } catch(e) {}
+})();
+
+// Settings modal
+function openSettings() { $('settings-overlay').classList.add('open'); }
+function closeSettings() { $('settings-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSettings(); });
+
+const toolUsageLabels = ['Frugal \u2014 minimize tool calls', 'Balanced \u2014 use when needed', 'Generous \u2014 search freely'];
+function updateToolLabel() {
+  const s = $('tool-usage-slider');
+  const l = $('tool-usage-label');
+  if (s && l) l.textContent = toolUsageLabels[parseInt(s.value)] || 'Balanced';
+}
+function saveToolUsage() {
+  const v = parseInt($('tool-usage-slider').value);
+  fetch('/api/config', {method:'POST', body:JSON.stringify({tool_usage: v}),
+    headers:authHeaders()});
 }
 
-function updateState(d) {
-  var b = d.budget || {};
-  $('#cardEquity').textContent = fmtUsd(b.equity || 0);
-  $('#cardCash').textContent = fmtUsd(b.cash || 0);
-  var pnl = b.realized_pnl || 0;
-  var pe = $('#cardPnl');
-  pe.textContent = (pnl >= 0 ? '+' : '') + fmtUsd4(pnl);
-  pe.className = 'card-value ' + (pnl > 0 ? 'v-green' : pnl < 0 ? 'v-red' : '');
-  $('#cardLlm').textContent = fmtUsd4(b.llm_spend || 0);
-  $('#cardLoss').textContent = fmtUsd4(b.daily_loss || 0);
-  var st = d.status || 'unknown';
-  var sb = $('#statusBadge');
-  sb.textContent = st;
-  sb.className = 'status-badge ' + (st === 'error' || st === 'llm_error' ? 'status-err' : 'status-ok');
-  if (d.next_cycle_epoch) window._nextCycleEpoch = d.next_cycle_epoch;
-  $('#modelName').textContent = d.active_model || '\u2014';
-  $('#uptime').textContent = fmtDuration(d.uptime_seconds || 0);
-  $('#cycles').textContent = d.cycle_count || 0;
-  if (d.agent_name) document.getElementById('agent-title').textContent = '\u27C1 ' + d.agent_name;
-  var errBanner = document.getElementById('errorBanner');
-  if (errBanner) {
-    if (d.last_error) {
-      var retryText = d.next_retry_sec > 0 ? ' \u00B7 retrying in ' + d.next_retry_sec + 's' : '';
-      errBanner.textContent = '\u26A0 ' + d.last_error + retryText;
-      errBanner.style.display = 'block';
+let equityData = [];
+
+function drawChart() {
+  const canvas = $('chart');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 24;
+  const w = canvas.width, h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+  if (equityData.length < 2) {
+    ctx.fillStyle = '#999';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('Collecting data…', w/2, h/2);
+    return;
+  }
+
+  const vals = equityData.map(function(d) { return d.equity || d[1] || 0; });
+  const mn = Math.min(...vals) * 0.995;
+  const mx = Math.max(...vals) * 1.005;
+  const range = mx - mn || 1;
+
+  // Grid lines.
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = h * i / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+
+  // Line.
+  const startVal = vals[0];
+  ctx.beginPath();
+  for (let i = 0; i < vals.length; i++) {
+    const x = (i / (vals.length - 1)) * w;
+    const y = h - ((vals[i] - mn) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  const lastVal = vals[vals.length - 1];
+  ctx.strokeStyle = lastVal >= startVal ? '#0d9e50' : '#d32f2f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Fill gradient.
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  if (lastVal >= startVal) {
+    grad.addColorStop(0, 'rgba(13,158,80,0.12)');
+    grad.addColorStop(1, 'rgba(13,158,80,0)');
+  } else {
+    grad.addColorStop(0, 'rgba(211,47,47,0.12)');
+    grad.addColorStop(1, 'rgba(211,47,47,0)');
+  }
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Labels.
+  ctx.fillStyle = '#999';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(mx.toFixed(2), 4, 12);
+  ctx.fillText(mn.toFixed(2), 4, h - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText(lastVal.toFixed(2), w - 4, 12);
+}
+
+function drawPnlChart() {
+  const canvas = $('pnl-chart');
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width - 24;
+  canvas.height = rect.height - 24;
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  if (equityData.length < 2) {
+    ctx.fillStyle = '#999'; ctx.font = '11px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('Collecting data…', w/2, h/2);
+    return;
+  }
+
+  const baseline = equityData[0].equity || equityData[0][1] || 0;
+  const pnl = equityData.map(function(d) { return (d.equity || d[1] || 0) - baseline; });
+  const mn = Math.min(...pnl, 0);
+  const mx = Math.max(...pnl, 0);
+  const rawRange = mx - mn;
+  const range = rawRange > 0.005 ? rawRange : 0.01;
+  const flat = rawRange < 0.005;
+  const zeroY = flat ? h / 2 : h - ((-mn) / range) * h;
+
+  // Grid + zero line.
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#e0e0e0';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 4; i++) {
+    const y = h * i / 3;
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+  }
+  ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // When P&L is essentially flat, show a clean zero line instead of noisy bars.
+  if (flat) {
+    ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#999'; ctx.font = '10px monospace'; ctx.textAlign = 'center';
+    ctx.fillText('P&L: $0.00', w/2, zeroY - 8);
+    return;
+  }
+
+  // Bars.
+  const barW = Math.max(1, (w / pnl.length) - 1);
+  for (let i = 0; i < pnl.length; i++) {
+    const x = (i / pnl.length) * w;
+    const val = pnl[i];
+    const barH = (Math.abs(val) / range) * h;
+    if (val >= 0) {
+      ctx.fillStyle = 'rgba(13,158,80,0.6)';
+      ctx.fillRect(x, zeroY - barH, barW, barH);
     } else {
-      errBanner.style.display = 'none';
+      ctx.fillStyle = 'rgba(211,47,47,0.6)';
+      ctx.fillRect(x, zeroY, barW, barH);
     }
   }
-  var vBuild = document.getElementById('v-build');
-  if (vBuild) vBuild.textContent = d.firmware || d.version || '\u2014';
-  var vModelFoot = document.getElementById('v-model-footer');
-  if (vModelFoot) vModelFoot.textContent = d.active_model || '\u2014';
-  var vModelPr = document.getElementById('v-model-price');
-  if (vModelPr) vModelPr.textContent = d.model_price > 0 ? fmtUsd4(d.model_price) : '\u2014';
-  var pb = document.getElementById('mode-paper-btn');
-  var rb = document.getElementById('mode-real-btn');
-  if (pb && rb) {
-    if (d.paper_only) {
-      pb.style.background = 'var(--green)'; pb.style.color = '#000';
-      rb.style.background = 'var(--bg3)'; rb.style.color = 'var(--fg)';
-    } else {
-      pb.style.background = 'var(--bg3)'; pb.style.color = 'var(--fg)';
-      rb.style.background = 'var(--accent)'; rb.style.color = '#fff';
+
+  // Cumulative P&L line.
+  ctx.beginPath();
+  for (let i = 0; i < pnl.length; i++) {
+    const x = (i / (pnl.length - 1)) * w;
+    const y = h - ((pnl[i] - mn) / range) * h;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  const last = pnl[pnl.length - 1];
+  ctx.strokeStyle = last >= 0 ? '#0d9e50' : '#d32f2f';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Labels.
+  ctx.fillStyle = '#999'; ctx.font = '10px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText((mx >= 0 ? '+' : '') + mx.toFixed(2), 4, 12);
+  ctx.fillText((mn >= 0 ? '+' : '') + mn.toFixed(2), 4, h - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText((last >= 0 ? '+' : '') + last.toFixed(2), w - 4, 12);
+  ctx.textAlign = 'center';
+  ctx.fillText('0', 14, zeroY - 3);
+}
+
+function updateState(s) {
+  $('v-equity').textContent = fmtUsd(s.budget.equity);
+  $('v-cash').textContent = fmtUsd(s.budget.cash);
+  if (s.open_positions !== undefined) $('v-numpos').textContent = s.open_positions;
+
+  const pnlEl = $('v-pnl');
+  pnlEl.textContent = (s.budget.realized_pnl >= 0 ? '+' : '') + fmtUsd(s.budget.realized_pnl);
+  pnlEl.className = 'value ' + cls(s.budget.realized_pnl);
+
+  $('v-spend').textContent = fmtUsd(s.budget.llm_spend);
+  if (s.inference_spent_usdc !== undefined && s.inference_spent_usdc > 0 &&
+      Math.abs(s.inference_spent_usdc - s.budget.llm_spend) > 0.005) {
+    $('v-spend').textContent += ' (' + fmtUsd(s.inference_spent_usdc) + ' x402)';
+  }
+
+  const dlEl = $('v-dloss');
+  dlEl.textContent = fmtUsd(s.budget.daily_loss);
+  dlEl.className = 'value ' + (s.budget.daily_loss > 0 ? 'neg' : '');
+
+  $('v-cycles').textContent = s.cycle_count;
+  const hrs = Math.floor(s.uptime_seconds / 3600);
+  const mins = Math.floor((s.uptime_seconds % 3600) / 60);
+  $('v-uptime').textContent = 'Uptime: ' + hrs + 'h ' + mins + 'm';
+
+  const dot = $('dot');
+  const statusText = $('status-text');
+  statusText.textContent = s.status;
+  dot.className = s.status === 'error' ? 'dot err' : 'dot';
+
+  // Countdown to next cycle.
+  if (s.next_cycle_epoch) {
+    window._nextCycleEpoch = s.next_cycle_epoch;
+  }
+
+  const modeEl = $('mode');
+  if (s.live_mode) {
+    modeEl.textContent = 'LIVE';
+    modeEl.className = 'badge live';
+  } else {
+    modeEl.textContent = 'PAPER';
+    modeEl.className = 'badge paper';
+  }
+
+  if (s.wallet) {
+    $('v-wallet').textContent = s.wallet || '—';
+    $('v-balance').textContent = s.usdc_balance >= 0 ? fmtUsd(s.usdc_balance) : '—';
+  }
+  const walletSec = $('wallet-section');
+  if (walletSec) walletSec.style.display = s.live_mode ? 'block' : 'none';
+  var otaBtn = $('ota-btn');
+  if (otaBtn) otaBtn.style.display = s.ota_enabled ? '' : 'none';
+  if (s.firmware) {
+    $('v-fw').textContent = s.version || s.firmware || '—';
+    var tierBadge = $('v-tier-badge');
+    if (tierBadge && s.tier) {
+      tierBadge.textContent = s.tier;
+      tierBadge.style.display = 'inline';
     }
+
   }
-  var prr = document.getElementById('paper-reset-row');
-  if (prr) prr.style.display = d.paper_only ? 'block' : 'none';
-  var newsProv = document.getElementById('cfg-news-prov');
-  if (newsProv && d.news_provider) newsProv.value = d.news_provider;
-  var tus = document.getElementById('tool-usage-slider');
-  if (tus && d.tool_usage !== undefined) { tus.value = d.tool_usage; updateToolLabel(); }
-  var newsMsg = document.getElementById('news-cfg-msg');
-  if (newsMsg) newsMsg.textContent = d.has_news_key ? 'Key configured' : '';
-  var nks = document.getElementById('news-key-status');
-  if (nks) {
-    if (d.has_news_key) {
-      nks.className = 'key-status configured';
-      nks.textContent = '\u2713 Key saved';
-    } else {
-      nks.className = 'key-status missing';
-      nks.textContent = 'No key';
-    }
+  if (s.active_model) {
+    $('v-model').textContent = s.active_model;
+    $('v-model-price').textContent = s.model_price > 0 ? fmtUsd(s.model_price) : '—';
   }
-  var telemStatus = document.getElementById('telem-status');
-  if (telemStatus) {
-    if (d.telemetry_url) {
-      telemStatus.textContent = 'Active';
-      telemStatus.className = 'key-status configured';
-    } else {
-      telemStatus.textContent = 'Disabled';
-      telemStatus.className = 'key-status missing';
-    }
-  }
-  if (d.telemetry_url) { var tu = document.getElementById('cfg-telem-url'); if (tu) tu.value = d.telemetry_url; }
-  if (d.telemetry_sec) { var ts = document.getElementById('cfg-telem-sec'); if (ts) ts.value = d.telemetry_sec; }
-  var lks = document.getElementById('llm-key-status');
-  if (lks) {
-    if (d.oai_url) {
-      lks.className = 'key-status configured';
-      lks.textContent = d.has_api_key ? '\u2713 Configured' : '\u2713 URL set (no key)';
-    } else {
-      lks.className = 'key-status missing';
-      lks.textContent = 'Not configured';
-    }
-  }
-  var cfgUrl = document.getElementById('cfg-url');
-  var cfgModel = document.getElementById('cfg-model');
-  if (d.oai_url && cfgUrl && !cfgUrl.dataset.touched) cfgUrl.value = d.oai_url;
-  if (d.oai_model && cfgModel && !cfgModel.dataset.touched) cfgModel.value = d.oai_model;
-  var walletSec = document.getElementById('wallet-section');
-  if (walletSec) walletSec.style.display = d.live_mode ? 'block' : 'none';
-  if (d.wallet) {
-    var wa = document.getElementById('walletAddr');
-    if (wa) wa.textContent = d.wallet;
-    var wb = document.getElementById('walletBal');
-    if (wb) wb.textContent = fmtUsd(d.usdc_balance || 0);
-  }
-  var x402Spend = d.inference_spent_usdc || 0;
-  var llmSpend = (b.llm_spend || 0);
-  var llmSub = document.querySelector('#cardLlm + .card-sub');
-  if (llmSub) {
-    if (x402Spend > 0 && Math.abs(x402Spend - llmSpend) > 0.005) {
-      llmSub.textContent = 'x402: ' + fmtUsd4(x402Spend);
-    } else {
-      llmSub.textContent = 'Inference cost';
-    }
-  }
-  var presetDiv = document.getElementById('llm-presets');
-  if (presetDiv) presetDiv.style.display = d.paper_only ? 'block' : 'none';
-  if (d.efficiency) updateEfficiency(d.efficiency);
-  if (d.sys) {
-    var sy = d.sys;
-    function fmtB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
+
+  // System stats with bar graphs
+  if (s.sys) {
+    var sy = s.sys;
+    function fmtKB(b) { return b >= 1048576 ? (b/1048576).toFixed(1)+' MB' : (b/1024).toFixed(0)+' KB'; }
     function bar(pct, w) {
       w = w || 50;
-      var c = pct > 85 ? 'var(--red)' : pct > 60 ? 'var(--yellow,#d29922)' : 'var(--green)';
-      return '<span style="display:inline-block;width:'+w+'px;height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;vertical-align:middle">'
+      var c = pct > 85 ? 'var(--red)' : pct > 60 ? '#d29922' : 'var(--green)';
+      return '<span style="display:inline-block;width:'+w+'px;height:8px;background:var(--border);border-radius:4px;overflow:hidden;vertical-align:middle">'
         +'<span style="display:block;width:'+pct+'%;height:100%;background:'+c+';border-radius:4px"></span></span>';
     }
     var h = '';
@@ -560,465 +741,524 @@ function updateState(d) {
     for (var i = 0; i < cpus.length; i++) {
       h += '<span>Core '+i+': '+bar(cpus[i])+' '+cpus[i]+'%</span>';
     }
-    // Memory bar
+    // RAM bar
     var memPct = sy.sys > 0 ? Math.round(sy.alloc * 100 / sy.sys) : 0;
-    h += '<span>Mem: '+bar(memPct)+' '+fmtB(sy.alloc)+' / '+fmtB(sy.sys)+'</span>';
+    h += '<span>Mem: '+bar(memPct)+' '+memPct+'% ('+fmtKB(sy.alloc)+' / '+fmtKB(sy.sys)+')</span>';
     h += '<span>Goroutines: '+sy.goroutines+'</span>';
     h += '<span>GC: '+sy.gc_cycles+'</span>';
     // Uptime + current time
-    if (d.uptime_seconds != null) {
-      var u = d.uptime_seconds, ud = Math.floor(u/86400), uh = Math.floor((u%86400)/3600), um = Math.floor((u%3600)/60);
+    if (s.uptime_seconds != null) {
+      var u = s.uptime_seconds, ud = Math.floor(u/86400), uh = Math.floor((u%86400)/3600), um = Math.floor((u%3600)/60);
       h += '<span>Uptime: '+(ud > 0 ? ud+'d ':'') + uh+'h '+um+'m</span>';
     }
     h += '<span>Time: '+new Date().toLocaleTimeString()+'</span>';
-    document.getElementById('sys-stats').innerHTML = h;
+    $('sys-stats').innerHTML = h;
   }
-}
 
-function updateEfficiency(eff) {
-  var score = eff.score || 0;
-  var bar = document.getElementById('eff-bar');
-  var scoreEl = document.getElementById('eff-score');
-  var details = document.getElementById('eff-details');
-  var compare = document.getElementById('eff-compare');
-  if (!bar || !scoreEl) return;
-  bar.style.width = score + '%';
-  bar.style.background = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
-  scoreEl.textContent = score + '/100';
-  scoreEl.style.color = score >= 70 ? 'var(--green)' : score >= 40 ? 'var(--yellow)' : 'var(--red)';
-  if (details) {
-    var bd = eff.breakdown || {};
-    details.innerHTML =
-      'Context: ' + (bd.context||0) + '/30 · Parallelism: ' + (bd.parallelism||0) + '/20 · ' +
-      'Memory: ' + (bd.memory||0) + '/15 · Coverage: ' + (bd.coverage||0) + '/20 · ' +
-      'Wisdom: ' + (bd.wisdom||0) + '/15' +
-      '<br>CPU: ' + (eff.cpu_cores||0) + ' cores · Prompt: ' + (eff.prompt_budget||0) +
-      ' · MaxComp: ' + (eff.max_completion||0) + ' · Markets: ' + (eff.market_limit||0) +
-      ' · ModelCtxK: ' + (eff.model_context_k||0);
+  // Show LLM config panel in paper mode only
+  const llmCfg = $('llm-cfg');
+  if (llmCfg) {
+    llmCfg.style.display = s.live_mode ? 'none' : 'block';
+    if (!s.live_mode && s.oai_url && !$('cfg-url').dataset.touched) {
+      $('cfg-url').value = s.oai_url || '';
+      $('cfg-model').value = s.oai_model || '';
+    }
   }
-  if (compare && eff.platforms) {
-    var html = '';
-    var names = {esp32_c3_ota:'pico (OTA)',esp32_c3:'pico',esp32_s3:'core',cloud:'giga'};
-    var keys = ['esp32_c3_ota','esp32_c3','esp32_s3','cloud'];
-    keys.forEach(function(k) {
-      var v = eff.platforms[k] || 0;
-      var c = v >= 70 ? 'var(--green)' : v >= 40 ? 'var(--yellow)' : 'var(--red)';
-      var isCurrent = k === 'cloud';
-      var label = (names[k]||k) + (isCurrent ? ' \u25C0' : '');
-      html += '<div style="display:flex;align-items:center;gap:6px' + (isCurrent ? ';font-weight:600' : '') + '">' +
-        '<span>' + label + '</span>' +
-        '<div style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;min-width:40px">' +
-        '<div style="height:100%;width:' + v + '%;background:' + c + ';border-radius:2px"></div></div></div>' +
-        '<div style="text-align:right' + (isCurrent ? ';font-weight:600' : '') + '">' + v + '</div>';
-    });
-    compare.innerHTML = html;
+
+  // Error banner
+  const errEl = $('error-banner');
+  if (s.last_error) {
+    const retry = s.next_retry_sec > 0 ? ' · retrying in ' + s.next_retry_sec + 's' : '';
+    errEl.textContent = '⚠ ' + s.last_error + retry;
+    errEl.classList.add('visible');
+  } else {
+    errEl.classList.remove('visible');
   }
+
+  // Agent name in header
+  if (s.agent_name) $('agent-title').textContent = '⟁ ' + s.agent_name;
+
+  // Trading mode buttons highlight
+  const isPaper = s.paper_only === 1 || !s.live_mode;
+  const pb = $('mode-paper-btn'), rb = $('mode-real-btn');
+  if (pb && rb) {
+    pb.style.background = isPaper ? 'var(--green)' : '';
+    pb.style.color = isPaper ? '#000' : '';
+    rb.style.background = !isPaper ? 'var(--green)' : '';
+    rb.style.color = !isPaper ? '#000' : '';
+  }
+  const prr = $('paper-reset-row');
+  if (prr) prr.style.display = isPaper ? 'block' : 'none';
+
+  // News search config
+  if (s.news_provider) {
+    const sel = $('cfg-news-prov');
+    if (sel) sel.value = s.news_provider;
+  }
+  const nks = $('news-key-status');
+  if (nks) {
+    if (s.has_news_key) {
+      nks.className = 'key-status configured';
+      nks.textContent = '✓ Key saved';
+    } else {
+      nks.className = 'key-status missing';
+      nks.textContent = 'No key';
+    }
+  }
+
+  // LLM endpoint status
+  const lks = $('llm-key-status');
+  if (lks) {
+    if (s.oai_url) {
+      lks.className = 'key-status configured';
+      lks.textContent = s.has_api_key ? '✓ Configured' : '✓ URL set (no key)';
+    } else {
+      lks.className = 'key-status missing';
+      lks.textContent = 'Not configured';
+    }
+  }
+  if (s.oai_url && !$('cfg-url').dataset.touched) $('cfg-url').value = s.oai_url;
+  if (s.oai_model && !$('cfg-model').dataset.touched) $('cfg-model').value = s.oai_model;
+
+  // Tool usage slider
+  const tus = $('tool-usage-slider');
+  if (tus && s.tool_usage !== undefined) { tus.value = s.tool_usage; updateToolLabel(); }
+
+  // Telemetry status
+  var telemStatus = $('telem-status');
+  if (telemStatus) {
+    if (s.telemetry_url) {
+      telemStatus.textContent = 'Active';
+      telemStatus.className = 'key-status configured';
+    } else {
+      telemStatus.textContent = 'Disabled';
+      telemStatus.className = 'key-status missing';
+    }
+  }
+  if (s.telemetry_url && $('cfg-telem-url')) $('cfg-telem-url').value = s.telemetry_url;
+  if (s.telemetry_sec && $('cfg-telem-sec')) $('cfg-telem-sec').value = s.telemetry_sec;
 }
 
-function renderPositions(arr) {
-  const el = $('#positionsTable');
-  if (!arr || arr.length === 0) { el.innerHTML = '<div class="no-data">No open positions</div>'; return; }
-  let html = '<table><thead><tr><th>Market</th><th>Side</th><th>Entry</th><th>Current</th><th>P&L</th><th>Stake</th><th>Type</th></tr></thead><tbody>';
-  arr.forEach(p => {
-    const q = (p.question || '').length > 50 ? p.question.slice(0, 47) + '...' : (p.question || '');
-    const sideClass = p.side === 'yes' ? 'side-yes' : 'side-no';
-    const pnlVal = p.unrealized_pnl || 0;
-    const pnlClass = pnlVal > 0 ? 'v-green' : pnlVal < 0 ? 'v-red' : '';
-    html += '<tr><td>' + q + '</td><td class="' + sideClass + '">' + (p.side || '').toUpperCase() +
-      '</td><td>' + (p.entry_price || 0).toFixed(2) + '</td><td>' + (p.current_price || 0).toFixed(2) +
-      '</td><td class="' + pnlClass + '">' + fmtUsd4(pnlVal) + '</td><td>' + fmtUsd(p.stake_usdc || 0) +
-      '</td><td>' + (p.is_live ? '🔴 LIVE' : 'PAPER') + '</td></tr>';
-  });
-  html += '</tbody></table>';
-  el.innerHTML = html;
+function updatePositions(positions) {
+  const body = $('pos-body');
+  if (!positions || positions.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="empty">No open positions</td></tr>';
+    return;
+  }
+  body.innerHTML = positions.map(function(p) {
+    var pnlCls = p.unrealized_pnl >= 0 ? 'pos' : 'neg';
+    var sign = p.unrealized_pnl >= 0 ? '+' : '';
+    var q = p.question.length > 50 ? p.question.substring(0, 47) + '\u2026' : p.question;
+    return '<tr>' +
+      '<td title="' + p.question + '">' + q + '</td>' +
+      '<td>' + p.side.toUpperCase() + '</td>' +
+      '<td>' + p.entry_price.toFixed(2) + '</td>' +
+      '<td>' + p.current_price.toFixed(2) + '</td>' +
+      '<td class="' + pnlCls + '">' + sign + fmtUsd(p.unrealized_pnl) + '</td>' +
+      '<td>' + fmtUsd(p.stake_usdc) + '</td>' +
+      '<td>' + (p.is_live ? '<span class="badge live">LIVE</span>' : '<span class="badge paper">PAPER</span>') + '</td>' +
+      '</tr>';
+  }).join('');
 }
 
-function renderScouted(arr) {
-  const el = $('#scoutedList');
-  if (!arr || arr.length === 0) { el.innerHTML = '<div class="no-data">Waiting for first scan...</div>'; return; }
-  let html = '<div class="scouted-grid">';
-  arr.slice(0, 12).forEach(s => {
-    const sig = s.signal || 'neutral';
-    const cls = sig === 'bullish' ? 'sig-bullish' : sig === 'bearish' ? 'sig-bearish' : sig === 'skip' ? 'sig-skip' : 'sig-neutral';
-    const q = (s.question || '').length > 55 ? s.question.slice(0, 52) + '...' : (s.question || '');
-    html += '<div class="scouted-item"><div class="signal-dot ' + cls + '"></div>' +
-      '<span class="scouted-q">' + q + '</span>' +
-      '<span class="scouted-meta">e:' + (s.edge_bps || 0).toFixed(0) + ' c:' + (s.confidence || 0).toFixed(2) + '</span></div>';
-  });
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-function renderDecisions(arr) {
-  const el = $('#decisionLog');
-  if (!arr || arr.length === 0) { el.innerHTML = '<div class="no-data">No decisions yet</div>'; return; }
-  let html = '';
-  arr.slice(0, 30).forEach(d => {
-    const t = d.type || 'unknown';
-    let cls = 'log-type-hold';
-    if (t.includes('buy')) cls = 'log-type-buy';
-    else if (t.includes('close')) cls = 'log-type-close';
-    else if (t === 'tool_call') cls = 'log-type-tool';
-    const q = (d.question || '').length > 45 ? d.question.slice(0, 42) + '...' : (d.question || '');
-    const ts = d.epoch ? new Date(d.epoch * 1000).toLocaleTimeString() : '';
-    var toolBadges = '';
+function updateDecisions(decisions) {
+  const log = $('log');
+  if (!decisions || decisions.length === 0) {
+    log.innerHTML = '<div class="empty">Waiting for first cycle…</div>';
+    return;
+  }
+  log.innerHTML = decisions.slice(0, 30).map(function(d) {
+    var dt = new Date(d.epoch * 1000);
+    var time = dt.toLocaleTimeString();
+    var typeCls = 'hold';
+    if (d.type.indexOf('buy') >= 0) typeCls = 'buy';
+    else if (d.type.indexOf('close') >= 0) typeCls = 'close';
+    else if (d.type === 'tool_call') typeCls = 'tool';
+    var q = d.question ? (d.question.length > 40 ? d.question.substring(0, 37) + '\u2026' : d.question) : '';
+    var h = '<div class="log-entry">' +
+      '<span class="log-time">' + time + '</span>' +
+      '<span class="log-type ' + typeCls + '">' + d.type + '</span>';
     if (d.tools_used && d.tools_used.length) {
-      for (var ti = 0; ti < d.tools_used.length; ti++) {
-        toolBadges += '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--fg2)">\ud83d\udd0d ' + d.tools_used[ti] + '</span>';
-      }
+      h += d.tools_used.map(function(t) { return '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--dim)">🔍 ' + t + '</span>'; }).join('');
     }
-    html += '<div class="log-item"><span class="log-type ' + cls + '">' + t + '</span> ' + toolBadges +
-      '<span>' + q + '</span> <span class="log-meta">conf:' + (d.confidence || 0).toFixed(2) +
-      ' edge:' + (d.edge_bps || 0).toFixed(0) + ' ' + ts + '</span>';
-    if (d.rationale) html += '<div class="log-rationale">' + d.rationale.slice(0, 120) + '</div>';
-    html += '</div>';
-  });
-  el.innerHTML = html;
+    if (q) h += '<span>' + q + '</span>';
+    if (d.confidence) h += ' <span style="color:var(--blue)">' + (d.confidence*100).toFixed(0) + '%</span>';
+    if (d.rationale) h += '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>';
+    h += '</div>';
+    return h;
+  }).join('');
 }
 
-function renderWisdom(d) {
-  const el = $('#wisdomPanel');
-  if (!d) { el.innerHTML = '<div class="no-data">Collecting data...</div>'; return; }
-  let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px;font-size:0.85em">';
-  html += '<span>Tracked: <strong>' + (d.total_tracked || 0) + '</strong></span>';
-  var pending = Math.max(0, (d.total_tracked || 0) - (d.total_resolved || 0));
-  html += '<span>Pending: <strong>' + pending + '</strong></span>';
-  html += '<span>Resolved: <strong>' + (d.total_resolved || 0) + '</strong></span>';
-  html += '<span>Correct: <strong>' + (d.total_correct || 0) + '</strong></span>';
-  var acc = d.total_resolved > 0 ? ((d.total_correct / d.total_resolved) * 100).toFixed(1) + '%' : '\u2014';
-  html += '<span>Accuracy: <strong>' + acc + '</strong></span>';
-  var buyAcc = d.buy_resolved > 0 ? (d.buy_correct + '/' + d.buy_resolved) : '\u2014';
-  html += '<span>Buy: <strong>' + buyAcc + '</strong></span>';
-  var holdAcc = d.hold_resolved > 0 ? (d.hold_correct + '/' + d.hold_resolved) : '\u2014';
-  html += '<span>Hold: <strong>' + holdAcc + '</strong></span>';
-  if (d.frozen) html += '<span style="color:var(--yellow)">🧊 Frozen</span>';
-  html += '</div>';
-  html += '<label style="display:inline-flex;align-items:center;gap:6px;font-size:0.82em;color:var(--fg2);cursor:pointer;margin-bottom:8px"><input type="checkbox" id="wisdom-freeze" onchange="toggleWisdomFreeze(this.checked)" ' + (d.frozen ? 'checked' : '') + '> Freeze learning</label>';
-  if (d.models && d.models.length > 0) {
-    html += '<div style="font-size:0.82em;color:var(--fg2);margin-bottom:8px">🧠 Models: ';
-    var modelParts = [];
-    for (var mi = 0; mi < d.models.length; mi++) {
-      modelParts.push('<strong>' + d.models[mi].name + '</strong> (' + d.models[mi].decisions + ' decisions)');
-    }
-    html += modelParts.join(' \u2192 ') + '</div>';
-  }
-  html += '<div class="wisdom-text">' + (d.wisdom_text || 'Collecting data...') + '</div>';
-  // Custom rules editor — preserve focus.
-  const existing = el.querySelector('#rules-editor');
-  const isFocused = existing && document.activeElement === existing;
-  html += '<div class="custom-rules-editor" style="margin-top:8px">';
-  html += '<div style="font-size:0.85em;font-weight:600;margin-bottom:4px">Custom Rules <span style="font-weight:400;color:var(--fg2)">(LLM-distilled insights injected into prompt)</span></div>';
-  html += '<textarea id="rules-editor" placeholder="AVOID: sports outcomes — no edge vs oddsmakers&#10;EDGE: geopolitical events — markets overreact">';
-  html += (isFocused ? (existing.value || '') : (d.custom_rules || ''));
-  html += '</textarea>';
-  const budget = d.wisdom_budget || 8000;
-  const used = new TextEncoder().encode(d.custom_rules || '').length;
-  html += '<div class="rules-footer">';
-  html += '<span class="char-count">' + used + ' / ' + budget + ' bytes</span>';
-  html += '<button onclick="saveCustomRules()">Save Rules</button>';
-  html += '</div></div>';
-  window._wisdomBudget = budget;
-  el.innerHTML = html;
-  // Restore focus if user was editing.
-  if (isFocused) {
-    const newEditor = el.querySelector('#rules-editor');
-    if (newEditor) { newEditor.focus(); newEditor.value = existing.value; }
-  }
-}
-
-// Equity chart
-function drawChart() {
-  const canvas = $('#equityChart');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * (window.devicePixelRatio || 1);
-  canvas.height = rect.height * (window.devicePixelRatio || 1);
-  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-  const W = rect.width, H = rect.height;
-  ctx.clearRect(0, 0, W, H);
-
-  if (equityData.length < 2) {
-    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--fg2');
-    ctx.font = '13px sans-serif';
-    ctx.fillText('Waiting for equity data...', W / 2 - 80, H / 2);
+function updateScouted(list) {
+  const el = $('scout-body');
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="empty">No markets scanned yet</div>';
     return;
   }
+  el.innerHTML = list.map(function(s) {
+    var q = s.question ? (s.question.length > 60 ? s.question.substring(0, 57) + '\u2026' : s.question) : s.market_id;
+    var sig = s.signal || 'neutral';
+    var edge = s.edge_bps ? s.edge_bps.toFixed(0) + 'bp' : '\u2014';
+    var conf = s.confidence ? (s.confidence * 100).toFixed(0) + '%' : '\u2014';
+    var vol = s.volume > 1000 ? (s.volume / 1000).toFixed(0) + 'k' : s.volume.toFixed(0);
+    var liq = s.liquidity > 1000 ? (s.liquidity / 1000).toFixed(0) + 'k' : s.liquidity.toFixed(0);
+    var note = s.note ? s.note.substring(0, 80) : '';
+    return '<div class="scout-card">' +
+      '<span class="scout-signal ' + sig + '" title="' + sig + '"></span>' +
+      '<div>' +
+        '<div class="scout-q" title="' + (s.question || '') + '">' + q + '</div>' +
+        '<div class="scout-meta">' +
+          '<span>Edge: ' + edge + '</span>' +
+          '<span>Vol: $' + vol + '</span>' +
+          '<span>Liq: $' + liq + '</span>' +
+          (note ? '<span>\u2014 ' + note + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="scout-right">' +
+        '<div class="scout-price">' + (s.yes_price ? (s.yes_price * 100).toFixed(0) + '\u00a2' : '\u2014') + '</div>' +
+        '<div class="scout-conf">' + conf + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 
-  const vals = equityData.map(d => d.equity || d[1] || 0);
-  const mn = Math.min(...vals) * 0.995, mx = Math.max(...vals) * 1.005;
-  const range = mx - mn || 1;
-  const pad = { t: 10, b: 20, l: 50, r: 10 };
-  const cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
-
-  const toX = i => pad.l + (i / (vals.length - 1)) * cw;
-  const toY = v => pad.t + (1 - (v - mn) / range) * ch;
-
-  // Gradient fill
-  const grad = ctx.createLinearGradient(0, pad.t, 0, H - pad.b);
-  const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim();
-  grad.addColorStop(0, accent + '33');
-  grad.addColorStop(1, accent + '00');
-  ctx.beginPath();
-  ctx.moveTo(toX(0), toY(vals[0]));
-  for (let i = 1; i < vals.length; i++) ctx.lineTo(toX(i), toY(vals[i]));
-  ctx.lineTo(toX(vals.length - 1), H - pad.b);
-  ctx.lineTo(toX(0), H - pad.b);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  // Line
-  ctx.beginPath();
-  ctx.moveTo(toX(0), toY(vals[0]));
-  for (let i = 1; i < vals.length; i++) ctx.lineTo(toX(i), toY(vals[i]));
-  ctx.strokeStyle = accent;
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Y axis labels
-  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--fg2');
-  ctx.font = '11px sans-serif';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const v = mn + (range * i / 4);
-    ctx.fillText('$' + v.toFixed(2), pad.l - 4, toY(v) + 3);
+function updateWisdom(w) {
+  const el = (id) => document.getElementById(id);
+  el('w-total').textContent = w.total_tracked || 0;
+  el('w-pending').textContent = Math.max(0, (w.total_tracked || 0) - (w.total_resolved || 0));
+  el('w-resolved').textContent = w.total_resolved || 0;
+  const acc = w.total_resolved > 0 ? ((w.total_correct / w.total_resolved) * 100).toFixed(0) + '%' : '–';
+  el('w-accuracy').textContent = acc;
+  const ba = w.buy_resolved > 0 ? (w.buy_correct + '/' + w.buy_resolved) : '–';
+  el('w-buys').textContent = ba;
+  const ha = w.hold_resolved > 0 ? (w.hold_correct + '/' + w.hold_resolved) : '–';
+  el('w-holds').textContent = ha;
+  el('w-rules').textContent = w.wisdom_text || 'No learned rules yet…';
+  // Frozen state.
+  el('w-freeze').checked = !!w.frozen;
+  el('w-frozen-badge').style.display = w.frozen ? 'inline-block' : 'none';
+  // Custom rules editor — update only if user isn't actively editing.
+  const editor = el('rules-editor');
+  if (editor && document.activeElement !== editor) {
+    editor.value = w.custom_rules || '';
+  }
+  if (w.wisdom_budget) {
+    window._wisdomBudget = w.wisdom_budget;
+    const used = new TextEncoder().encode(editor.value).length;
+    el('rules-count').textContent = used + ' / ' + w.wisdom_budget + ' bytes';
+  }
+  // Model history.
+  if (w.models && w.models.length > 0) {
+    el('w-models').innerHTML = '🧠 Models: ' + w.models.map(m =>
+      '<b>' + m.name + '</b> (' + m.decisions + ' decisions)'
+    ).join(' → ');
   }
 }
 
-function drawPnlChart() {
-  var canvas = document.getElementById('pnlChart');
-  if (!canvas) return;
-  var ctx = canvas.getContext('2d');
-  var rect = canvas.parentElement.getBoundingClientRect();
-  canvas.width = rect.width * (window.devicePixelRatio || 1);
-  canvas.height = rect.height * (window.devicePixelRatio || 1);
-  ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-  var w = rect.width, h = rect.height;
-  ctx.clearRect(0, 0, w, h);
-
-  if (equityData.length < 2) {
-    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--fg2').trim();
-    ctx.font = '12px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('Collecting data\u2026', w/2, h/2);
-    return;
-  }
-
-  var baseline = equityData[0].equity || equityData[0][1] || 0;
-  var pnl = equityData.map(function(d) { return (d.equity || d[1] || 0) - baseline; });
-  var mn = Math.min.apply(null, pnl.concat([0]));
-  var mx = Math.max.apply(null, pnl.concat([0]));
-  var rawRange = mx - mn;
-  var range = rawRange > 0.005 ? rawRange : 0.01;
-  var flat = rawRange < 0.005;
-  var zeroY = flat ? h / 2 : h - ((-mn) / range) * h;
-
-  // Grid
-  var borderColor = getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
-  ctx.strokeStyle = borderColor;
-  ctx.lineWidth = 1;
-  for (var gi = 0; gi < 4; gi++) { var gy = h*gi/3; ctx.beginPath(); ctx.moveTo(0,gy); ctx.lineTo(w,gy); ctx.stroke(); }
-
-  // Zero line
-  ctx.strokeStyle = '#999'; ctx.setLineDash([4,3]);
-  ctx.beginPath(); ctx.moveTo(0, zeroY); ctx.lineTo(w, zeroY); ctx.stroke();
-  ctx.setLineDash([]);
-
-  // When P&L is essentially flat, show clean zero line instead of noisy bars
-  if (flat) {
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg2').trim();
-    ctx.font = '10px monospace'; ctx.textAlign = 'center';
-    ctx.fillText('P&L: $0.00', w/2, zeroY - 8);
-    return;
-  }
-
-  // Bars
-  var barW = Math.max(1, (w / pnl.length) - 1);
-  for (var bi = 0; bi < pnl.length; bi++) {
-    var bx = (bi / pnl.length) * w;
-    var val = pnl[bi];
-    var barH = (Math.abs(val) / range) * h;
-    ctx.fillStyle = val >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)';
-    if (val >= 0) ctx.fillRect(bx, zeroY - barH, barW, barH);
-    else ctx.fillRect(bx, zeroY, barW, barH);
-  }
-
-  // Cumulative line
-  ctx.beginPath();
-  for (var li = 0; li < pnl.length; li++) {
-    var lx = (li / (pnl.length - 1)) * w;
-    var ly = h - ((pnl[li] - mn) / range) * h;
-    if (li === 0) ctx.moveTo(lx, ly); else ctx.lineTo(lx, ly);
-  }
-  var last = pnl[pnl.length - 1];
-  ctx.strokeStyle = last >= 0 ? getComputedStyle(document.documentElement).getPropertyValue('--green').trim() : getComputedStyle(document.documentElement).getPropertyValue('--red').trim();
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Labels
-  ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--fg2').trim();
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText((mx>=0?'+':'') + mx.toFixed(2), 4, 12);
-  ctx.fillText((mn>=0?'+':'') + mn.toFixed(2), 4, h-4);
-  ctx.textAlign = 'right';
-  ctx.fillText((last>=0?'+':'') + last.toFixed(2), w-4, 12);
-}
-
-var llmPresets = {
-  local:      {url:'http://localhost:8080', model:'local-model', key:''},
-  openrouter: {url:'https://openrouter.ai/api', model:'meta-llama/llama-4-scout', key:''},
-  openai:     {url:'https://api.openai.com', model:'gpt-4.1-mini', key:''},
-  groq:       {url:'https://api.groq.com/openai', model:'llama-3.3-70b-versatile', key:''},
-  x402:       {url:'https://tx402.ai', model:'auto', key:''}
-};
-function setLlmPreset(name) {
-  var p = llmPresets[name]; if (!p) return;
-  document.getElementById('settingsUrl').value = p.url;
-  document.getElementById('settingsModel').value = p.model;
-  document.getElementById('settingsKey').value = p.key;
-}
-
-function authFetch(url) {
-  return fetch(url, {headers: authHeaders()});
-}
-
-// SSE (EventSource can't set headers, pass token via query).
-var evtSource;
-function connectSSE() {
-  var url = authToken ? '/api/events?token=' + encodeURIComponent(authToken) : '/api/events';
-  evtSource = new EventSource(url);
-  evtSource.addEventListener('state', function(e) {
-    try { updateState(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
-  });
-  evtSource.addEventListener('scouted', function(e) {
-    try { renderScouted(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
-  });
-  evtSource.addEventListener('positions', function(e) {
-    try { renderPositions(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
-  });
-  evtSource.addEventListener('wisdom', function(e) {
-    try { renderWisdom(JSON.parse(e.data)); } catch(ex) { console.error(ex); }
-  });
-  evtSource.addEventListener('decision', function(e) {
-    try {
-      var d = JSON.parse(e.data);
-      var log = document.getElementById('decisionLog');
-      var empty = log.querySelector('.no-data');
-      if (empty) log.innerHTML = '';
-      var t = d.type || 'unknown';
-      var typeCls = 'log-type-hold';
-      if (t.indexOf('buy') >= 0) typeCls = 'log-type-buy';
-      else if (t.indexOf('close') >= 0) typeCls = 'log-type-close';
-      else if (t === 'tool_call') typeCls = 'log-type-tool';
-      var ts = d.epoch ? new Date(d.epoch * 1000).toLocaleTimeString() : '';
-      var entry = document.createElement('div');
-      entry.className = 'log-item';
-      entry.innerHTML = '<span class="log-type ' + typeCls + '">' + t + '</span> ' +
-        '<span class="log-meta">' + ts + '</span>' +
-        (d.rationale ? '<div class="log-rationale">' + d.rationale.slice(0, 120) + '</div>' : '');
-      log.prepend(entry);
-    } catch(ex) { console.error(ex); }
-  });
-  evtSource.onerror = function() { evtSource.close(); setTimeout(connectSSE, 3000); };
-}
-
-function saveCustomRules() {
-  var editor = document.getElementById('rules-editor');
-  if (!editor) return;
-  var rules = editor.value;
-  fetch('/api/wisdom/rules', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({rules: rules})
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.ok) loadAll();
-  })
-  .catch(function(e) { console.error('Save rules error:', e); });
-}
-
-function toggleWisdomFreeze(frozen) {
+function toggleFreeze(frozen) {
   fetch('/api/wisdom/freeze', {method:'POST', body:JSON.stringify({frozen:frozen}),
-    headers:authHeaders()})
-    .then(function(r) { return r.json(); })
-    .then(function() { loadAll(); })
-    .catch(function(e) { console.error('Freeze toggle error:', e); });
-}
-
-function restoreConfig(file) {
-  if (!file) return;
-  file.text().then(function(text) {
-    return fetch('/api/restore', {method:'POST', headers:authHeaders(), body:text});
-  }).then(function(r) {
-    if (r.ok) alert('Restored! Restarting...');
-    else alert('Restore failed');
-  }).catch(function(e) { alert('Error: ' + e.message); });
-}
-
-function restartDevice() {
-  if (!confirm('Restart agent? It will be offline briefly.')) return;
-  fetch('/api/restart', {method:'POST', headers:authHeaders()})
-    .then(function() {})
-    .catch(function() {});
-  alert('Restarting\u2026 page will reconnect shortly.');
+    headers: authHeaders()})
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('w-frozen-badge').style.display = d.frozen ? 'inline-block' : 'none';
+    })
+    .catch(() => {});
 }
 
 function downloadKnowledge() {
-  var a = document.createElement('a');
+  const a = document.createElement('a');
   a.href = '/api/knowledge';
   a.download = 'survaiv-knowledge.json';
   a.click();
 }
 
 function importKnowledge(input) {
-  var file = input.files[0];
+  const file = input.files[0];
   if (!file) return;
-  var status = document.getElementById('kb-status');
-  status.textContent = 'Uploading\u2026';
-  var reader = new FileReader();
+  const status = document.getElementById('kb-status');
+  status.textContent = 'Uploading…';
+  status.style.color = 'var(--dim)';
+  const reader = new FileReader();
   reader.onload = function(e) {
-    fetch('/api/knowledge', {method:'POST', body:e.target.result, headers:authHeaders()})
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        status.textContent = d.ok ? '\u2713 ' + (d.msg || 'Imported') : '\u2717 Failed';
-        status.style.color = d.ok ? 'var(--green)' : 'var(--red)';
-        if (d.ok) loadAll();
+    fetch('/api/knowledge', {method:'POST', body:e.target.result,
+      headers: authHeaders()})
+      .then(r => r.json())
+      .then(d => {
+        if (d.ok) {
+          status.textContent = '✓ ' + d.msg;
+          status.style.color = 'var(--green)';
+          poll();
+        } else {
+          status.textContent = '✗ Import failed';
+          status.style.color = 'var(--red)';
+        }
       })
-      .catch(function() { status.textContent = '\u2717 Error'; status.style.color = 'var(--red)'; });
+      .catch(() => { status.textContent = '✗ Upload error'; status.style.color = 'var(--red)'; });
   };
   reader.readAsText(file);
   input.value = '';
 }
 
-async function loadAll() {
-  try {
-    var results = await Promise.all([
-      authFetch('/api/state').then(function(r) { return r.json(); }),
-      authFetch('/api/positions').then(function(r) { return r.json(); }),
-      authFetch('/api/decisions').then(function(r) { return r.json(); }),
-      authFetch('/api/equity-history').then(function(r) { return r.json(); }),
-      authFetch('/api/scouted').then(function(r) { return r.json(); }),
-      authFetch('/api/wisdom').then(function(r) { return r.json(); }),
-    ]);
-    updateState(results[0]);
-    renderPositions(results[1]);
-    renderDecisions(results[2]);
-    equityData = results[3] || [];
-    drawChart();
-    drawPnlChart();
-    renderScouted(results[4]);
-    renderWisdom(results[5]);
-  } catch(e) { console.error('Load error:', e); }
+function saveCustomRules() {
+  const editor = document.getElementById('rules-editor');
+  const status = document.getElementById('rules-status');
+  const rules = editor.value;
+  status.textContent = 'Saving…';
+  status.style.color = 'var(--dim)';
+  fetch('/api/wisdom/rules', {method:'POST', body:JSON.stringify({rules:rules}),
+    headers: authHeaders()})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        status.textContent = '✓ Saved (' + d.size + ' bytes)';
+        status.style.color = 'var(--green)';
+        poll();
+      } else {
+        status.textContent = '✗ Save failed';
+        status.style.color = 'var(--red)';
+      }
+    })
+    .catch(() => { status.textContent = '✗ Error'; status.style.color = 'var(--red)'; });
 }
 
-function startDashboard() {
-  loadAll();
+document.addEventListener('DOMContentLoaded', function() {
+  const editor = document.getElementById('rules-editor');
+  if (editor) {
+    editor.addEventListener('input', function() {
+      const used = new TextEncoder().encode(editor.value).length;
+      const counter = document.getElementById('rules-count');
+      if (counter) counter.textContent = used + ' / ' + (window._wisdomBudget || '?') + ' bytes';
+    });
+  }
+});
+
+function authFetch(url) {
+  return fetch(url, {headers: authHeaders()});
+}
+
+function poll() {
+  authFetch('/api/state').then(r => r.json()).then(updateState).catch(() => {});
+  authFetch('/api/positions').then(r => r.json()).then(updatePositions).catch(() => {});
+  authFetch('/api/decisions').then(r => r.json()).then(updateDecisions).catch(() => {});
+  authFetch('/api/scouted').then(r => r.json()).then(updateScouted).catch(() => {});
+  authFetch('/api/wisdom').then(r => r.json()).then(updateWisdom).catch(() => {});
+  authFetch('/api/equity-history').then(r => r.json()).then(data => {
+    equityData = data;
+    drawChart();
+    drawPnlChart();
+  }).catch(() => {});
+}
+
+// SSE for real-time updates (EventSource can't set headers, pass token via query).
+function connectSSE() {
+  const url = authToken ? '/api/events?token=' + encodeURIComponent(authToken) : '/api/events';
+  const es = new EventSource(url);
+  es.onmessage = function(e) {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.budget) updateState(data);
+    } catch(err) {}
+  };
+  es.addEventListener('state', function(e) {
+    try { updateState(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('positions', function(e) {
+    try { updatePositions(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('scouted', function(e) {
+    try { updateScouted(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('wisdom', function(e) {
+    try { updateWisdom(JSON.parse(e.data)); } catch(err) {}
+  });
+  es.addEventListener('decision', function(e) {
+    try {
+      const d = JSON.parse(e.data);
+      // Prepend to log.
+      const log = $('log');
+      if (log.querySelector('.empty')) log.innerHTML = '';
+      const dt = new Date(d.epoch * 1000);
+      let typeCls = 'hold';
+      if (d.type.includes('buy')) typeCls = 'buy';
+      else if (d.type.includes('close')) typeCls = 'close';
+      else if (d.type === 'tool_call') typeCls = 'tool';
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = '<span class="log-time">' + dt.toLocaleTimeString() + '</span>' +
+        '<span class="log-type ' + typeCls + '">' + d.type + '</span>' +
+        (d.tools_used && d.tools_used.length ? d.tools_used.map(function(t) { return '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--dim)">🔍 ' + t + '</span>'; }).join('') : '') +
+        (d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : '');
+      log.prepend(entry);
+    } catch(err) {}
+  });
+  es.onerror = function() {
+    $('dot').className = 'dot err';
+    $('status-text').textContent = 'disconnected';
+    es.close();
+    setTimeout(connectSSE, 5000);
+  };
+}
+
+function restoreConfig(file) {
+  if (!file) return;
+  const msg = $('settings-msg');
+  msg.textContent = 'Restoring…';
+  msg.style.color = 'var(--blue)';
+  file.text().then(text => {
+    return fetch('/api/restore', {method:'POST', headers: authHeaders(), body:text});
+  }).then(r => {
+    if (!r.ok) throw new Error('Restore failed');
+    msg.textContent = 'Restored! Rebooting…';
+    msg.style.color = 'var(--green)';
+  }).catch(e => {
+    msg.textContent = 'Error: ' + e.message;
+    msg.style.color = 'var(--red)';
+  });
+}
+
+function saveLlmConfig() {
+  const msg = $('llm-cfg-msg');
+  const body = {};
+  const url = $('cfg-url').value.trim();
+  const model = $('cfg-model').value.trim();
+  const key = $('cfg-key').value.trim();
+  if (url) body.url = url;
+  if (model) body.model = model;
+  if (key) body.key = key;
+  if (!Object.keys(body).length) { msg.textContent = 'Nothing to change'; return; }
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/llm-config', {method:'POST', headers: authHeaders(), body:JSON.stringify(body)})
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) {
+        msg.textContent = 'Applied: ' + d.oai_model + ' @ ' + d.oai_url;
+        msg.style.color = 'var(--green)';
+        $('cfg-url').value = d.oai_url;
+        $('cfg-model').value = d.oai_model;
+        $('cfg-key').value = '';
+        $('cfg-url').dataset.touched = '1';
+        const lks = $('llm-key-status');
+        if (lks) { lks.className = 'key-status configured'; lks.textContent = '✓ Configured'; }
+      } else {
+        msg.textContent = 'Error: ' + (d.error || 'unknown');
+        msg.style.color = 'var(--red)';
+      }
+    }).catch(e => {
+      msg.textContent = 'Error: ' + e.message;
+      msg.style.color = 'var(--red)';
+    });
+}
+
+const llmPresets = {
+  local:      {url:'http://192.168.1.100:8080', model:'local-model', key:''},
+  openrouter: {url:'https://openrouter.ai/api', model:'meta-llama/llama-4-scout', key:''},
+  openai:     {url:'https://api.openai.com',    model:'gpt-4.1-mini', key:''},
+  groq:       {url:'https://api.groq.com/openai', model:'llama-3.3-70b-versatile', key:''},
+  x402:       {url:'https://tx402.ai',           model:'auto', key:''}
+};
+function setLlmPreset(name) {
+  const p = llmPresets[name];
+  if (!p) return;
+  $('cfg-url').value = p.url;
+  $('cfg-url').dataset.touched = '1';
+  $('cfg-model').value = p.model;
+  $('cfg-key').value = p.key;
+  $('llm-cfg-msg').textContent = name + ' preset loaded — edit and Apply';
+  $('llm-cfg-msg').style.color = 'var(--blue)';
+}
+
+function saveNewsConfig() {
+  const msg = $('news-cfg-msg');
+  const body = {news_provider: $('cfg-news-prov').value, news_api_key: $('cfg-news-key').value};
+  msg.textContent = 'Saving\u2026';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/config', {method:'POST', body:JSON.stringify(body),
+    headers:authHeaders()})
+    .then(r => r.json()).then(() => {
+      msg.textContent = '\u2713 Saved';
+      msg.style.color = 'var(--green)';
+      $('cfg-news-key').value = '';
+      const nks = $('news-key-status');
+      if (nks) { nks.className = 'key-status configured'; nks.textContent = '✓ Key saved'; }
+      setTimeout(() => msg.textContent = '', 3000);
+    }).catch(() => {
+      msg.textContent = '\u2717 Failed';
+      msg.style.color = 'var(--red)';
+    });
+}
+
+function saveTelemetryConfig() {
+  var msg = $('telem-cfg-msg');
+  var url = $('cfg-telem-url').value.trim();
+  var sec = parseInt($('cfg-telem-sec').value) || 300;
+  msg.textContent = 'Saving\u2026';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/telemetry-config', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({url: url, interval: sec})
+  }).then(function(r) {
+    if (r.ok) {
+      msg.textContent = url ? '\u2713 Saved — reporting active' : '\u2713 Telemetry disabled';
+      msg.style.color = 'var(--green)';
+      var ts = $('telem-status');
+      if (ts) {
+        if (url) { ts.textContent = 'Active'; ts.className = 'key-status configured'; }
+        else { ts.textContent = 'Disabled'; ts.className = 'key-status missing'; }
+      }
+      setTimeout(function() { msg.textContent = ''; }, 3000);
+    } else {
+      msg.textContent = 'Error: ' + r.status;
+      msg.style.color = 'var(--red)';
+    }
+  }).catch(function(e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.style.color = 'var(--red)';
+  });
+}
+
+// OTA not available in cloud mode;
+  xhr.onload = () => {
+    if (xhr.status === 200) {
+      msg.textContent = 'OTA success! Rebooting…';
+      msg.style.color = 'var(--green)';
+    } else {
+      msg.textContent = 'OTA failed: ' + xhr.responseText;
+      msg.style.color = 'var(--red)';
+    }
+  };
+  xhr.onerror = () => { msg.textContent = 'Upload failed'; msg.style.color = 'var(--red)'; };
+  xhr.send(file);
+}
+
+function restartDevice() {
+  if (!confirm('Restart device? It will be offline for a few seconds.')) return;
+  const msg = $('settings-msg');
+  msg.textContent = 'Restarting…';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/restart', {
+    method: 'POST',
+    headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {}
+  }).then(r => {
+    if (r.ok) { msg.textContent = 'Restarting… reconnecting shortly'; msg.style.color = 'var(--green)'; }
+    else { msg.textContent = 'Restart failed'; msg.style.color = 'var(--red)'; }
+  }).catch(() => {
+    msg.textContent = 'Restarting… reconnecting shortly';
+    msg.style.color = 'var(--green)';
+  });
+}
+
+// Dashboard initialization (called after auth).
+function initDashboard() {
+  poll();
   connectSSE();
-  setInterval(loadAll, 10000);
+  setInterval(poll, 15000);
+  window.addEventListener('resize', () => { drawChart(); drawPnlChart(); });
+
+  // Tick countdown every second.
   setInterval(function() {
-    var el = document.getElementById('countdown');
+    var el = $('countdown');
     if (!el || !window._nextCycleEpoch) { if (el) el.textContent = ''; return; }
     var rem = window._nextCycleEpoch - Math.floor(Date.now() / 1000);
     if (rem <= 0) { el.textContent = ''; return; }
@@ -1027,114 +1267,8 @@ function startDashboard() {
   }, 1000);
 }
 
-// ── Auth ──
-async function checkAuth() {
-  try {
-    var headers = {};
-    if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
-    var r = await fetch('/api/auth', {headers: headers});
-    var d = await r.json();
-    if (!d.claimed) {
-      document.getElementById('auth-pin-display').textContent = d.display_pin;
-      document.getElementById('auth-claim').style.display = 'block';
-      document.getElementById('auth-login').style.display = 'none';
-      document.getElementById('auth-overlay').style.display = 'flex';
-    } else if (d.needs_pin) {
-      document.getElementById('auth-claim').style.display = 'none';
-      document.getElementById('auth-login').style.display = 'block';
-      document.getElementById('auth-overlay').style.display = 'flex';
-    } else {
-      document.getElementById('auth-overlay').style.display = 'none';
-      startDashboard();
-    }
-  } catch(e) { console.error('Auth check failed:', e); startDashboard(); }
-}
-
-function confirmClaim() {
-  var pin = document.getElementById('auth-confirm-input').value.trim();
-  fetch('/api/auth', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'claim', pin: pin})
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.ok) {
-      authToken = d.token;
-      sessionStorage.setItem('survaiv_token', authToken);
-      document.getElementById('auth-overlay').style.display = 'none';
-      startDashboard();
-    } else {
-      document.getElementById('auth-claim-err').textContent = d.error || 'Wrong PIN';
-    }
-  });
-}
-
-function loginWithPin() {
-  var pin = document.getElementById('auth-login-input').value.trim();
-  fetch('/api/auth', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({action: 'login', pin: pin})
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(d) {
-    if (d.ok) {
-      authToken = d.token;
-      sessionStorage.setItem('survaiv_token', authToken);
-      document.getElementById('auth-overlay').style.display = 'none';
-      startDashboard();
-    } else {
-      document.getElementById('auth-login-err').textContent = d.error || 'Wrong PIN';
-    }
-  });
-}
-
-function saveNewsConfig() {
-  var body = {news_provider: document.getElementById('cfg-news-prov').value,
-    news_api_key: document.getElementById('cfg-news-key').value};
-  fetch('/api/config', {method:'POST', body:JSON.stringify(body), headers:authHeaders()})
-    .then(function(r) { return r.json(); }).then(function() {
-      var msg = document.getElementById('news-cfg-msg');
-      msg.textContent = '\u2713 Saved';
-      msg.style.color = 'var(--green)';
-      setTimeout(function() { msg.textContent = ''; }, 3000);
-      var nks = document.getElementById('news-key-status');
-      if (nks) { nks.className = 'key-status configured'; nks.textContent = '\u2713 Key saved'; }
-    }).catch(function() {
-      var msg = document.getElementById('news-cfg-msg');
-      msg.textContent = '\u2717 Failed';
-      msg.style.color = 'var(--red)';
-    });
-}
-
-function saveTelemetryConfig() {
-  var url = document.getElementById('cfg-telem-url').value.trim();
-  var sec = parseInt(document.getElementById('cfg-telem-sec').value) || 300;
-  fetch('/api/telemetry-config', {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({url: url, interval: sec})
-  }).then(function(r) {
-    var el = document.getElementById('telem-cfg-msg');
-    if (r.ok) {
-      el.textContent = 'Saved \u2713';
-      el.style.color = 'var(--green)';
-      var ts = document.getElementById('telem-status');
-      if (ts) {
-        if (url) { ts.textContent = 'Active'; ts.className = 'key-status configured'; }
-        else { ts.textContent = 'Disabled'; ts.className = 'key-status missing'; }
-      }
-    } else {
-      el.textContent = 'Error: ' + r.status;
-      el.style.color = 'var(--red)';
-    }
-  });
-}
-
-window.addEventListener('resize', function() { drawChart(); drawPnlChart(); });
+// Start with auth check.
 checkAuth();
 </script>
 </body>
 </html>`)
-
