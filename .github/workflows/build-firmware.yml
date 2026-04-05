@@ -31,26 +31,51 @@ jobs:
             build_dir: s3
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-esp32s3
+          - name: esp32s3-no-ota
+            target: esp32s3
+            build_dir: s3
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-esp32s3-no-ota
           - name: tqt-pro
             target: esp32s3
             build_dir: tqt
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-tqt-pro
+          - name: tqt-pro-no-ota
+            target: esp32s3
+            build_dir: tqt
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-tqt-pro-no-ota
           - name: atoms3
             target: esp32s3
             build_dir: atoms3
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-atoms3
+          - name: atoms3-no-ota
+            target: esp32s3
+            build_dir: atoms3
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-atoms3-no-ota
           - name: stickc-plus2
             target: esp32
             build_dir: stickc2
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-stickc-plus2
+          - name: stickc-plus2-no-ota
+            target: esp32
+            build_dir: stickc2
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-stickc-plus2-no-ota
           - name: c3-oled
             target: esp32c3
             build_dir: c3oled
             sdkconfig_defaults: sdkconfig.defaults
             artifact: survaiv-c3-oled
+          - name: c3-oled-no-ota
+            target: esp32c3
+            build_dir: c3oled
+            sdkconfig_defaults: "sdkconfig.defaults;sdkconfig.defaults.no_ota"
+            artifact: survaiv-c3-oled-no-ota
 
     steps:
       - uses: actions/checkout@v4
