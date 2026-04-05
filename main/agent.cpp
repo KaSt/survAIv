@@ -274,6 +274,7 @@ bool ChatCompletion(const std::string &system_prompt, const std::string &user_pr
   body << "\"temperature\":0.2,"
        << "\"max_tokens\":" << kMaxCompletionTokens << ","
        << "\"reasoning_effort\":\"low\","
+       << "\"response_format\":{\"type\":\"json_object\"},"
        << "\"messages\":["
        << "{\"role\":\"system\",\"content\":\"" << JsonEscape(system_prompt) << "\"},"
        << "{\"role\":\"user\",\"content\":\"" << JsonEscape(user_prompt) << "\"}"

@@ -546,6 +546,7 @@ func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userProm
 		"temperature":      0.2,
 		"max_tokens":       maxTokens,
 		"reasoning_effort": "low",
+		"response_format":  map[string]string{"type": "json_object"},
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
