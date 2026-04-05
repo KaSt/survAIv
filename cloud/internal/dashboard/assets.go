@@ -228,7 +228,7 @@ canvas { width: 100% !important; height: 100% !important; }
   </div>
 
   <div id="sys-stats" style="padding:4px 16px;font-size:0.8em;color:var(--fg2);text-align:center;display:flex;gap:16px;flex-wrap:wrap;justify-content:center"></div>
-  <div style="text-align:center;padding:8px 16px;font-size:0.8em;color:var(--fg2)">Build: <span id="v-build">—</span> · Model: <span id="v-model-footer">—</span> (<span id="v-model-price">—</span>/req)</div>
+  <div style="text-align:center;padding:8px 16px;font-size:0.8em;color:var(--fg2)">Build: <span id="v-build">—</span> <span id="v-tier-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;background:#e8f5e9;color:#2e7d32">giga</span> · Model: <span id="v-model-footer">—</span> (<span id="v-model-price">—</span>/req)</div>
 </div>
 
 <div class="modal-overlay" id="settingsModal">

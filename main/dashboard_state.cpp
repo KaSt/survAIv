@@ -287,7 +287,8 @@ std::string DashboardState::ToJson() const {
   }
 
   const esp_app_desc_t *app = esp_app_get_description();
-  o << ",\"firmware\":\"" << app->version << " (" << app->date << ")\"";
+  o << ",\"firmware\":\"" << app->version << " (" << app->date << ")\""
+    << ",\"tier\":\"" << SURVAIV_TIER << "\"";
 
   // Agent name from NVS config.
   std::string aname = config::AgentName();

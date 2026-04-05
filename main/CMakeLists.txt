@@ -28,3 +28,5 @@ idf_component_register(
     INCLUDE_DIRS "."
     REQUIRES ${_requires}
 )
+
+target_compile_definitions(${COMPONENT_LIB} PRIVATE SURVAIV_TIER="${SURVAIV_TIER}")

@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
+set(SURVAIV_TIER "atom" CACHE STRING "Build tier name" FORCE)
+
 # Signal to main component that screen is available.
 set(SURVAIV_HAS_DISPLAY TRUE CACHE BOOL "" FORCE)
 set(ENV{SURVAIV_DISPLAY} "1")

@@ -254,7 +254,7 @@ border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
 
 <div class="section" style="text-align:center">
   <div class="sub">
-    Firmware: <span id="v-fw">—</span> <span id="v-ota-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;display:none"></span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
+    Firmware: <span id="v-fw">—</span> <span id="v-tier-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;background:#e8f5e9;color:#2e7d32;display:none"></span> <span id="v-ota-badge" style="font-size:9px;padding:1px 5px;border-radius:3px;display:none"></span> · Model: <span id="v-model">—</span> (<span id="v-model-price">—</span>/req)
   </div>
 </div>
 
@@ -705,6 +705,11 @@ function updateState(s) {
   if (otaBtn) otaBtn.style.display = s.ota_enabled ? '' : 'none';
   if (s.firmware) {
     $('v-fw').textContent = s.firmware;
+    var tierBadge = $('v-tier-badge');
+    if (tierBadge && s.tier) {
+      tierBadge.textContent = s.tier;
+      tierBadge.style.display = 'inline';
+    }
     var badge = $('v-ota-badge');
     if (badge) {
       badge.style.display = 'inline';

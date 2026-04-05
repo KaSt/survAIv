@@ -528,6 +528,12 @@ CONFIG_SURVAIV_LIVE_CONFIDENCE_THRESHOLD=75
 CONFIG_SURVAIV_LIVE_MIN_EDGE_BPS=200
 CONFIG_SURVAIV_COOLDOWN_AFTER_LOSS_SECONDS=1800
 # end of Live Trading (CLOB)
+
+#
+# On-board Display
+#
+# CONFIG_SURVAIV_HAS_DISPLAY is not set
+# end of On-board Display
 # end of Survaiv Agent
 
 #
