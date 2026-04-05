@@ -758,6 +758,17 @@ int RunAgentCycle(BudgetLedger *ledger) {
     }
   }
 
+  // Helper: after any position change, refresh the dashboard immediately
+  // so the UI shows updated positions, cash, and equity.
+  auto refreshDashAfterTrade = [&]() {
+    dash.UpdatePositions(ledger->Positions());
+    double eq2 = ledger->Equity(ledger->Positions(), markets);
+    dash.UpdateBudget(ledger->Cash(), ledger->Reserve(), eq2,
+                      ledger->LlmSpend(), ledger->RealizedPaperPnl(),
+                      ledger->DailyLossUsdc());
+    webserver::PushSseEvent("state", dash.SseStateEvent());
+  };
+
   // Handle close decisions.
   if (decision.type == "paper_close" || decision.type == "close") {
     if (decision.type == "close" && !paper_only && clob::IsReady()) {
@@ -782,6 +793,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
                  config::CooldownAfterLossSeconds());
       }
     }
+    refreshDashAfterTrade();
     return 0;
   }
 
@@ -858,6 +870,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
       if (ledger->OpenPaperPosition(*market, decision.side, size_usdc)) {
         ledger->MarkPositionLive(decision.market_id, order_id);
       }
+      refreshDashAfterTrade();
     }
     return 0;
   }
@@ -886,6 +899,7 @@ int RunAgentCycle(BudgetLedger *ledger) {
   if (ledger->OpenPaperPosition(*market, decision.side, size_usdc)) {
     ESP_LOGI(kTag, "Opened paper %s on %s with %.4f USDC", decision.side.c_str(),
              market->question.c_str(), size_usdc);
+    refreshDashAfterTrade();
   }
   return 0;
 }
