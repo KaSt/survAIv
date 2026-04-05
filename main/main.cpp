@@ -9,6 +9,7 @@
 #include "model_registry.h"
 #include "onboard.h"
 #include "provider.h"
+#include "telemetry.h"
 #include "wallet.h"
 #include "webserver.h"
 #include "wifi.h"
@@ -148,6 +149,7 @@ extern "C" void app_main(void) {
   }
 
   survaiv::GetDashboardState().SetAgentStatus("running");
+  survaiv::telemetry::Init(&survaiv::GetDashboardState());
   survaiv::wisdom::Init();
   survaiv::claw402::Init();
 

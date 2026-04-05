@@ -368,6 +368,20 @@ border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
       </div>
       <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
     </div>
+    <div class="setting-section">
+      <div class="section-title"><span class="icon">📡</span> Telemetry Hub <span id="telem-status" class="key-status missing">Disabled</span></div>
+      <div style="font-size:10px;color:var(--dim);margin-bottom:6px">Send periodic reports to a central hub for monitoring &amp; leaderboards.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--dim);flex:3">Hub URL<br>
+          <input id="cfg-telem-url" class="cfg-input" placeholder="https://hub.survaiv.io">
+        </label>
+        <label style="font-size:10px;color:var(--dim);flex:1">Interval (s)<br>
+          <input id="cfg-telem-sec" type="number" class="cfg-input" placeholder="300" min="60" value="300">
+        </label>
+        <button onclick="saveTelemetryConfig()" class="btn-primary">Save</button>
+      </div>
+      <div id="telem-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--dim)"></div>
+    </div>
   </div>
 </div>
 
@@ -822,6 +836,20 @@ function updateState(s) {
   // Tool usage slider
   const tus = $('tool-usage-slider');
   if (tus && s.tool_usage !== undefined) { tus.value = s.tool_usage; updateToolLabel(); }
+
+  // Telemetry status
+  var telemStatus = $('telem-status');
+  if (telemStatus) {
+    if (s.telemetry_url) {
+      telemStatus.textContent = 'Active';
+      telemStatus.className = 'key-status configured';
+    } else {
+      telemStatus.textContent = 'Disabled';
+      telemStatus.className = 'key-status missing';
+    }
+  }
+  if (s.telemetry_url && $('cfg-telem-url')) $('cfg-telem-url').value = s.telemetry_url;
+  if (s.telemetry_sec && $('cfg-telem-sec')) $('cfg-telem-sec').value = s.telemetry_sec;
 }
 
 function updatePositions(positions) {
@@ -1168,6 +1196,36 @@ function saveNewsConfig() {
       msg.textContent = '\u2717 Failed';
       msg.style.color = 'var(--red)';
     });
+}
+
+function saveTelemetryConfig() {
+  var msg = $('telem-cfg-msg');
+  var url = $('cfg-telem-url').value.trim();
+  var sec = parseInt($('cfg-telem-sec').value) || 300;
+  msg.textContent = 'Saving\u2026';
+  msg.style.color = 'var(--blue)';
+  fetch('/api/telemetry-config', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({url: url, interval: sec})
+  }).then(function(r) {
+    if (r.ok) {
+      msg.textContent = url ? '\u2713 Saved — reporting active' : '\u2713 Telemetry disabled';
+      msg.style.color = 'var(--green)';
+      var ts = $('telem-status');
+      if (ts) {
+        if (url) { ts.textContent = 'Active'; ts.className = 'key-status configured'; }
+        else { ts.textContent = 'Disabled'; ts.className = 'key-status missing'; }
+      }
+      setTimeout(function() { msg.textContent = ''; }, 3000);
+    } else {
+      msg.textContent = 'Error: ' + r.status;
+      msg.style.color = 'var(--red)';
+    }
+  }).catch(function(e) {
+    msg.textContent = 'Error: ' + e.message;
+    msg.style.color = 'var(--red)';
+  });
 }
 
 function otaUpdate(file) {

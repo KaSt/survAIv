@@ -116,6 +116,9 @@ int ToolUsageLevel() {
   return v;
 }
 
+std::string TelemetryUrl()     { return GetNvsString("telem_url", ""); }
+int TelemetryIntervalSec()     { return GetNvsInt("telem_sec", 300); }
+
 void Reboot() {
   ESP_LOGI(kTag, "Rebooting...");
   vTaskDelay(pdMS_TO_TICKS(500));

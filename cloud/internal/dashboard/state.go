@@ -608,3 +608,24 @@ func (s *State) Unsubscribe(ch chan string) {
 func (s *State) PushEvent(event, data string) {
 	s.PushSSE(event, data)
 }
+
+// TelemetryReport returns the full dashboard state as a map for telemetry.
+func (s *State) TelemetryReport() map[string]any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	report := map[string]any{
+		"status":       s.agentStatus,
+		"cycle_count":  s.cycleCount,
+		"uptime":       time.Now().Unix() - s.bootEpoch,
+		"agent_name":   s.agentName,
+		"live_mode":    s.liveMode,
+		"paper_only":   s.paperOnly,
+		"active_model": s.activeModel,
+		"budget":       s.budget,
+		"positions":    s.positions,
+		"decisions":    s.decisions,
+		"equity":       s.equityHistory,
+	}
+	return report
+}

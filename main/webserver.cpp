@@ -857,6 +857,55 @@ static esp_err_t ApiConfigPostHandler(httpd_req_t *req) {
   return httpd_resp_send(req, resp.c_str(), resp.size());
 }
 
+// ─── POST /api/telemetry-config ─────────────────────────────────
+// Save telemetry hub URL and reporting interval.
+// Body: {"url":"https://hub.example.com","interval":300}
+static esp_err_t ApiTelemetryConfigHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
+
+  char buf[512] = {};
+  int received = httpd_req_recv(req, buf, sizeof(buf) - 1);
+  if (received <= 0) {
+    httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "Empty body");
+    return ESP_FAIL;
+  }
+  buf[received] = '\0';
+
+  auto extract = [&](const char *key) -> std::string {
+    std::string needle = std::string("\"") + key + "\":\"";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return "";
+    start += needle.size();
+    const char *end = strchr(start, '"');
+    if (!end) return "";
+    return std::string(start, end - start);
+  };
+
+  auto extractInt = [&](const char *key) -> int {
+    std::string needle = std::string("\"") + key + "\":";
+    const char *start = strstr(buf, needle.c_str());
+    if (!start) return -1;
+    start += needle.size();
+    return atoi(start);
+  };
+
+  std::string url = extract("url");
+  config::SetString("telem_url", url);
+
+  int interval = extractInt("interval");
+  if (interval >= 60) {
+    config::SetInt("telem_sec", interval);
+  }
+
+  ESP_LOGI(kTag, "Telemetry config updated: url=%s interval=%d",
+           url.empty() ? "(disabled)" : url.c_str(),
+           config::TelemetryIntervalSec());
+
+  httpd_resp_set_type(req, "application/json");
+  std::string resp = "{\"ok\":true}";
+  return httpd_resp_send(req, resp.c_str(), resp.size());
+}
+
 // ─── POST /api/reset-paper ──────────────────────────────────────
 static esp_err_t ApiResetPaperHandler(httpd_req_t *req) {
   REQUIRE_AUTH(req);
@@ -929,6 +978,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/auth", HTTP_POST, ApiAuthPostHandler);
   RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
   RegisterUri("/api/reset-paper", HTTP_POST, ApiResetPaperHandler);
+  RegisterUri("/api/telemetry-config", HTTP_POST, ApiTelemetryConfigHandler);
 
   // CORS preflight handlers.
   static const char *cors_paths[] = {
@@ -936,7 +986,7 @@ void StartDashboard(int port) {
     "/api/scouted", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
     "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
     "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
-    "/api/reset-paper",
+    "/api/reset-paper", "/api/telemetry-config",
   };
   for (const char *p : cors_paths) {
     RegisterUri(p, HTTP_OPTIONS, OptionsHandler);

@@ -39,6 +39,8 @@ type Config struct {
 	MaxCores         int
 	DBPath           string
 	Headless         bool
+	TelemetryURL     string
+	TelemetrySec     int
 }
 
 // Load reads configuration with the following precedence (highest wins):
@@ -67,6 +69,9 @@ func Load(db *sql.DB, configFile string) *Config {
 	c.MarketLimit = resolveInt("SURVAIV_MARKET_LIMIT", "market_limit", file, 10)
 	c.DailyLossLimit = resolveFloat("SURVAIV_DAILY_LOSS_LIMIT", "daily_loss_limit", file, 5.0)
 	c.DBPath = resolve("SURVAIV_DB_PATH", "db_path", file, "survaiv.db")
+
+	c.TelemetryURL = resolve("SURVAIV_TELEMETRY_URL", "telemetry_url", file, "")
+	c.TelemetrySec = resolveInt("SURVAIV_TELEMETRY_SEC", "telemetry_sec", file, 300)
 
 	// Port: prefer PORT (Heroku), then config file / SURVAIV_PORT, then 8080.
 	if p := os.Getenv("PORT"); p != "" {
@@ -407,4 +412,41 @@ func (c *Config) EnsureAgentName() string {
 		slog.Info("agent name generated", "name", name)
 	}
 	return name
+}
+
+// TelemetryUrl returns the active telemetry hub URL (runtime override > config).
+func (c *Config) TelemetryUrl() string {
+	u := c.Get("telemetry_url")
+	if u != "" {
+		return u
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.TelemetryURL
+}
+
+// SetTelemetryUrl persists the telemetry hub URL.
+func (c *Config) SetTelemetryUrl(url string) {
+	c.Set("telemetry_url", url)
+}
+
+// TelemetryInterval returns the active telemetry interval in seconds.
+func (c *Config) TelemetryInterval() int {
+	s := c.Get("telemetry_sec")
+	if s != "" {
+		if v, err := strconv.Atoi(s); err == nil {
+			return v
+		}
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.TelemetrySec > 0 {
+		return c.TelemetrySec
+	}
+	return 300
+}
+
+// SetTelemetryInterval persists the telemetry interval in seconds.
+func (c *Config) SetTelemetryInterval(sec int) {
+	c.Set("telemetry_sec", strconv.Itoa(sec))
 }

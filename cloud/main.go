@@ -18,6 +18,7 @@ import (
 	"survaiv/internal/db"
 	"survaiv/internal/httpclient"
 	"survaiv/internal/ledger"
+	"survaiv/internal/telemetry"
 	"survaiv/internal/tui"
 	"survaiv/internal/wallet"
 	"survaiv/internal/wisdom"
@@ -93,14 +94,22 @@ func main() {
 	wisTracker := wisdom.NewTracker(database, httpClient)
 	wisdom.SetDefault(wisTracker)
 
-	// 8. Create agent.
+	// 8. Start optional telemetry.
+	telem := telemetry.New(cfg.TelemetryUrl(), cfg.TelemetryInterval(), dashState)
+	defer telem.Stop()
+	dashboard.TelemetryUpdater = func(url string, sec int) {
+		telem.SetURL(url)
+		telem.SetInterval(sec)
+	}
+
+	// 9. Create agent.
 	agnt := agent.New(cfg, httpClient, ldgr, x402mgr, dashState, wisTracker)
 
-	// 9. Context for clean shutdown.
+	// 10. Context for clean shutdown.
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// 10. Start agent loop in background goroutine.
+	// 11. Start agent loop in background goroutine.
 	go func() {
 		cycle := 0
 		for {
@@ -134,14 +143,14 @@ func main() {
 		}
 	}()
 
-	// 11. Start dashboard server (always).
+	// 12. Start dashboard server (always).
 	go func() {
 		if err := dashboard.Serve(ctx, cfg, dashState); err != nil {
 			slog.Error("dashboard server failed", "err", err)
 		}
 	}()
 
-	// 12. TUI or headless wait.
+	// 13. TUI or headless wait.
 	if cfg.Headless {
 		slog.Info("running in headless mode", "port", cfg.Port)
 		<-ctx.Done()

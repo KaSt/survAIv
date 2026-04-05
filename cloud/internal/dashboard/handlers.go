@@ -108,6 +108,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Post("/api/auth", handleAuthPost(cfg))
 	r.Post("/api/config", handleConfig(cfg, state))
 	r.Post("/api/llm-config", handleLLMConfig(cfg, state))
+	r.Post("/api/telemetry-config", handleTelemetryConfig(cfg))
 	r.Post("/api/reset-paper", handleResetPaper(state))
 	r.Get("/api/backup", handleBackup(cfg))
 	r.Post("/api/restore", handleRestore(cfg))
@@ -132,6 +133,8 @@ func handleState(state *State, cfg *config.Config) http.HandlerFunc {
 		data["news_provider"] = cfg.NewsProvider()
 		data["has_news_key"] = cfg.NewsAPIKey() != ""
 		data["tool_usage"] = cfg.ToolUsageLevel()
+		data["telemetry_url"] = cfg.TelemetryUrl()
+		data["telemetry_sec"] = cfg.TelemetryInterval()
 		b, _ := json.Marshal(data)
 		w.Write(b)
 	}
@@ -476,6 +479,37 @@ func handleResetPaper(state *State) http.HandlerFunc {
 			return
 		}
 		slog.Info("paper trading state reset by user")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+// TelemetryUpdater is called when the user changes telemetry settings via the dashboard.
+// Set from main.go after creating the telemetry instance.
+var TelemetryUpdater func(url string, sec int)
+
+func handleTelemetryConfig(cfg *config.Config) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req struct {
+			URL      string `json:"url"`
+			Interval int    `json:"interval"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid JSON", http.StatusBadRequest)
+			return
+		}
+		cfg.SetTelemetryUrl(req.URL)
+		if req.Interval >= 60 {
+			cfg.SetTelemetryInterval(req.Interval)
+		}
+		if TelemetryUpdater != nil {
+			sec := req.Interval
+			if sec < 60 {
+				sec = 300
+			}
+			TelemetryUpdater(req.URL, sec)
+		}
+		slog.Info("telemetry config updated", "url", req.URL, "interval", req.Interval)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
 	}

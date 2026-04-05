@@ -299,6 +299,13 @@ std::string DashboardState::ToJson() const {
   // Paper-only flag for trading mode UI.
   o << ",\"paper_only\":" << (config::PaperTradingOnly() ? 1 : 0);
 
+  // Telemetry hub config.
+  std::string turl = config::TelemetryUrl();
+  if (!turl.empty()) {
+    o << ",\"telemetry_url\":\"" << JsonEscape(turl) << "\"";
+  }
+  o << ",\"telemetry_sec\":" << config::TelemetryIntervalSec();
+
   // Tool usage level for settings UI.
   o << ",\"tool_usage\":" << config::ToolUsageLevel();
 

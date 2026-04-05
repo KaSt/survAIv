@@ -292,6 +292,20 @@ canvas { width: 100% !important; height: 100% !important; }
       <div id="news-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
     </div>
     <div class="setting-section">
+      <div class="sec-title">📡 Telemetry Hub <span id="telem-status" class="key-status missing">Disabled</span></div>
+      <div style="font-size:10px;color:var(--fg2);margin-bottom:6px">Send periodic reports to a central hub for monitoring &amp; leaderboards.</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:end">
+        <label style="font-size:10px;color:var(--fg2);flex:3">Hub URL<br>
+          <input id="cfg-telem-url" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="https://hub.survaiv.io">
+        </label>
+        <label style="font-size:10px;color:var(--fg2);flex:1">Interval (s)<br>
+          <input id="cfg-telem-sec" type="number" style="width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;background:var(--bg3);color:var(--fg)" placeholder="300" min="60" value="300">
+        </label>
+        <button onclick="saveTelemetryConfig()" style="background:var(--accent);color:#fff;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:11px">Save</button>
+      </div>
+      <div id="telem-cfg-msg" style="margin-top:4px;font-size:10px;color:var(--fg2)"></div>
+    </div>
+    <div class="setting-section">
       <div class="sec-title">⚡ Agent Efficiency</div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
         <div style="flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden">
@@ -483,6 +497,18 @@ function updateState(d) {
       nks.textContent = 'No key';
     }
   }
+  var telemStatus = document.getElementById('telem-status');
+  if (telemStatus) {
+    if (d.telemetry_url) {
+      telemStatus.textContent = 'Active';
+      telemStatus.className = 'key-status configured';
+    } else {
+      telemStatus.textContent = 'Disabled';
+      telemStatus.className = 'key-status missing';
+    }
+  }
+  if (d.telemetry_url) { var tu = document.getElementById('cfg-telem-url'); if (tu) tu.value = d.telemetry_url; }
+  if (d.telemetry_sec) { var ts = document.getElementById('cfg-telem-sec'); if (ts) ts.value = d.telemetry_sec; }
   var lks = document.getElementById('llm-key-status');
   if (lks) {
     if (d.oai_url) {
@@ -1067,6 +1093,30 @@ function saveNewsConfig() {
       msg.textContent = '\u2717 Failed';
       msg.style.color = 'var(--red)';
     });
+}
+
+function saveTelemetryConfig() {
+  var url = document.getElementById('cfg-telem-url').value.trim();
+  var sec = parseInt(document.getElementById('cfg-telem-sec').value) || 300;
+  fetch('/api/telemetry-config', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({url: url, interval: sec})
+  }).then(function(r) {
+    var el = document.getElementById('telem-cfg-msg');
+    if (r.ok) {
+      el.textContent = 'Saved \u2713';
+      el.style.color = 'var(--green)';
+      var ts = document.getElementById('telem-status');
+      if (ts) {
+        if (url) { ts.textContent = 'Active'; ts.className = 'key-status configured'; }
+        else { ts.textContent = 'Disabled'; ts.className = 'key-status missing'; }
+      }
+    } else {
+      el.textContent = 'Error: ' + r.status;
+      el.style.color = 'var(--red)';
+    }
+  });
 }
 
 window.addEventListener('resize', function() { drawChart(); drawPnlChart(); });
