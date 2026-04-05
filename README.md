@@ -103,6 +103,8 @@ Every cycle the agent:
 
 ### ESP32 (All Boards)
 
+> **🌐 No toolchain?** Flash directly from your browser via [Web Flasher](https://kast.github.io/survAIv/) — just plug in a board and click.
+
 ```bash
 # Prerequisites: ESP-IDF v5.5+
 . $IDF_PATH/export.sh
