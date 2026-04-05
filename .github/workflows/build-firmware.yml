@@ -175,14 +175,6 @@ jobs:
             goarch: arm
             goarm: "7"
             suffix: armv7
-          # Onion Omega2+ (MIPS little-endian, softfloat)
-          - goos: linux
-            goarch: mipsle
-            gomips: softfloat
-          # Onion Omega 1 (MIPS big-endian, softfloat)
-          - goos: linux
-            goarch: mips
-            gomips: softfloat
 
     steps:
       - uses: actions/checkout@v4
