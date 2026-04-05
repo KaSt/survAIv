@@ -1,13 +1,8 @@
 @echo off
 REM survaiv cloud — build & run script for Windows
-REM Requires: Go 1.24+, GCC (for CGO/sqlite3)
-REM   Install GCC via MSYS2: pacman -S mingw-w64-x86_64-gcc
-REM   Or via WinGet:         winget install -e --id MSYS2.MSYS2
-REM   Or use TDM-GCC:        https://jmeubank.github.io/tdm-gcc/
+REM Requires: Go 1.24+
 
 cd /d "%~dp0"
-
-set CGO_ENABLED=1
 
 for /f "tokens=*" %%i in ('git describe --tags --always --dirty 2^>nul') do set VERSION=%%i
 if "%VERSION%"=="" set VERSION=dev

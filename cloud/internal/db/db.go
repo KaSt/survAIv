@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // Driver identifies the active database backend.
@@ -38,7 +38,7 @@ func Open(dsn string) (*sql.DB, error) {
 		db.SetMaxIdleConns(5)
 	} else {
 		ActiveDriver = SQLite
-		db, err = sql.Open("sqlite3", dsn+"?_journal_mode=WAL&_busy_timeout=5000")
+		db, err = sql.Open("sqlite", dsn+"?_journal_mode=WAL&_busy_timeout=5000")
 		if err != nil {
 			return nil, err
 		}

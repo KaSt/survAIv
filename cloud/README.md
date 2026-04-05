@@ -5,10 +5,7 @@ Cloud port of the survaiv autonomous prediction market agent. Originally firmwar
 ## Prerequisites
 
 - **Go 1.24+**
-- **GCC** (for `mattn/go-sqlite3` CGO compilation)
-  - macOS: included with Xcode Command Line Tools (`xcode-select --install`)
-  - Linux: `sudo apt install build-essential` (Debian/Ubuntu) or `sudo dnf groupinstall 'Development Tools'` (Fedora)
-  - Windows: install [TDM-GCC](https://jmeubank.github.io/tdm-gcc/) or [MSYS2](https://www.msys2.org/) (`pacman -S mingw-w64-x86_64-gcc`)
+- No CGO or C compiler required — all dependencies are pure Go
 
 ## Quick Start
 
