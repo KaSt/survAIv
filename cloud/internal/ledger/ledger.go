@@ -1,9 +1,13 @@
 package ledger
 
 import (
+	"database/sql"
+	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 
+	"survaiv/internal/db"
 	"survaiv/internal/types"
 )
 
@@ -17,18 +21,26 @@ type Ledger struct {
 	dailyLoss    float64
 	positions    []types.Position
 	maxPositions int
+	database     *sql.DB
 }
 
 // New creates a ledger with starting USDC, reserve amount, and max open positions.
-func New(startingUsdc, reserveUsdc float64, maxPositions int) *Ledger {
+// If a database handle is provided, state is restored from disk on startup and
+// persisted after every mutation.
+func New(startingUsdc, reserveUsdc float64, maxPositions int, database *sql.DB) *Ledger {
 	if maxPositions <= 0 {
 		maxPositions = 5
 	}
-	return &Ledger{
+	l := &Ledger{
 		cash:         startingUsdc,
 		reserve:      reserveUsdc,
 		maxPositions: maxPositions,
+		database:     database,
 	}
+	if database != nil {
+		l.loadFromDB()
+	}
+	return l
 }
 
 // Cash returns the available cash balance.
@@ -115,6 +127,7 @@ func (l *Ledger) DebitInference(usdc float64) {
 	if l.cash < 0 {
 		l.cash = 0
 	}
+	l.saveToDB()
 }
 
 // OpenPaperPosition opens a new paper position on a market.
@@ -154,6 +167,7 @@ func (l *Ledger) OpenPaperPosition(market types.MarketSnapshot, side string, siz
 	slog.Info("paper position opened",
 		"market", market.ID, "side", side,
 		"price", price, "shares", shares, "stake", sizeUsdc)
+	l.saveToDB()
 	return true
 }
 
@@ -180,6 +194,7 @@ func (l *Ledger) ClosePaperPosition(marketID string, markets []types.MarketSnaps
 			slog.Info("paper position closed",
 				"market", marketID, "pnl", pnl,
 				"entry", pos.EntryPrice, "exit", exitPrice)
+			l.saveToDB()
 			return pnl, true
 		}
 	}
@@ -191,6 +206,7 @@ func (l *Ledger) ResetDailyLoss() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.dailyLoss = 0
+	l.saveToDB()
 }
 
 // ResetPaper resets the ledger to initial state with given bankroll.
@@ -203,6 +219,7 @@ func (l *Ledger) ResetPaper(startingUsdc, reserveUsdc float64) {
 	l.realizedPnl = 0
 	l.dailyLoss = 0
 	l.positions = nil
+	l.saveToDB()
 }
 
 // BudgetInfo returns a snapshot of the ledger state for the dashboard.
@@ -217,6 +234,126 @@ func (l *Ledger) BudgetInfo(markets []types.MarketSnapshot) types.BudgetInfo {
 		RealizedPnl: l.realizedPnl,
 		DailyLoss:   l.dailyLoss,
 	}
+}
+
+// saveToDB persists the full ledger state to the database.
+// Must be called with l.mu held (write lock).
+func (l *Ledger) saveToDB() {
+	if l.database == nil {
+		return
+	}
+
+	tx, err := l.database.Begin()
+	if err != nil {
+		slog.Error("ledger: failed to begin save tx", "err", err)
+		return
+	}
+	defer tx.Rollback()
+
+	// Clear and rewrite positions.
+	if _, err := tx.Exec("DELETE FROM positions"); err != nil {
+		slog.Error("ledger: failed to clear positions", "err", err)
+		return
+	}
+	insertQ := db.Q("INSERT INTO positions (market_id, question, side, entry_price, shares, stake_usdc, is_live, order_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+	for _, p := range l.positions {
+		isLive := 0
+		if p.IsLive {
+			isLive = 1
+		}
+		if _, err := tx.Exec(insertQ, p.MarketID, p.Question, p.Side, p.EntryPrice, p.Shares, p.StakeUsdc, isLive, p.OrderID); err != nil {
+			slog.Error("ledger: failed to insert position", "market", p.MarketID, "err", err)
+			return
+		}
+	}
+
+	// Upsert scalar values into config table.
+	scalars := map[string]float64{
+		"ledger_cash":         l.cash,
+		"ledger_reserve":      l.reserve,
+		"ledger_llm_spend":    l.llmSpend,
+		"ledger_realized_pnl": l.realizedPnl,
+		"ledger_daily_loss":   l.dailyLoss,
+	}
+	var upsertQ string
+	if db.ActiveDriver == db.Postgres {
+		upsertQ = "INSERT INTO config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value"
+	} else {
+		upsertQ = "INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)"
+	}
+	for k, v := range scalars {
+		if _, err := tx.Exec(upsertQ, k, fmt.Sprintf("%.6f", v)); err != nil {
+			slog.Error("ledger: failed to upsert config", "key", k, "err", err)
+			return
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		slog.Error("ledger: failed to commit save tx", "err", err)
+		return
+	}
+}
+
+// loadFromDB restores ledger state from the database.
+// Called once from New() before any concurrent access.
+func (l *Ledger) loadFromDB() {
+	if l.database == nil {
+		return
+	}
+
+	// Try to read ledger_cash to determine if saved state exists.
+	var val string
+	err := l.database.QueryRow(db.Q("SELECT value FROM config WHERE key = ?"), "ledger_cash").Scan(&val)
+	if err != nil {
+		slog.Info("starting fresh ledger (no saved state)")
+		return
+	}
+
+	// Restore scalars.
+	keys := map[string]*float64{
+		"ledger_cash":         &l.cash,
+		"ledger_reserve":      &l.reserve,
+		"ledger_llm_spend":    &l.llmSpend,
+		"ledger_realized_pnl": &l.realizedPnl,
+		"ledger_daily_loss":   &l.dailyLoss,
+	}
+	for k, ptr := range keys {
+		var s string
+		if err := l.database.QueryRow(db.Q("SELECT value FROM config WHERE key = ?"), k).Scan(&s); err == nil {
+			if f, err := strconv.ParseFloat(s, 64); err == nil {
+				*ptr = f
+			}
+		}
+	}
+
+	// Restore positions.
+	rows, err := l.database.Query("SELECT market_id, question, side, entry_price, shares, stake_usdc, is_live, order_id FROM positions")
+	if err != nil {
+		slog.Error("ledger: failed to load positions", "err", err)
+		return
+	}
+	defer rows.Close()
+
+	l.positions = nil
+	for rows.Next() {
+		var p types.Position
+		var isLive int
+		if err := rows.Scan(&p.MarketID, &p.Question, &p.Side, &p.EntryPrice, &p.Shares, &p.StakeUsdc, &isLive, &p.OrderID); err != nil {
+			slog.Error("ledger: failed to scan position row", "err", err)
+			continue
+		}
+		p.IsLive = isLive != 0
+		l.positions = append(l.positions, p)
+	}
+
+	slog.Info("ledger restored from db",
+		"cash", l.cash,
+		"reserve", l.reserve,
+		"llm_spend", l.llmSpend,
+		"realized_pnl", l.realizedPnl,
+		"daily_loss", l.dailyLoss,
+		"positions", len(l.positions),
+	)
 }
 
 // currentPrice looks up the current price for a position's market and side.

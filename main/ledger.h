@@ -35,13 +35,17 @@ class BudgetLedger {
   int OpenPositionCount() const { return static_cast<int>(positions_.size()); }
   double RealizedPaperPnl() const { return realized_paper_pnl_usdc_; }
   double DailyLossUsdc() const { return daily_loss_usdc_; }
-  void ResetDailyLoss() { daily_loss_usdc_ = 0.0; }
+  void ResetDailyLoss();
 
   // Reset all paper trading state back to initial bankroll.
   void ResetPaper(double starting_usdc, double reserve_usdc);
 
   // Mark a position as live (backed by a real CLOB order).
   void MarkPositionLive(const std::string &market_id, const std::string &order_id);
+
+  // NVS persistence.
+  void SaveToNvs() const;
+  bool LoadFromNvs();
 
  private:
   static double PositionsMarkToMarket(const std::vector<Position> &positions,

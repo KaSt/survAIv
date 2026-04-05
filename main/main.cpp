@@ -158,6 +158,14 @@ extern "C" void app_main(void) {
       static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,
       static_cast<double>(survaiv::config::ReserveCents()) / 100.0);
 
+  if (ledger.LoadFromNvs()) {
+    ESP_LOGI(kTag, "Restored ledger from NVS (cash=%.4f positions=%d)",
+             ledger.Cash(), ledger.OpenPositionCount());
+  } else {
+    ESP_LOGI(kTag, "Starting fresh ledger (bankroll=%.4f)",
+             ledger.Cash());
+  }
+
   survaiv::GetDashboardState().SetResetPaperFunc([&ledger]() {
     ledger.ResetPaper(
         static_cast<double>(survaiv::config::StartingBankrollCents()) / 100.0,

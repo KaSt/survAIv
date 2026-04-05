@@ -83,7 +83,7 @@ func main() {
 	}
 
 	// 5. Create ledger.
-	ldgr := ledger.New(cfg.StartingBankroll, cfg.Reserve, cfg.MaxPositions)
+	ldgr := ledger.New(cfg.StartingBankroll, cfg.Reserve, cfg.MaxPositions, database)
 
 	// 6. Create shared dashboard state.
 	dashState := dashboard.NewState()
