@@ -8,15 +8,15 @@
 
 Seven deployment targets, one codebase philosophy:
 
-| Target | Tier | Hardware | Source | Status |
-|--------|------|----------|--------|--------|
-| **ESP32-C3** | `pico` | Seeed XIAO SuperMini · 4 MB flash | ~9,800 lines C++ | ✅ Primary |
-| **ESP32-S3** | `core` | N16R8 · 8 MB PSRAM · 16 MB flash | Shares C3 source | ✅ Ready |
-| **T-QT Pro** | `nano` | ESP32-S3 · 2 MB PSRAM · 4 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
-| **AtomS3** | `atom` | ESP32-S3 · 8 MB flash · 0.85" LCD | Shares C3 source | ✅ Ready |
-| **StickC PLUS2** | `spark` | ESP32 · 2 MB PSRAM · 8 MB flash · 1.14" LCD | Shares C3 source | ✅ Ready |
-| **C3 SuperMini OLED** | `dot` | ESP32-C3 · 4 MB flash · 0.42" OLED | Shares C3 source | ✅ Ready |
-| **Cloud / TUI** | `giga` | Any server, Heroku, local machine | ~7,500 lines Go | ✅ Ready |
+| Target | Tier | SoC | CPU | PSRAM | Flash | Display | Source | Status |
+|--------|------|-----|-----|-------|-------|---------|--------|--------|
+| [**ESP32-C3 SuperMini**](https://www.espboards.dev/esp32/esp32-c3-super-mini/) | `pico` | ESP32-C3 | RISC-V · 1 core · 160 MHz | — | 4 MB | — | ~9,800 lines C++ | ✅ Primary |
+| [**ESP32-S3 N16R8**](https://www.espressif.com/en/products/socs/esp32-s3) | `core` | ESP32-S3 (WROOM-1) | Xtensa LX7 · 2 cores · 240 MHz | 8 MB | 16 MB | — | Shares C3 source | ✅ Ready |
+| [**LilyGO T-QT Pro**](https://lilygo.cc/products/t-qt-pro) | `nano` | ESP32-S3 (FN4R2) | Xtensa LX7 · 2 cores · 240 MHz | 2 MB | 4 MB | 0.85" LCD | Shares C3 source | ✅ Ready |
+| [**M5Stack AtomS3**](https://docs.m5stack.com/en/core/AtomS3) | `atom` | ESP32-S3 | Xtensa LX7 · 2 cores · 240 MHz | 8 MB | 8 MB | 0.85" LCD | Shares C3 source | ✅ Ready |
+| [**M5StickC PLUS2**](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | `spark` | ESP32-PICO-V3-02 | Xtensa LX6 · 2 cores · 240 MHz | 2 MB | 8 MB | 1.14" LCD | Shares C3 source | ✅ Ready |
+| [**C3 SuperMini OLED**](https://www.espboards.dev/esp32/esp32-c3-oled-042/) | `dot` | ESP32-C3 | RISC-V · 1 core · 160 MHz | — | 4 MB | 0.42" OLED | Shares C3 source | ✅ Ready |
+| **Cloud / TUI** | `giga` | Any | — | — | — | — | ~7,500 lines Go | ✅ Ready |
 
 ## How It Works
 
@@ -133,12 +133,12 @@ On first boot, connect to the **SURVAIV-SETUP** WiFi AP and follow the captive p
 
 Four boards include on-device screens showing live agent stats:
 
-| Board | Tier | SoC | Screen | Resolution | Interface | Buttons |
-|-------|------|-----|--------|------------|-----------|---------|
-| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | `nano` | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 2 (GPIO0, GPIO47) |
-| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | `atom` | ESP32-S3 | 0.85" GC9107 | 128×128 | SPI | 1 (GPIO41) |
-| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | `spark` | ESP32 | 1.14" ST7789V2 | 135×240 | SPI | 2 (GPIO37, GPIO39) |
-| ESP32-C3 SuperMini OLED | `dot` | ESP32-C3 | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
+| Board | Tier | SoC | CPU | Screen | Resolution | Interface | Buttons |
+|-------|------|-----|-----|--------|------------|-----------|---------|
+| [LilyGO T-QT Pro](https://lilygo.cc/products/t-qt-pro) | `nano` | ESP32-S3 (FN4R2) | Xtensa LX7 · 2 cores | 0.85" GC9107 | 128×128 | SPI | 2 (GPIO0, GPIO47) |
+| [M5Stack AtomS3](https://docs.m5stack.com/en/core/AtomS3) | `atom` | ESP32-S3 | Xtensa LX7 · 2 cores | 0.85" GC9107 | 128×128 | SPI | 1 (GPIO41) |
+| [M5StickC PLUS2](https://docs.m5stack.com/en/core/M5StickC%20PLUS2) | `spark` | ESP32-PICO-V3-02 | Xtensa LX6 · 2 cores | 1.14" ST7789V2 | 135×240 | SPI | 2 (GPIO37, GPIO39) |
+| [C3 SuperMini OLED](https://www.espboards.dev/esp32/esp32-c3-oled-042/) | `dot` | ESP32-C3 | RISC-V · 1 core | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
 
 ```bash
 # From repo root:
