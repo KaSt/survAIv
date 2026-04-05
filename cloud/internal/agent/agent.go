@@ -162,6 +162,17 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	systemPrompt := BuildSystemPrompt(paperOnly, geo.Blocked, a.cfg.ToolUsageLevel(), a.wisdom)
 	userPrompt := BuildUserPrompt(geo, budget, markets, positions, paperOnly, a.cfg.DailyLossLimit)
 
+	// 5b. Proactive research: in Generous mode, auto-search news based on
+	// market categories before the first LLM call so it starts with context.
+	if a.cfg.ToolUsageLevel() >= 2 {
+		provider := news.Provider(a.cfg.NewsProvider())
+		research := ProactiveResearch(ctx, markets, provider, a.cfg.NewsAPIKey())
+		if extra := BuildResearchContext(research); extra != "" {
+			// Inject research into the user prompt JSON (before closing brace).
+			userPrompt = userPrompt[:len(userPrompt)-1] + extra + "}"
+		}
+	}
+
 	// 6. Select model.
 	baseURL := a.cfg.OaiURL
 	useX402 := a.x402 != nil && a.x402.IsConfigured()
@@ -198,7 +209,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 	case 0:
 		maxToolCalls = 0 // frugal: skip tool calls entirely
 	case 2:
-		maxToolCalls = 2 // generous: allow up to 2 rounds
+		maxToolCalls = 3 // generous: proactive research + up to 3 LLM-driven rounds
 	}
 
 	var toolsUsed []string

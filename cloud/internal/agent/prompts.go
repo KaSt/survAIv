@@ -45,8 +45,13 @@ func BuildSystemPrompt(paperOnly, geoblocked bool, toolUsage int, wis *wisdom.Tr
 		b.WriteString("5. Minimize tool calls. Only use a tool if you absolutely cannot decide without it. ")
 		b.WriteString("Every tool call costs an extra LLM round.\n")
 	case 2: // generous
-		b.WriteString("5. Use tool calls freely to gather maximum context. Search news for sports, politics, ")
-		b.WriteString("and current events markets. Better information leads to better decisions.\n")
+		b.WriteString("5. Use tool calls freely to gather maximum context. The server has already ")
+		b.WriteString("performed proactive news searches based on market categories — check the ")
+		b.WriteString("'proactive_research' field in the input for pre-fetched headlines and snippets. ")
+		b.WriteString("Use search_news for deeper dives on promising markets. For sports: consider injuries, ")
+		b.WriteString("form, coaching changes. For politics: polls, endorsements, policy shifts. ")
+		b.WriteString("For geopolitics: diplomatic moves, sanctions, military activity. ")
+		b.WriteString("For crypto/finance: regulatory news, on-chain data, earnings.\n")
 	default: // balanced
 		if paperOnly || geoblocked {
 			b.WriteString("5. Tool calls (search_news, search_markets) are free in paper mode — use them ")
