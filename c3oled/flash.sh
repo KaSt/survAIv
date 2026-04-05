@@ -5,12 +5,28 @@ cd "$(dirname "$0")"
 # ── Parse arguments ───────────────────────────────────────────
 WALLET_KEY=""
 MONITOR=false
+NO_OTA=false
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --wallet) WALLET_KEY="$2"; shift 2 ;;
     --wallet=*) WALLET_KEY="${1#*=}"; shift ;;
     -m|--monitor) MONITOR=true; shift ;;
+    --no-ota) NO_OTA=true; shift ;;
+    --ota) NO_OTA=false; shift ;;
+    -h|--help)
+      echo "Usage: ./flash.sh [OPTIONS] [PORT] [BAUD]"
+      echo ""
+      echo "Board: ESP32-C3 SuperMini (72×40 SSD1306 OLED, 4 MB flash)"
+      echo ""
+      echo "Options:"
+      echo "  --no-ota         Disable OTA: single ~3.9 MB app partition"
+      echo "  --ota            Enable OTA: dual 1.75 MB partitions (default)"
+      echo "  --wallet <hex>   Provision wallet private key (64 hex chars)"
+      echo "  -m, --monitor    Open serial monitor after flash"
+      echo "  -h, --help       Show this help"
+      exit 0
+      ;;
     *) POSITIONAL+=("$1"); shift ;;
   esac
 done
@@ -31,6 +47,11 @@ echo "║  ⟁ SURVAIV — C3 SuperMini OLED   ║"
 echo "╚═══════════════════════════════════╝"
 echo "  Target : $TARGET"
 echo "  Board  : ESP32-C3 SuperMini (72×40 SSD1306 OLED)"
+if $NO_OTA; then
+  echo "  OTA    : disabled (single app partition)"
+else
+  echo "  OTA    : enabled (dual 1.75 MB partitions)"
+fi
 echo "  Port   : $PORT"
 echo "  Baud   : $BAUD"
 if [[ -n "$WALLET_KEY" ]]; then
@@ -46,8 +67,14 @@ fi
 
 idf.py set-target "$TARGET"
 
+BUILD_ARGS=()
+if $NO_OTA; then
+  BUILD_ARGS+=(-D "SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.defaults.no_ota")
+  rm -f sdkconfig
+fi
+
 echo "── Building ──────────────────────"
-idf.py build
+idf.py "${BUILD_ARGS[@]}" build
 
 echo ""
 echo "── Flashing ──────────────────────"

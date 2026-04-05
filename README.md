@@ -101,38 +101,33 @@ Every cycle the agent:
 
 ## Quick Start
 
-### ESP32-C3
+### ESP32 (All Boards)
 
 ```bash
 # Prerequisites: ESP-IDF v5.5+
 . $IDF_PATH/export.sh
 
-# Build and flash (auto-detects USB port on macOS)
-./flash.sh
+# Unified flash script — builds any board from the repo root
+./flash.sh                              # C3 with OTA (default)
+./flash.sh --board s3                   # S3 N16R8
+./flash.sh --board tqt                  # T-QT Pro (LCD)
+./flash.sh --board atoms3               # AtomS3 (LCD)
+./flash.sh --board stickc2              # StickC PLUS2 (LCD)
+./flash.sh --board c3oled               # C3 SuperMini OLED
+./flash.sh --list                       # list all supported boards
 
-# Or with monitor:
-./flash.sh -m
+# Common options (work with any board):
+./flash.sh --board <name> --no-ota      # disable OTA: larger app partition
+./flash.sh --board <name> -m            # open serial monitor after flash
+./flash.sh --board <name> --wallet <key> # provision wallet private key
+./flash.sh --help                       # full usage
 
-# Or with wallet provisioning:
-./flash.sh --wallet <64-char-hex-private-key>
-
-# Build without OTA (3.9 MB app partition, more resources):
-./flash.sh --no-ota
+# Or flash from board subdirectory directly:
+cd tqt && ./flash.sh                    # builds from board dir
+cd atoms3 && ./flash.sh --no-ota -m     # no-OTA + monitor
 ```
 
 On first boot, connect to the **SURVAIV-SETUP** WiFi AP and follow the captive portal wizard.
-
-### ESP32-S3 N16R8
-
-```bash
-. $IDF_PATH/export.sh
-
-cd s3
-./flash.sh       # build + flash
-./flash.sh -m    # with monitor
-```
-
-Same firmware, higher limits: 50 markets (vs 6), 512 KB HTTP bodies, full provider catalog.
 
 ### Boards with Displays
 
@@ -146,15 +141,15 @@ Four boards include on-device screens showing live agent stats:
 | ESP32-C3 SuperMini OLED | ESP32-C3 | 0.42" SSD1306 | 72×40 | I2C | 1 (GPIO9 BOOT) |
 
 ```bash
-. $IDF_PATH/export.sh
+# From repo root:
+./flash.sh --board tqt          # LilyGO T-QT Pro
+./flash.sh --board atoms3       # M5Stack AtomS3
+./flash.sh --board stickc2      # M5StickC PLUS2
+./flash.sh --board c3oled       # ESP32-C3 SuperMini OLED
 
-cd tqt       # LilyGO T-QT Pro
-cd atoms3    # M5Stack AtomS3
-cd stickc2   # M5StickC PLUS2
-cd c3oled    # ESP32-C3 SuperMini OLED
-
-./flash.sh       # build + flash (auto-fetches LovyanGFX on first build)
-./flash.sh -m    # with monitor
+# Or from board subdirectory:
+cd tqt && ./flash.sh            # auto-fetches LovyanGFX on first build
+./flash.sh --no-ota -m          # no-OTA + monitor
 ```
 
 The screen auto-dims after 30 seconds of inactivity; press any button to wake it.
@@ -472,12 +467,13 @@ s3/                       — ESP32-S3 build variant (shares main/ source)
 ├── CMakeLists.txt        — S3 project file
 ├── partitions.csv        — 16 MB flash layout (2×7 MB OTA slots)
 ├── sdkconfig.defaults    — S3 + PSRAM config
-└── flash.sh              — S3 build/flash script
+└── flash.sh              — S3 build/flash script (--no-ota supported)
 
 tqt/                      — LilyGO T-QT Pro (ESP32-S3, 128×128 GC9107 LCD)
 atoms3/                   — M5Stack AtomS3 (ESP32-S3, 128×128 GC9107 LCD)
 stickc2/                  — M5StickC PLUS2 (ESP32, 135×240 ST7789V2 LCD)
-└── Each: CMakeLists.txt, sdkconfig.defaults, partitions.csv, flash.sh
+c3oled/                   — ESP32-C3 SuperMini (72×40 SSD1306 OLED)
+└── Each: CMakeLists.txt, sdkconfig.defaults[.no_ota], partitions[_no_ota].csv, flash.sh
 
 boards/
 ├── screen/               — LovyanGFX display driver component
