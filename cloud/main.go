@@ -36,6 +36,13 @@ func main() {
 	coresFlag := flag.String("cores", "", "Max CPU cores to use (number or percentage, e.g. 4 or 50%)")
 	mdnsFlag := flag.Bool("mdns", false, "Enable mDNS hostname advertising (<agent-name>.local)")
 	version := flag.Bool("version", false, "Print version and exit")
+	llmURL := flag.String("llm-url", "", "LLM endpoint URL (e.g. https://api.openai.com/v1)")
+	llmKey := flag.String("llm-key", "", "LLM API key (optional for x402 providers)")
+	llmModel := flag.String("model", "", "LLM model name (e.g. gpt-4o, deepseek/deepseek-v3.2)")
+	walletKey := flag.String("wallet", "", "Ethereum private key for x402 payments")
+	newsKey := flag.String("news-key", "", "Tavily or Brave Search API key for news tool")
+	agentName := flag.String("name", "", "Agent display name")
+	paperOnly := flag.Bool("paper", false, "Force paper-only mode (no live trades)")
 	flag.Parse()
 
 	if *version {
@@ -53,6 +60,8 @@ func main() {
 
 	// 2. Load config.
 	cfg := config.Load(database, *configFile)
+
+	// CLI flags override config/env (highest precedence).
 	if *headless {
 		cfg.Headless = true
 	}
@@ -67,6 +76,27 @@ func main() {
 	}
 	if *mdnsFlag {
 		cfg.MDNS = true
+	}
+	if *llmURL != "" {
+		cfg.OaiURL = *llmURL
+	}
+	if *llmKey != "" {
+		cfg.ApiKey = *llmKey
+	}
+	if *llmModel != "" {
+		cfg.OaiModel = *llmModel
+	}
+	if *walletKey != "" {
+		cfg.WalletKey = *walletKey
+	}
+	if *newsKey != "" {
+		cfg.Set("news_api_key", *newsKey)
+	}
+	if *agentName != "" {
+		cfg.Set("agent_name", *agentName)
+	}
+	if *paperOnly {
+		cfg.PaperOnly = true
 	}
 
 	// Apply core limit before starting any goroutines.
