@@ -41,6 +41,7 @@ type Config struct {
 	Headless         bool
 	TelemetryURL     string
 	TelemetrySec     int
+	MDNS             bool
 }
 
 // Load reads configuration with the following precedence (highest wins):
@@ -72,6 +73,7 @@ func Load(db *sql.DB, configFile string) *Config {
 
 	c.TelemetryURL = resolve("SURVAIV_TELEMETRY_URL", "telemetry_url", file, "")
 	c.TelemetrySec = resolveInt("SURVAIV_TELEMETRY_SEC", "telemetry_sec", file, 300)
+	c.MDNS = resolveBool("SURVAIV_MDNS", "mdns", file, true)
 
 	// Port: prefer PORT (Heroku), then config file / SURVAIV_PORT, then 8080.
 	if p := os.Getenv("PORT"); p != "" {

@@ -30,7 +30,9 @@ func Serve(ctx context.Context, cfg *config.Config, state *State) error {
 	}()
 
 	// Advertise via mDNS so the agent is reachable as <name>.local.
-	go advertiseMDNS(ctx, cfg, cfg.Port)
+	if cfg.MDNS {
+		go advertiseMDNS(ctx, cfg, cfg.Port)
+	}
 
 	slog.Info("dashboard server starting", "addr", addr)
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
