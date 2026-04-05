@@ -70,8 +70,8 @@ func NewState() *State {
 	// Initialize CPU baseline.
 	var ru syscall.Rusage
 	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		s.prevCPUUser = ru.Utime.Sec*1e6 + int64(ru.Utime.Usec)
-		s.prevCPUSys = ru.Stime.Sec*1e6 + int64(ru.Stime.Usec)
+		s.prevCPUUser = int64(ru.Utime.Sec)*1e6 + int64(ru.Utime.Usec)
+		s.prevCPUSys = int64(ru.Stime.Sec)*1e6 + int64(ru.Stime.Usec)
 	}
 	return s
 }
@@ -358,8 +358,8 @@ func (s *State) ToJSON() []byte {
 	var cpuPcts []int
 	var ru syscall.Rusage
 	if syscall.Getrusage(syscall.RUSAGE_SELF, &ru) == nil {
-		userUs := ru.Utime.Sec*1e6 + int64(ru.Utime.Usec)
-		sysUs := ru.Stime.Sec*1e6 + int64(ru.Stime.Usec)
+		userUs := int64(ru.Utime.Sec)*1e6 + int64(ru.Utime.Usec)
+		sysUs := int64(ru.Stime.Sec)*1e6 + int64(ru.Stime.Usec)
 		elapsed := time.Since(s.prevCPUTime).Microseconds()
 		if elapsed > 0 {
 			cpuUs := (userUs - s.prevCPUUser) + (sysUs - s.prevCPUSys)
