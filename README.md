@@ -6,7 +6,7 @@
 
 > Give an agent $15–25 USDC and see how long it survives — paying for its own thinking while trying to grow its capital through prediction markets. A social experiment in AI autonomy, not a trading strategy.
 
-Three deployment targets, one codebase philosophy:
+Six deployment targets, one codebase philosophy:
 
 | Platform | Hardware | Code | Status |
 |----------|----------|------|--------|
@@ -311,7 +311,8 @@ Export the full knowledge state as a JSON file and import it on any platform:
 Pi + Opus 4 (cloud)          →  export  →  survaiv-knowledge-v2.json
                                                │
 ESP32-C3 (paper)             ←  import  ←──────┘  (auto-truncated to 800B budget)
-ESP32-S3 (live)              ←  import  ←──────┘  (4 KB budget, full fidelity)
+T-QT Pro / AtomS3            ←  import  ←──────┘  (2–4 KB budget)
+ESP32-S3 N16R8 (live)        ←  import  ←──────┘  (4 KB budget, full fidelity)
 Another cloud agent          ←  import  ←──────┘  (8 KB budget)
 ```
 
@@ -333,7 +334,7 @@ The intended workflow for maximum knowledge quality:
 2. **Accumulate outcomes** — the agent tracks hundreds of decisions and their resolutions, building statistical confidence.
 3. **Distill into rules** — periodically review outcomes and craft (or let the LLM generate) custom rules that capture the highest-signal patterns.
 4. **Export knowledge** — download the `survaiv-knowledge-v2.json` from the dashboard.
-5. **Import to target** — upload to any agent (ESP32-C3, S3, another cloud instance). The rules are compressed to fit.
+5. **Import to target** — upload to any agent (C3, T-QT Pro, AtomS3, StickC PLUS2, S3, another cloud instance). The rules are compressed to fit.
 6. **Freeze learning** — on resource-constrained devices, freeze learning to prevent the small model from overwriting good rules with noisy ones.
 7. **Deploy** — the C3 now carries months of curated wisdom in 800 bytes, making better decisions with a cheap model.
 
@@ -362,7 +363,10 @@ Since the export format is a standard JSON file, knowledge can be shared between
 |----------|--------|-----------------|
 | C3 (OTA) | 800 bytes | 10–12 terse rules + compact stats |
 | C3 (no-OTA) | 2,000 bytes | 25+ rules with context |
-| S3 | 4,000 bytes | Full rule set + verbose stats |
+| T-QT Pro | 2,000 bytes | 25+ rules with context |
+| StickC PLUS2 | 2,000 bytes | 25+ rules with context |
+| AtomS3 | 4,000 bytes | Full rule set + verbose stats |
+| S3 N16R8 | 4,000 bytes | Full rule set + verbose stats |
 | Cloud | 8,000 bytes | Comprehensive rules + category breakdowns |
 
 ## Efficiency Score
@@ -389,10 +393,10 @@ The score is the sum of five weighted criteria, each measuring a different dimen
 |----------|---------|-------------|--------|----------|--------|-----------|
 | ESP32-C3 (OTA) | 2 | 0 | 0 | 2 | 1 | **~12** |
 | ESP32-C3 (no-OTA) | 4 | 0 | 0 | 5 | 4 | **~22** |
-| T-QT Pro | 8 | 5 | 0 | 20 | 7 | **~38** |
-| AtomS3 | 8 | 5 | 0 | 20 | 7 | **~38** |
-| StickC PLUS2 | 4 | 0 | 0 | 5 | 4 | **~22** |
-| ESP32-S3 N16R8 | 8 | 5 | 0 | 20 | 7 | **~38** |
+| T-QT Pro | 4 | 5 | 5 | 5 | 4 | **~26** |
+| StickC PLUS2 | 4 | 0 | 5 | 5 | 4 | **~22** |
+| AtomS3 | 4 | 5 | 0 | 5 | 7 | **~25** |
+| ESP32-S3 N16R8 | 8 | 5 | 10 | 20 | 7 | **~48** |
 | Cloud (4-core, 128K model) | 30 | 10 | 10–15 | 8 | 15 | **~75** |
 | Cloud (8-core, 128K model) | 30 | 20 | 15 | 8 | 15 | **~88** |
 | Cloud (8-core, 1M model) | 30 | 20 | 15 | 20 | 15 | **~100** |
@@ -433,7 +437,7 @@ Protected endpoints include all state, positions, history, equity, scouted marke
 
 ## Architecture
 
-### ESP32 (C3 / S3) — `main/`
+### ESP32 — `main/`
 
 ```
 main/
@@ -501,21 +505,21 @@ cloud/
 
 ## Platform Differences
 
-| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+ 2 | Cloud |
+| Feature | C3 (OTA) | C3 (no-OTA) | S3 | T-QT Pro | AtomS3 | StickC+2 | Cloud |
 |---------|----------|-------------|----|----|----|----|-----|
-| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 8,000 tok | 8,000 tok | 4,000 tok | adaptive (up to 32K) |
+| Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 4,000 tok | 4,000 tok | 4,000 tok | adaptive (up to 32K) |
 | Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
-| Markets per scan | 6 | 12 | 50 | 50 | 50 | 12 | adaptive (up to 50) |
-| HTTP body size | 64 KB | 128 KB | 512 KB | 64 KB | 512 KB | 128 KB | unlimited |
-| Wisdom budget | 800 B | 2,000 B | 4,000 B | 4,000 B | 4,000 B | 2,000 B | 8,000 B |
+| Markets per scan | 6 | 12 | 50 | 12 | 12 | 12 | adaptive (up to 50) |
+| HTTP body size | 64 KB | 128 KB | 512 KB | 128 KB | 128 KB | 128 KB | unlimited |
+| Wisdom budget | 800 B | 2,000 B | 4,000 B | 2,000 B | 4,000 B | 2,000 B | 8,000 B |
 | On-board LCD | — | — | — | 128×128 | 128×128 | 135×240 | N/A |
 | OTA updates | ✅ | — | ✅ | ✅ | ✅ | ✅ | N/A |
-| x402 providers | tx402 only* | tx402 only* | all 4 | tx402 only* | all 4 | tx402 only* | all 4 |
+| x402 providers | tx402 only* | tx402 only* | all 4 | tx402 only* | all 4 | all 4 | all 4 |
 | Persistence | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | NVS flash | SQLite / PostgreSQL |
 | UI | Web dashboard | Web dashboard | Web dashboard | LCD + web | LCD + web | LCD + web | TUI + web |
 | Deployment | USB flash | USB flash | USB flash | USB flash | USB flash | USB flash | `go build` / Docker / Heroku |
 
-\* x402engine catalog too large for C3's 400 KB SRAM.
+\* x402engine catalog too large for boards with ≤4 MB flash / no PSRAM.
 
 ## Budget Assessment
 
