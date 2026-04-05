@@ -1,8 +1,10 @@
 name: Build Firmware
 
 on:
+  release:
+    types: [published]
   push:
-    branches: [dev, nightly, master]
+    branches: [master]
   workflow_dispatch:
 
 concurrency:
@@ -233,7 +235,7 @@ jobs:
   # Deploy web flasher to GitHub Pages on master/nightly
   deploy-pages:
     needs: [build-esp32]
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/nightly'
+    if: github.ref == 'refs/heads/master' || github.event_name == 'release'
     runs-on: ubuntu-latest
     permissions:
       pages: write
