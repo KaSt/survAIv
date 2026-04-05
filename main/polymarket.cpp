@@ -47,9 +47,11 @@ GeoblockStatus FetchGeoblockStatus() {
 std::vector<MarketSnapshot> FetchMarkets(int limit, int offset,
                                          const std::string &order) {
   // Each market is ~7 KB in the API response; cap fetch to keep response
-  // under ~42 KB so it fits comfortably in heap alongside TLS buffers.
+  // within heap budget alongside TLS buffers.
 #if CONFIG_IDF_TARGET_ESP32S3
   int fetch_limit = std::min(limit, 50);  // S3: PSRAM allows more
+#elif defined(CONFIG_SPIRAM)
+  int fetch_limit = std::min(limit, 30);  // ESP32 with PSRAM (e.g. StickC2)
 #elif !CONFIG_SURVAIV_ENABLE_OTA
   int fetch_limit = std::min(limit, 12);  // C3 no-OTA: more flash headroom
 #else
