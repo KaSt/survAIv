@@ -138,7 +138,7 @@ border-radius:6px;cursor:pointer;font-size:10px;transition:all .15s}
 .btn-danger:hover{background:var(--red);color:#fff}
 .news-ticker{overflow:hidden;white-space:nowrap;background:var(--card);border:1px solid var(--border);
 border-radius:8px;padding:6px 12px;margin-bottom:12px;font-size:11px;color:var(--dim);display:none;position:relative}
-.news-ticker .ticker-label{color:var(--blue);font-weight:700;margin-right:10px;flex-shrink:0}
+.news-ticker .ticker-label{color:var(--blue);font-weight:700;margin-right:10px;flex-shrink:0;position:relative;z-index:1;background:var(--card);padding-right:10px}
 .news-ticker .ticker-track{display:inline-block;animation:tickerScroll var(--ticker-dur,60s) linear infinite}
 .news-ticker:hover .ticker-track{animation-play-state:paused}
 @keyframes tickerScroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
