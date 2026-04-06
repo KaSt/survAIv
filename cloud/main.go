@@ -18,6 +18,7 @@ import (
 	"survaiv/internal/db"
 	"survaiv/internal/httpclient"
 	"survaiv/internal/ledger"
+	"survaiv/internal/models"
 	"survaiv/internal/telemetry"
 	"survaiv/internal/tui"
 	"survaiv/internal/wallet"
@@ -224,6 +225,9 @@ func main() {
 		telem.SetURL(url)
 		telem.SetInterval(sec)
 	}
+
+	// 8b. Fetch live model catalog from OpenRouter.
+	models.FetchOpenRouter()
 
 	// 9. Create agent.
 	agnt := agent.New(cfg, httpClient, ldgr, x402mgr, dashState, wisTracker)
