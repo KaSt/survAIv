@@ -59,11 +59,12 @@ Every cycle the agent:
 
 ### Core
 - **x402 micropayments** — wallet-is-auth, no accounts. Supports [tx402.ai](https://tx402.ai), [x402engine.app](https://x402engine.app), [claw402.org](https://claw402.org), and custom endpoints.
-- **Dynamic model selection** — built-in catalog of 20+ models across providers. Auto-picks per task complexity and remaining budget.
+- **Dynamic model selection** — built-in catalog of 20+ models across providers, plus auto-fetched catalogs from 20+ providers at startup (OpenRouter, DeepInfra, SambaNova, Kluster, Mistral, Together, Groq, and more). Cloud version starts with 300+ models with real per-token pricing. `SelectModel()` picks the optimal model per task complexity and remaining budget.
+- **Real inference costing** — cloud version computes actual cost per LLM call using `prompt_tokens × rate + completion_tokens × rate` from provider catalogs. Even in paper mode with a paid provider (OpenRouter, Mistral, etc.), the cash balance reflects real money spent on inference. LAN/local endpoints fall back to flat estimates.
 - **Dynamic runtime config** — cloud version auto-detects host resources (CPU cores, memory) and model context window, then adapts prompt budget, completion limits, market coverage, and parallelism. See [Efficiency Score](#efficiency-score).
 - **Reasoning model awareness** — detects reasoning models (e.g. DeepSeek R1, gpt-oss:20b) and sends `reasoning_effort: "low"` with separate token budgets so chain-of-thought doesn't starve the response.
 - **Parallel execution** — on multi-core cloud hosts (≥4 cores), geoblock + market fetch run concurrently; tool call LLM requests overlap with wisdom outcome checks.
-- **Paper & live trading** — paper mode by default with realistic cost simulation; opt into live CLOB trading with on-device EIP-712 signing.
+- **Paper & live trading** — paper mode by default with real inference costing (paid providers) or estimated costs (local endpoints); opt into live CLOB trading with on-device EIP-712 signing.
 - **Wisdom learning** — tracks every decision outcome, generates trading rules from verified results, and feeds them back into the prompt. Custom rules (LLM-distilled or hand-crafted) get priority in the byte budget. Export/import knowledge between agents and platforms for training on powerful hardware and deploying on microcontrollers.
 - **API authentication** — PIN-based claim system with session tokens. All API endpoints (including GET and SSE) are auth-guarded once claimed. First user to enter the PIN displayed on serial console owns the agent.
 
@@ -98,7 +99,7 @@ Every cycle the agent:
 - **Docker & Compose** — `Dockerfile` + `docker-compose.yml` with optional PostgreSQL profile.
 - **SQLite or PostgreSQL** — SQLite by default (zero config), PostgreSQL via `SURVAIV_DATABASE_URL`. Auto-detected from DSN.
 - **Heroku-ready** — auto-detects via `DYNO` env, runs headless with dashboard HTTP only.
-- **4 LLM providers** — tx402, x402engine, claw402, custom (all via provider adapter interface).
+- **Multi-provider catalog** — auto-fetches model catalogs from 20+ providers at startup (OpenRouter, DeepInfra, SambaNova, Kluster, GreenPT, Mistral, Together, Groq, DeepSeek, Fireworks, OpenAI, xAI, Cohere, and more). Auth-required providers activated automatically when the user's endpoint matches. Any unlisted OpenAI-compatible endpoint is queried generically.
 
 ## Quick Start
 
@@ -188,6 +189,13 @@ go build -o survaiv .
 ./survaiv --port 9090                  # custom port
 ./survaiv --cores 4                    # limit to 4 CPU cores
 ./survaiv --cores 50%                  # use half of available cores
+./survaiv --model deepseek/deepseek-chat  # override model
+./survaiv --bankroll 20 --reserve 3    # set initial bankroll and reserve
+./survaiv --market-limit 30            # scan 30 markets per cycle
+./survaiv --max-positions 5            # max open positions
+./survaiv --daily-loss 2.0             # daily loss limit in USDC
+./survaiv --loop 120                   # cycle interval in seconds
+./survaiv --db ./mydata.db             # custom SQLite path
 ./survaiv --config /path/to/config.toml
 ./survaiv --version                    # print version
 ```
@@ -240,7 +248,9 @@ The agent uses the [x402 protocol](https://x402.org) to pay for LLM inference �
 
 ## Model Registry
 
-Built-in catalog of 20+ models with ratings and pricing across providers. `SelectModel()` picks the optimal model per cycle:
+Built-in catalog of 20+ models with ratings and pricing across x402 providers. The cloud version also **auto-fetches catalogs from 20+ providers at startup** (OpenRouter, DeepInfra, SambaNova, Kluster, plus auth-required providers when the user's endpoint matches), typically discovering 300+ models with per-token pricing.
+
+`SelectModel()` picks the optimal model per cycle for x402 mode:
 
 | Task | Models Used | Why |
 |------|-------------|-----|
@@ -249,7 +259,7 @@ Built-in catalog of 20+ models with ratings and pricing across providers. `Selec
 | Trade decision | DeepSeek V3.2, Kimi K2.5 | Best value for complex analysis |
 | Critical | DeepSeek R1, GPT-5.1 | Top-tier CoT, used sparingly |
 
-In paper mode with a custom endpoint, the registry fuzzy-matches model names to estimate realistic costs.
+In paper mode with a paid provider, inference cost is computed from **actual token counts × per-token rates** from the catalog — the cash balance reflects real money spent. With a LAN/local endpoint (no catalog match), costs are estimated.
 
 ## Live Trading
 
@@ -412,11 +422,11 @@ On the cloud version, the dynamic config auto-detects the model's context window
 
 | Model Context | Prompt Budget | Max Completion | Markets/Cycle |
 |---------------|---------------|----------------|---------------|
-| Unknown | 16,000 tokens | 1,000 tokens | 10 |
-| 32K | 19,200 tokens | 2,000 tokens | 12 |
-| 128K | 32,000 tokens | 4,000 tokens | 21 |
-| 256K+ | 32,000 tokens (capped) | 4,000 tokens | 21 |
-| 1M+ (Llama 4 Maverick) | 32,000 tokens (capped) | 4,000 tokens | 21 |
+| Unknown | 16,000 tokens | 8,192 tokens | 10 |
+| 32K | 19,200 tokens | 8,192 tokens | 12 |
+| 128K | 32,000 tokens | 16,384 tokens | 21 |
+| 256K+ | 32,000 tokens (capped) | 16,384 tokens | 21 |
+| 1M+ (Llama 4 Maverick) | 32,000 tokens (capped) | 16,384 tokens | 21 |
 
 **Formula:** `prompt_budget = min(context_K × 1000 × 0.6, 32000)`, floor at 2,000.
 
@@ -489,7 +499,7 @@ boards/
 
 ```
 cloud/
-├── main.go               — Entry point, flags (--config, --listen, --port), signal handling
+├── main.go               — Entry point, CLI flags (--config, --listen, --port, --bankroll, --reserve, --model, --db, etc.), signal handling
 ├── internal/agent/       — LLM prompts, parsing, cycle orchestration, parallel fetch
 ├── internal/dashboard/   — Thread-safe state, HTTP handlers, embedded HTML
 ├── internal/dynconfig/   — Dynamic runtime config, efficiency scoring
@@ -499,7 +509,7 @@ cloud/
 ├── internal/db/          — SQLite + PostgreSQL (auto-detected), migrations, compat layer
 ├── internal/httpclient/  — HTTP client with LLM retry (120s timeout, 3 retries)
 ├── internal/ledger/      — Budget & position accounting
-├── internal/models/      — LLM model registry + selection
+├── internal/models/      — LLM model registry, multi-provider catalog auto-fetch, per-token pricing
 ├── internal/news/        — News search (Tavily, Brave) for market context
 ├── internal/polymarket/  — Market + geoblock API
 ├── internal/provider/    — Provider adapters (tx402, x402engine, claw402, custom)
@@ -514,7 +524,7 @@ cloud/
 | Feature | pico (OTA) | pico (no-OTA) | core | nano | atom | spark | dot | giga |
 |---------|----------|-------------|----|----|----|----|-----|-----|
 | Prompt budget | 2,000 tok | 4,000 tok | 8,000 tok | 4,000 tok | 4,000 tok | 4,000 tok | 2,000 tok | adaptive (up to 32K) |
-| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (1K–4K) |
+| Max completion | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | 2,000 tok | adaptive (8K–16K) |
 | Markets per scan | 6 | 12 | 50 | 12 | 12 | 12 | 6 | adaptive (up to 50) |
 | HTTP body size | 64 KB | 128 KB | 512 KB | 128 KB | 128 KB | 128 KB | 64 KB | unlimited |
 | Wisdom budget | 800 B | 2,000 B | 4,000 B | 2,000 B | 4,000 B | 2,000 B | 800 B | 8,000 B |
