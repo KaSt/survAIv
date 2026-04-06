@@ -64,12 +64,15 @@ func ForModel(modelName string) *RuntimeConfig {
 		rc.PromptBudget = 2000
 	}
 
+	// Cloud has no memory constraints — be generous with completion tokens.
+	// Reasoning models (Claude, o1, etc.) use thinking tokens from this budget.
 	if rc.ModelContextK >= 128 {
-		rc.MaxCompletion = 4000
+		rc.MaxCompletion = 16384
 	} else if rc.ModelContextK >= 32 {
-		rc.MaxCompletion = 2000
+		rc.MaxCompletion = 8192
 	} else {
-		rc.MaxCompletion = 1000
+		// Unknown or small model — still generous on cloud.
+		rc.MaxCompletion = 8192
 	}
 
 	ml := rc.PromptBudget / 1500
