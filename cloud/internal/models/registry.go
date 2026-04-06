@@ -58,41 +58,64 @@ func CheapestPrice(m ModelInfo) float64 {
 
 // LookupPrice finds the price for a model name string.
 func LookupPrice(modelName string) float64 {
-	if modelName == "" {
+	m := LookupModel(modelName)
+	if m == nil {
 		return 0
+	}
+	return CheapestPrice(*m)
+}
+
+// LookupCost computes actual cost from token counts for a model.
+// Returns 0 if model is unknown (e.g. local/LAN endpoint).
+func LookupCost(modelName string, promptTokens, completionTokens int) float64 {
+	m := LookupModel(modelName)
+	if m == nil {
+		return 0
+	}
+	return m.CostForTokens(promptTokens, completionTokens)
+}
+
+// LookupModel finds the full ModelInfo for a model name string.
+func LookupModel(modelName string) *ModelInfo {
+	if modelName == "" {
+		return nil
 	}
 	query := normalizeName(stripOrgPrefix(modelName))
 
 	mu.RLock()
 	defer mu.RUnlock()
 
-	// Check dynamic first, then hardcoded.
+	// Exact match first.
 	for _, list := range [][]ModelInfo{dynamic, hardcoded} {
-		for _, m := range list {
+		for i := range list {
+			m := &list[i]
 			if m.Tx402ID != "" && normalizeName(stripOrgPrefix(m.Tx402ID)) == query {
-				return CheapestPrice(m)
+				return m
 			}
 			if m.EngineID != "" && normalizeName(m.EngineID) == query {
-				return CheapestPrice(m)
+				return m
 			}
 		}
-		// Fuzzy match.
-		for _, m := range list {
+	}
+	// Fuzzy match.
+	for _, list := range [][]ModelInfo{dynamic, hardcoded} {
+		for i := range list {
+			m := &list[i]
 			if m.Tx402ID != "" {
 				s := normalizeName(stripOrgPrefix(m.Tx402ID))
 				if strings.Contains(s, query) || strings.Contains(query, s) {
-					return CheapestPrice(m)
+					return m
 				}
 			}
 			if m.EngineID != "" {
 				s := normalizeName(m.EngineID)
 				if strings.Contains(s, query) || strings.Contains(query, s) {
-					return CheapestPrice(m)
+					return m
 				}
 			}
 		}
 	}
-	return 0
+	return nil
 }
 
 // AddDynamic merges catalog-discovered models into the dynamic list.

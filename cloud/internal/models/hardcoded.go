@@ -15,13 +15,27 @@ type ModelInfo struct {
 	Name        string
 	Tx402ID     string  // ID on tx402.ai ("" if unavailable)
 	EngineID    string  // ID on x402engine.app ("" if unavailable)
-	Tx402Price  float64 // $/request on tx402
+	Tx402Price  float64 // $/request on tx402 (or estimated per-request cost)
 	EnginePrice float64 // $/request on x402engine
+	PromptPPT   float64 // price per prompt token ($/token)
+	CompletePPT float64 // price per completion token ($/token)
 	Reasoning   int     // 1-5
 	Speed       int     // 1-5
 	ContextK    int     // thousands of tokens
 	MinTask     TaskComplexity
 	Notes       string
+}
+
+// CostForTokens computes actual cost from token counts.
+// Falls back to Tx402Price (per-request estimate) if per-token pricing unavailable.
+func (m ModelInfo) CostForTokens(promptTokens, completionTokens int) float64 {
+	if m.PromptPPT > 0 || m.CompletePPT > 0 {
+		return m.PromptPPT*float64(promptTokens) + m.CompletePPT*float64(completionTokens)
+	}
+	if m.Tx402Price > 0 {
+		return m.Tx402Price
+	}
+	return 0
 }
 
 // hardcoded is the built-in model catalog, cross-referenced from providers.

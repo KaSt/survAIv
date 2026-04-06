@@ -24,7 +24,6 @@ import (
 )
 
 const (
-	simulatedCostPerRequest = 0.0005
 	llmFailRetryDelaySec    = 60
 	marketFailRetryDelaySec = 30
 	maxPositionBps          = 200 // 2% max position size
@@ -40,9 +39,9 @@ type Agent struct {
 	wisdom        *wisdom.Tracker
 	cycleCount    int
 	startTime     time.Time
-	simSpend      float64 // simulated inference spend for paper mode
 	dynCfg        *dynconfig.RuntimeConfig
 	maxCompletion int
+	activeModel   string // effective model name for cost tracking
 }
 
 // New creates a new Agent.
@@ -146,8 +145,11 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		"positions", len(positions))
 
 	// 4. Check if inference is affordable.
-	estimatedCost := EstimatedChatCostUsdc()
-	if !a.ledger.CanSpendOnInference(estimatedCost, markets) {
+	estCost := models.LookupPrice(a.cfg.OaiModel)
+	if estCost <= 0 {
+		estCost = EstimatedChatCostUsdc()
+	}
+	if !a.ledger.CanSpendOnInference(estCost, markets) {
 		slog.Warn("inference reserve reached",
 			"cash", a.ledger.Cash(), "reserve", a.ledger.Reserve())
 		return 0
@@ -236,7 +238,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 			break
 		}
 
-		canSpend := paperOnly || a.cfg.ToolUsageLevel() >= 2 || a.ledger.CanSpendOnInference(estimatedCost, markets)
+		canSpend := paperOnly || a.cfg.ToolUsageLevel() >= 2 || a.ledger.CanSpendOnInference(estCost, markets)
 
 		if toolCall.Tool == "search_markets" {
 			toolMarkets := polymarket.FetchMarkets(ctx, a.client, toolCall.Limit, toolCall.Offset, toolCall.Order)
@@ -410,6 +412,7 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 	if model == "" {
 		model = a.cfg.OaiModel
 	}
+	a.activeModel = model // track for cost calculation
 	baseURL := a.cfg.OaiURL
 	apiKey := a.cfg.ApiKey
 	useX402 := a.x402 != nil && a.x402.IsConfigured()
@@ -466,17 +469,6 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 		return "", types.UsageStats{}, false
 	}
 
-	// Track simulated cost in paper mode.
-	if !useX402 && a.cfg.PaperOnly {
-		matchedPrice := models.LookupPrice(model)
-		if matchedPrice > 0 {
-			a.simSpend += matchedPrice
-		} else {
-			a.simSpend += simulatedCostPerRequest
-		}
-		a.dash.SetInferenceSpend(a.simSpend)
-	}
-
 	usage := ParseUsage(resp.Body)
 	content := stripCodeFence(ExtractMessageContent(resp.Body))
 
@@ -505,9 +497,36 @@ func (a *Agent) spendForUsage(usage types.UsageStats) {
 	if ct <= 0 {
 		ct = estCompletionTokens
 	}
-	_ = pt
-	_ = ct
-	a.ledger.DebitInference(EstimatedChatCostUsdc())
+
+	modelName := a.activeModel
+	source := "estimated"
+
+	// Try real token-based pricing from catalog.
+	cost := models.LookupCost(modelName, pt, ct)
+	if cost > 0 {
+		source = "token_pricing"
+	} else {
+		// Fallback: per-request estimate from catalog or hardcoded minimum.
+		cost = models.LookupPrice(modelName)
+		if cost > 0 {
+			source = "per_request"
+		} else {
+			cost = EstimatedChatCostUsdc()
+		}
+	}
+
+	a.ledger.DebitInference(cost)
+
+	// In paper mode (no x402), track dashboard inference spend from ledger.
+	if a.cfg.PaperOnly {
+		a.dash.SetInferenceSpend(a.ledger.LlmSpend())
+	}
+
+	slog.Info("inference cost",
+		"model", modelName,
+		"prompt_tokens", pt, "completion_tokens", ct,
+		"cost_usdc", fmt.Sprintf("%.6f", cost),
+		"source", source)
 }
 
 func (a *Agent) executeDecision(

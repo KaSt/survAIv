@@ -175,19 +175,21 @@ ctxK := m.ContextLength / 1000
 if ctxK < 1 {
 ctxK = 1
 }
-promptPrice := parseFloat(m.Pricing.Prompt)
-completionPrice := parseFloat(m.Pricing.Completion)
-perReq := promptPrice*2000 + completionPrice*1000
+promptPPT := parseFloat(m.Pricing.Prompt)
+completionPPT := parseFloat(m.Pricing.Completion)
+perReq := promptPPT*2000 + completionPPT*1000
 
 out = append(out, ModelInfo{
-Name:       m.Name,
-Tx402ID:    m.ID,
-ContextK:   ctxK,
-Reasoning:  estimateReasoning(m.ID),
-Speed:      estimateSpeed(m.ID, promptPrice),
-MinTask:    inferMinTask(estimateReasoning(m.ID)),
-Notes:      label,
-Tx402Price: perReq,
+Name:        m.Name,
+Tx402ID:     m.ID,
+ContextK:    ctxK,
+Reasoning:   estimateReasoning(m.ID),
+Speed:       estimateSpeed(m.ID, promptPPT),
+MinTask:     inferMinTask(estimateReasoning(m.ID)),
+Notes:       label,
+Tx402Price:  perReq,
+PromptPPT:   promptPPT,
+CompletePPT: completionPPT,
 })
 }
 
@@ -256,21 +258,25 @@ if ctxK < 1 {
 ctxK = 128
 }
 
-var perReq float64
+var perReq, pptIn, pptOut float64
 if m.Metadata != nil && m.Metadata.Pricing != nil {
-perReq = (m.Metadata.Pricing.InputTokens/1e6)*2000 + (m.Metadata.Pricing.OutputTokens/1e6)*1000
+pptIn = m.Metadata.Pricing.InputTokens / 1e6
+pptOut = m.Metadata.Pricing.OutputTokens / 1e6
+perReq = pptIn*2000 + pptOut*1000
 }
 
 reasoning := estimateReasoning(m.ID)
 return &ModelInfo{
-Name:       m.ID,
-Tx402ID:    m.ID,
-ContextK:   ctxK,
-Reasoning:  reasoning,
-Speed:      estimateSpeed(m.ID, perReq),
-MinTask:    inferMinTask(reasoning),
-Notes:      label,
-Tx402Price: perReq,
+Name:        m.ID,
+Tx402ID:     m.ID,
+ContextK:    ctxK,
+Reasoning:   reasoning,
+Speed:       estimateSpeed(m.ID, perReq),
+MinTask:     inferMinTask(reasoning),
+Notes:       label,
+Tx402Price:  perReq,
+PromptPPT:   pptIn,
+CompletePPT: pptOut,
 }
 }
 
