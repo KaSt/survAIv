@@ -13,8 +13,9 @@ const (
 	estPromptTokens     = 16000
 	estCompletionTokens = 800
 	// Reasoning models count reasoning tokens against max_tokens.
-	// Send a larger limit so content isn't starved.
-	maxCompletionTokens = 4000
+	// Cloud has no memory constraints — be generous so thinking
+	// models aren't starved of output tokens.
+	maxCompletionTokens = 16384
 )
 
 // BuildSystemPrompt constructs the system prompt for the LLM.
