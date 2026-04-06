@@ -220,7 +220,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 		return llmFailRetryDelaySec
 	}
 	a.dash.ClearError()
-	a.spendForUsage(usage)
+	a.spendForUsage(usage, markets)
 
 	// 8. Handle tool calls (capped by tool usage slider).
 	maxToolCalls := 1 // balanced
@@ -270,7 +270,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				}()
 				wg.Wait()
 				if ok2 {
-					a.spendForUsage(u2)
+					a.spendForUsage(u2, toolMarkets)
 					responseText = text
 					markets = toolMarkets
 				} else {
@@ -278,7 +278,7 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				}
 			} else {
 				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUpPrompt, followModel); ok2 {
-					a.spendForUsage(u2)
+					a.spendForUsage(u2, toolMarkets)
 					responseText = text
 					markets = toolMarkets
 				} else {
@@ -327,14 +327,14 @@ func (a *Agent) RunCycle(ctx context.Context) int {
 				}()
 				wg.Wait()
 				if ok2 {
-					a.spendForUsage(u2)
+					a.spendForUsage(u2, markets)
 					responseText = text
 				} else {
 					break
 				}
 			} else {
 				if text, u2, ok2 := a.ChatCompletion(ctx, systemPrompt, followUp, followModel); ok2 {
-					a.spendForUsage(u2)
+					a.spendForUsage(u2, markets)
 					responseText = text
 				} else {
 					break
@@ -453,7 +453,6 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 		}
 		headers["X-PAYMENT"] = payment
 		resp, err = a.client.LLMPost(ctx, url, reqBody, headers)
-		a.dash.SetInferenceSpend(a.x402.TotalSpentUsdc())
 	}
 
 	if err != nil {
@@ -488,7 +487,7 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 	return content, usage, true
 }
 
-func (a *Agent) spendForUsage(usage types.UsageStats) {
+func (a *Agent) spendForUsage(usage types.UsageStats, markets []types.MarketSnapshot) {
 	pt := usage.PromptTokens
 	if pt <= 0 {
 		pt = estPromptTokens
@@ -517,8 +516,13 @@ func (a *Agent) spendForUsage(usage types.UsageStats) {
 
 	a.ledger.DebitInference(cost)
 
-	// In paper mode (no x402), track dashboard inference spend from ledger.
-	if a.cfg.PaperOnly {
+	// Refresh dashboard budget so portfolio reflects the spend immediately.
+	a.dash.UpdateBudget(a.ledger.BudgetInfo(markets))
+
+	// Track dashboard inference spend: x402 total or ledger total.
+	if a.x402 != nil && a.x402.IsConfigured() {
+		a.dash.SetInferenceSpend(a.x402.TotalSpentUsdc())
+	} else {
 		a.dash.SetInferenceSpend(a.ledger.LlmSpend())
 	}
 
