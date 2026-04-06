@@ -47,6 +47,7 @@ type State struct {
 	paperOnly     bool
 	toolUsage     int
 	agentName     string
+	version       string
 
 	efficiency *dynconfig.RuntimeConfig
 
@@ -307,6 +308,13 @@ func (s *State) GetHeadlines() []NewsHeadline {
 	return out
 }
 
+// SetVersion sets the build version string for the dashboard.
+func (s *State) SetVersion(v string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.version = v
+}
+
 // SetInferenceSpend sets the inference spend amount.
 func (s *State) SetInferenceSpend(usdc float64) {
 	s.mu.Lock()
@@ -391,6 +399,8 @@ func (s *State) ToJSON() []byte {
 		"paper_only":           s.paperOnly,
 		"tool_usage":           s.toolUsage,
 		"agent_name":           s.agentName,
+		"firmware":             "cloud",
+		"version":             s.version,
 	}
 	if s.lastError != "" {
 		data["last_error"] = s.lastError

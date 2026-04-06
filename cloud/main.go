@@ -123,6 +123,7 @@ func main() {
 	// 6. Create shared dashboard state.
 	dashState := dashboard.NewState()
 	dashState.SetLiveMode(!cfg.PaperOnly)
+	dashState.SetVersion(Version)
 
 	// 7. Create wisdom tracker and register as default.
 	wisTracker := wisdom.NewTracker(database, httpClient)
