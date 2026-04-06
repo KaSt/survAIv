@@ -16,3 +16,4 @@ wallet_*.csv
 */sdkconfig
 hub/
 survaiv.db
+cloud/.env

@@ -243,13 +243,15 @@ func ParseUsage(body []byte) types.UsageStats {
 }
 
 // ExtractMessageContent pulls the assistant message text from an LLM response,
-// with fallbacks for reasoning_content, streaming delta, and text completions.
+// with fallbacks for reasoning_content, streaming delta, text completions,
+// and Anthropic-style content blocks (array of {type, text}).
 func ExtractMessageContent(body []byte) string {
+	// Try standard OpenAI format first.
 	var raw struct {
 		Choices []struct {
 			Message *struct {
-				Content          *string `json:"content"`
-				ReasoningContent *string `json:"reasoning_content"`
+				Content          json.RawMessage `json:"content"`
+				ReasoningContent *string         `json:"reasoning_content"`
 			} `json:"message"`
 			Delta *struct {
 				Content *string `json:"content"`
@@ -262,8 +264,12 @@ func ExtractMessageContent(body []byte) string {
 	}
 	c := raw.Choices[0]
 	if c.Message != nil {
-		if c.Message.Content != nil && *c.Message.Content != "" {
-			return *c.Message.Content
+		// content can be a string or an array of content blocks.
+		if c.Message.Content != nil && len(c.Message.Content) > 0 {
+			text := extractContentField(c.Message.Content)
+			if text != "" {
+				return text
+			}
 		}
 		if c.Message.ReasoningContent != nil && *c.Message.ReasoningContent != "" {
 			return *c.Message.ReasoningContent
@@ -274,6 +280,34 @@ func ExtractMessageContent(body []byte) string {
 	}
 	if c.Text != nil && *c.Text != "" {
 		return *c.Text
+	}
+	return ""
+}
+
+// extractContentField handles `content` being either a plain string or an
+// array of Anthropic-style content blocks [{type:"text", text:"..."}].
+func extractContentField(raw json.RawMessage) string {
+	// Try plain string first.
+	var s string
+	if json.Unmarshal(raw, &s) == nil && s != "" {
+		return s
+	}
+	// Try array of content blocks.
+	var blocks []struct {
+		Type string `json:"type"`
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &blocks) == nil {
+		var b strings.Builder
+		for _, bl := range blocks {
+			if bl.Type == "text" && bl.Text != "" {
+				if b.Len() > 0 {
+					b.WriteString("\n")
+				}
+				b.WriteString(bl.Text)
+			}
+		}
+		return b.String()
 	}
 	return ""
 }

@@ -486,6 +486,11 @@ func (a *Agent) ChatCompletion(ctx context.Context, systemPrompt, userPrompt, mo
 		"chars", len(content))
 
 	if content == "" {
+		preview := string(resp.Body)
+		if len(preview) > 600 {
+			preview = preview[:600]
+		}
+		slog.Warn("empty content from LLM", "body_preview", preview)
 		return "", usage, false
 	}
 	return content, usage, true
@@ -595,15 +600,23 @@ func buildLLMRequestBody(adapter provider.Adapter, model, systemPrompt, userProm
 	if maxTokens <= 0 {
 		maxTokens = maxCompletionTokens
 	}
+
+	ml := strings.ToLower(model)
+	isClaude := strings.Contains(ml, "claude") || strings.Contains(ml, "anthropic")
+
 	body := map[string]interface{}{
-		"temperature":      0.2,
-		"max_tokens":       maxTokens,
-		"reasoning_effort": "low",
-		"response_format":  map[string]string{"type": "json_object"},
+		"temperature": 0.2,
+		"max_tokens":  maxTokens,
 		"messages": []map[string]string{
 			{"role": "system", "content": systemPrompt},
 			{"role": "user", "content": userPrompt},
 		},
+	}
+
+	// OpenAI-specific parameters — skip for Claude/Anthropic models.
+	if !isClaude {
+		body["reasoning_effort"] = "low"
+		body["response_format"] = map[string]string{"type": "json_object"}
 	}
 
 	if adapter == nil || adapter.ModelInBody() {
