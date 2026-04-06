@@ -439,6 +439,25 @@ func (t *Tracker) saveCustomRulesToDB() {
 	t.db.Exec(db.Q("UPDATE wisdom_stats SET custom_rules = ? WHERE id = 1"), t.customRules)
 }
 
+// Reset clears all knowledge: wisdom, stats, custom rules, decision ring.
+func (t *Tracker) Reset() {
+	t.mu.Lock()
+	t.wisdom = ""
+	t.customRules = ""
+	t.stats = Stats{}
+	t.frozen = false
+	t.head = 0
+	t.count = 0
+	t.mu.Unlock()
+
+	if t.db != nil {
+		t.db.Exec("DELETE FROM wisdom_rules")
+		t.db.Exec(db.Q("UPDATE wisdom_stats SET total=0, correct=0, holds_total=0, holds_correct=0, buys_total=0, buys_correct=0, frozen=0, custom_rules='' WHERE id = 1"))
+		t.db.Exec("DELETE FROM decisions")
+	}
+	slog.Info("knowledge reset")
+}
+
 // GetCustomRules returns the current custom rules text.
 func (t *Tracker) GetCustomRules() string {
 	t.mu.RLock()

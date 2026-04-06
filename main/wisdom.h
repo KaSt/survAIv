@@ -71,5 +71,8 @@ void SetCustomRules(const std::string &rules);
 std::string ExportKnowledge();
 bool ImportKnowledge(const std::string &json);
 
+// Reset all knowledge: wisdom text, stats, custom rules, frozen flag.
+void Reset();
+
 }  // namespace wisdom
 }  // namespace survaiv

@@ -69,6 +69,9 @@ class DashboardState {
   void SetResetPaperFunc(ResetCallback fn);
   bool ResetPaperTrading();
 
+  // Knowledge reset — clears wisdom and both cycle counters.
+  void ResetKnowledge();
+
   // Called by the web server to serialize state as JSON.
   std::string ToJson() const;
   std::string PositionsJson() const;

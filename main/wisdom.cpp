@@ -812,5 +812,29 @@ bool ImportKnowledge(const std::string &json) {
   return true;
 }
 
+void Reset() {
+  xSemaphoreTake(g_mutex, portMAX_DELAY);
+  g_wisdom.clear();
+  g_custom_rules.clear();
+  memset(&g_stats, 0, sizeof(g_stats));
+  g_frozen = false;
+  g_head = 0;
+  g_count = 0;
+  g_model_count = 0;
+  xSemaphoreGive(g_mutex);
+
+  // Clear NVS keys.
+  nvs_handle_t h;
+  if (nvs_open(kNvsNs, NVS_READWRITE, &h) == ESP_OK) {
+    nvs_erase_key(h, kWisdomKey);
+    nvs_erase_key(h, kStatsKey);
+    nvs_erase_key(h, "wis_rules");
+    nvs_erase_key(h, "wis_freeze");
+    nvs_commit(h);
+    nvs_close(h);
+  }
+  ESP_LOGI(kTag, "Knowledge reset");
+}
+
 }  // namespace wisdom
 }  // namespace survaiv

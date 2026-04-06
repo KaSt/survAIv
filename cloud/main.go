@@ -141,6 +141,13 @@ func main() {
 	// 9. Create agent.
 	agnt := agent.New(cfg, httpClient, ldgr, x402mgr, dashState, wisTracker)
 
+	// Register knowledge-reset callback (needs agent + db + wisdom).
+	dashState.SetResetKnowledgeFunc(func() {
+		wisTracker.Reset()
+		agnt.ResetCycleCount()
+		db.SetConfigInt(database, "lifetime_cycles", 0)
+	})
+
 	// 10. Context for clean shutdown.
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

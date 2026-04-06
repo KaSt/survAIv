@@ -12,6 +12,7 @@
 #include "esp_timer.h"
 #include "json_util.h"
 #include "nvs.h"
+#include "wisdom.h"
 
 // CPU usage monitoring via FreeRTOS idle hook counters.
 // Each core's idle task calls our hook when it has nothing to do.
@@ -297,6 +298,24 @@ bool DashboardState::ResetPaperTrading() {
   xSemaphoreGive(mutex_);
   if (paper && fn) fn();
   return paper;
+}
+
+void DashboardState::ResetKnowledge() {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  cycle_count_ = 0;
+  lifetime_cycles_ = 0;
+  xSemaphoreGive(mutex_);
+
+  // Clear lifetime NVS counter.
+  nvs_handle_t h;
+  if (nvs_open("survaiv_cfg", NVS_READWRITE, &h) == ESP_OK) {
+    nvs_erase_key(h, "lifetime_cyc");
+    nvs_commit(h);
+    nvs_close(h);
+  }
+
+  // Reset wisdom state + NVS.
+  wisdom::Reset();
 }
 
 std::string DashboardState::ToJson() const {

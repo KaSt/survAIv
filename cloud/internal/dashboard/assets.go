@@ -293,6 +293,7 @@ border-radius:8px;padding:6px 12px;margin-bottom:12px;font-size:11px;color:var(-
           ⬆ Import
           <input type="file" accept=".json,.survaiv" id="kb-import" style="display:none" onchange="importKnowledge(this)">
         </label>
+        <button onclick="resetKnowledge()" class="badge" style="padding:6px 14px;background:#fce4ec;color:var(--red);border:1px solid var(--red);cursor:pointer">🗑 Reset</button>
         <span id="kb-status" style="font-size:11px;color:var(--dim)"></span>
       </div>
       <div class="custom-rules-editor" style="margin-top:10px">
@@ -981,6 +982,14 @@ function toggleFreeze(frozen) {
       document.getElementById('w-frozen-badge').style.display = d.frozen ? 'inline-block' : 'none';
     })
     .catch(() => {});
+}
+
+function resetKnowledge() {
+  if (!confirm('Reset all knowledge?\n\nThis will erase wisdom, stats, custom rules, and both cycle counters.\nPositions and P&L are not affected.\n\nThis cannot be undone.')) return;
+  fetch('/api/reset-knowledge', {method:'POST', headers:authHeaders()}).then(r => {
+    if (r.ok) { document.getElementById('kb-status').textContent = 'Knowledge reset'; location.reload(); }
+    else { document.getElementById('kb-status').textContent = 'Reset failed'; }
+  }).catch(() => { document.getElementById('kb-status').textContent = 'Reset failed'; });
 }
 
 function downloadKnowledge() {

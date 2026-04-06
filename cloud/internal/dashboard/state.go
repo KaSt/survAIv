@@ -62,7 +62,8 @@ type State struct {
 
 	newsHeadlines []NewsHeadline // ring of recent news headlines for ticker
 
-	onResetPaper func() // callback to reset ledger; set by agent
+	onResetPaper     func() // callback to reset ledger; set by agent
+	onResetKnowledge func() // callback to reset wisdom + cycles; set by agent
 }
 
 // NewsHeadline is a single news item for the dashboard ticker.
@@ -91,6 +92,25 @@ func (s *State) SetResetPaperFunc(fn func()) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.onResetPaper = fn
+}
+
+// SetResetKnowledgeFunc sets the callback invoked when the user resets knowledge.
+func (s *State) SetResetKnowledgeFunc(fn func()) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onResetKnowledge = fn
+}
+
+// ResetKnowledge clears both cycle counters and invokes the knowledge reset callback.
+func (s *State) ResetKnowledge() {
+	s.mu.Lock()
+	s.cycleCount = 0
+	s.lifetimeCycles = 0
+	fn := s.onResetKnowledge
+	s.mu.Unlock()
+	if fn != nil {
+		fn()
+	}
 }
 
 // ResetPaperTrading clears all dashboard financial state and invokes the ledger reset callback.

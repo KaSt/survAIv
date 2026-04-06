@@ -76,6 +76,9 @@ func New(
 	return a
 }
 
+// ResetCycleCount zeroes the session cycle counter.
+func (a *Agent) ResetCycleCount() { a.cycleCount = 0 }
+
 // RunCycle executes one agent cycle. Returns retry delay in seconds (0 = no retry).
 func (a *Agent) RunCycle(ctx context.Context) int {
 	// Count every cycle attempt, even if it fails to fetch markets or call LLM.

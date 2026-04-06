@@ -119,6 +119,7 @@ func NewRouter(state *State, cfg *config.Config) chi.Router {
 	r.Post("/api/llm-config", handleLLMConfig(cfg, state))
 	r.Post("/api/telemetry-config", handleTelemetryConfig(cfg))
 	r.Post("/api/reset-paper", handleResetPaper(state))
+	r.Post("/api/reset-knowledge", handleResetKnowledge(state))
 	r.Post("/api/restart", handleRestart())
 	r.Get("/api/backup", handleBackup(cfg))
 	r.Post("/api/restore", handleRestore(cfg))
@@ -501,6 +502,15 @@ func handleResetPaper(state *State) http.HandlerFunc {
 			return
 		}
 		slog.Info("paper trading state reset by user")
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"ok":true}`))
+	}
+}
+
+func handleResetKnowledge(state *State) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		state.ResetKnowledge()
+		slog.Info("knowledge reset by user")
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true}`))
 	}

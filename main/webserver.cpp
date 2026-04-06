@@ -987,6 +987,16 @@ static esp_err_t ApiResetPaperHandler(httpd_req_t *req) {
   return httpd_resp_send(req, ok, strlen(ok));
 }
 
+// ─── POST /api/reset-knowledge ─────────────────────────────────
+static esp_err_t ApiResetKnowledgeHandler(httpd_req_t *req) {
+  REQUIRE_AUTH(req);
+  auto &dash = GetDashboardState();
+  dash.ResetKnowledge();
+  httpd_resp_set_type(req, "application/json");
+  const char *ok = "{\"ok\":true}";
+  return httpd_resp_send(req, ok, strlen(ok));
+}
+
 // ─── URI registration helpers ───────────────────────────────────
 
 static esp_err_t OptionsHandler(httpd_req_t *req) {
@@ -1052,6 +1062,7 @@ void StartDashboard(int port) {
   RegisterUri("/api/config", HTTP_POST, ApiConfigPostHandler);
   RegisterUri("/api/restart", HTTP_POST, ApiRestartHandler);
   RegisterUri("/api/reset-paper", HTTP_POST, ApiResetPaperHandler);
+  RegisterUri("/api/reset-knowledge", HTTP_POST, ApiResetKnowledgeHandler);
   RegisterUri("/api/telemetry-config", HTTP_POST, ApiTelemetryConfigHandler);
 
   // CORS preflight handlers.
@@ -1060,7 +1071,7 @@ void StartDashboard(int port) {
     "/api/scouted", "/api/news", "/api/wisdom", "/api/knowledge", "/api/wisdom/freeze",
     "/api/wisdom/rules", "/api/events", "/api/backup", "/api/restore",
     "/api/generate-wallet", "/api/llm-config", "/api/auth", "/api/config",
-    "/api/restart", "/api/reset-paper", "/api/telemetry-config",
+    "/api/restart", "/api/reset-paper", "/api/reset-knowledge", "/api/telemetry-config",
   };
   for (const char *p : cors_paths) {
     RegisterUri(p, HTTP_OPTIONS, OptionsHandler);
