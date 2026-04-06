@@ -226,8 +226,8 @@ func main() {
 		telem.SetInterval(sec)
 	}
 
-	// 8b. Fetch live model catalog from OpenRouter.
-	models.FetchOpenRouter()
+	// 8b. Fetch live model catalogs (OpenRouter + configured provider).
+	models.FetchAllCatalogs(cfg.OaiURL, cfg.ApiKey)
 
 	// 9. Create agent.
 	agnt := agent.New(cfg, httpClient, ldgr, x402mgr, dashState, wisTracker)
