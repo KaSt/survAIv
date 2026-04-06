@@ -892,7 +892,15 @@ function updateDecisions(decisions) {
     }
     if (q) h += '<span>' + q + '</span>';
     if (d.confidence) h += ' <span style="color:var(--blue)">' + (d.confidence*100).toFixed(0) + '%</span>';
-    if (d.rationale) h += '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>';
+    if (d.rationale) {
+      var r = d.rationale;
+      if (r.length > 200) {
+        var cut = r.lastIndexOf(' ', 200);
+        if (cut < 100) cut = 200;
+        r = r.substring(0, cut) + '\u2026';
+      }
+      h += '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + r + '</div>';
+    }
     h += '</div>';
     return h;
   }).join('');
@@ -1097,7 +1105,7 @@ function connectSSE() {
       entry.innerHTML = '<span class="log-time">' + dt.toLocaleTimeString() + '</span>' +
         '<span class="log-type ' + typeCls + '">' + d.type + '</span>' +
         (d.tools_used && d.tools_used.length ? d.tools_used.map(function(t) { return '<span style="font-size:9px;background:var(--bg2);border:1px solid var(--border);border-radius:3px;padding:0 3px;margin-left:2px;color:var(--dim)">🔍 ' + t + '</span>'; }).join('') : '') +
-        (d.rationale ? '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + d.rationale.substring(0, 120) + '</div>' : '');
+        (d.rationale ? (function() { var r = d.rationale; if (r.length > 200) { var cut = r.lastIndexOf(' ', 200); if (cut < 100) cut = 200; r = r.substring(0, cut) + '\u2026'; } return '<div style="color:var(--dim);margin-top:2px;font-size:10px">' + r + '</div>'; })() : '');
       log.prepend(entry);
     } catch(err) {}
   });
