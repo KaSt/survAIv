@@ -28,26 +28,83 @@ import (
 // Version is set at build time via -ldflags.
 var Version = "dev"
 
+// shortLong registers a flag with both --long and -short names (same variable).
+func shortLong[T any](p *T, long, short string, val T, usage string, register func(*T, string, T, string)) {
+	register(p, long, val, usage)
+	if short != "" {
+		register(p, short, val, usage+" (short for --"+long+")")
+	}
+}
+
 func main() {
-	headless := flag.Bool("headless", false, "Run without TUI (dashboard only)")
-	configFile := flag.String("config", "", "Path to config file (default: auto-detect survaiv.toml)")
-	listenFlag := flag.String("listen", "", "Listen address (e.g. 127.0.0.1 for local-only, 0.0.0.0 for all)")
-	portFlag := flag.Int("port", 0, "Dashboard HTTP port (default: 8080)")
-	coresFlag := flag.String("cores", "", "Max CPU cores to use (number or percentage, e.g. 4 or 50%)")
-	mdnsFlag := flag.Bool("mdns", false, "Enable mDNS hostname advertising (<agent-name>.local)")
-	version := flag.Bool("version", false, "Print version and exit")
-	llmURL := flag.String("llm-url", "", "LLM endpoint URL (e.g. https://api.openai.com/v1)")
-	llmKey := flag.String("llm-key", "", "LLM API key (optional for x402 providers)")
-	llmModel := flag.String("model", "", "LLM model name (e.g. gpt-4o, deepseek/deepseek-v3.2)")
-	walletKey := flag.String("wallet", "", "Ethereum private key for x402 payments")
-	newsKey := flag.String("news-key", "", "Tavily or Brave Search API key for news tool")
-	agentName := flag.String("name", "", "Agent display name")
-	paperOnly := flag.Bool("paper", false, "Force paper-only mode (no live trades)")
+	// ── CLI flags (--long / -short) ─────────────────────────────────
+	// All options are also configurable via config file and environment
+	// variables. CLI flags have highest precedence.
+
+	var (
+		fVersion   bool
+		fHeadless  bool
+		fConfig    string
+		fListen    string
+		fPort      int
+		fCores     string
+		fMdns      bool
+		fPaper     bool
+		fLlmURL    string
+		fLlmKey    string
+		fModel     string
+		fWallet    string
+		fNewsKey   string
+		fName      string
+		fBankroll  float64
+		fReserve   float64
+		fLoop      int
+		fMaxPos    int
+		fMarkets   int
+		fDailyLoss float64
+		fDB        string
+		fTelemURL  string
+		fTelemSec  int
+		fPolyRPC   string
+		fClobURL   string
+	)
+
+	shortLong(&fVersion, "version", "v", false, "Print version and exit", flag.BoolVar)
+	shortLong(&fHeadless, "headless", "H", false, "Run without TUI (dashboard only)", flag.BoolVar)
+	shortLong(&fConfig, "config", "c", "", "Path to config file (default: auto-detect survaiv.toml)", flag.StringVar)
+	shortLong(&fListen, "listen", "l", "", "Listen address (e.g. 127.0.0.1 for local-only)", flag.StringVar)
+	shortLong(&fPort, "port", "p", 0, "Dashboard HTTP port (default: 8080)", flag.IntVar)
+	shortLong(&fCores, "cores", "", "", "Max CPU cores (number or percentage, e.g. 4 or 50%)", flag.StringVar)
+	shortLong(&fMdns, "mdns", "", false, "Enable mDNS hostname advertising (<agent-name>.local)", flag.BoolVar)
+	shortLong(&fPaper, "paper", "", false, "Force paper-only mode (no live trades)", flag.BoolVar)
+	shortLong(&fLlmURL, "llm-url", "u", "", "LLM endpoint URL (e.g. https://api.openai.com/v1)", flag.StringVar)
+	shortLong(&fLlmKey, "llm-key", "k", "", "LLM API key (optional for x402 providers)", flag.StringVar)
+	shortLong(&fModel, "model", "m", "", "LLM model name (e.g. gpt-4o, deepseek/deepseek-v3.2)", flag.StringVar)
+	shortLong(&fWallet, "wallet", "w", "", "Ethereum private key for x402 payments", flag.StringVar)
+	shortLong(&fNewsKey, "news-key", "", "", "Tavily or Brave Search API key for news tool", flag.StringVar)
+	shortLong(&fName, "name", "n", "", "Agent display name", flag.StringVar)
+	shortLong(&fBankroll, "bankroll", "b", 0, "Starting bankroll in USDC (default: 25.0)", flag.Float64Var)
+	shortLong(&fReserve, "reserve", "r", 0, "Reserve amount in USDC (default: 5.0)", flag.Float64Var)
+	shortLong(&fLoop, "loop", "", 0, "Seconds between agent cycles (default: 900)", flag.IntVar)
+	shortLong(&fMaxPos, "max-positions", "", 0, "Maximum concurrent positions (default: 3)", flag.IntVar)
+	shortLong(&fMarkets, "market-limit", "", 0, "Markets to fetch per cycle (default: 10)", flag.IntVar)
+	shortLong(&fDailyLoss, "daily-loss", "", 0, "Daily loss limit in USDC (default: 5.0)", flag.Float64Var)
+	shortLong(&fDB, "db", "d", "", "SQLite database path (default: survaiv.db)", flag.StringVar)
+	shortLong(&fTelemURL, "telemetry-url", "", "", "Telemetry hub URL", flag.StringVar)
+	shortLong(&fTelemSec, "telemetry-sec", "", 0, "Telemetry reporting interval in seconds (default: 300)", flag.IntVar)
+	shortLong(&fPolyRPC, "polygon-rpc", "", "", "Polygon JSON-RPC endpoint", flag.StringVar)
+	shortLong(&fClobURL, "clob-url", "", "", "Polymarket CLOB API endpoint", flag.StringVar)
+
 	flag.Parse()
 
-	if *version {
+	if fVersion {
 		fmt.Println("survaiv", Version)
 		return
+	}
+
+	// DB path override must happen before db.Open (which uses db.DSN()).
+	if fDB != "" {
+		os.Setenv("SURVAIV_DB_PATH", fDB)
 	}
 
 	// 1. Open database.
@@ -58,45 +115,75 @@ func main() {
 	}
 	defer database.Close()
 
-	// 2. Load config.
-	cfg := config.Load(database, *configFile)
+	// 2. Load config (file → env → SQLite overrides).
+	cfg := config.Load(database, fConfig)
 
-	// CLI flags override config/env (highest precedence).
-	if *headless {
+	// CLI flags override everything (highest precedence).
+	if fHeadless {
 		cfg.Headless = true
 	}
-	if *listenFlag != "" {
-		cfg.ListenAddr = *listenFlag
+	if fListen != "" {
+		cfg.ListenAddr = fListen
 	}
-	if *portFlag != 0 {
-		cfg.Port = *portFlag
+	if fPort != 0 {
+		cfg.Port = fPort
 	}
-	if *coresFlag != "" {
-		cfg.MaxCores = config.ParseCoresFlag(*coresFlag)
+	if fCores != "" {
+		cfg.MaxCores = config.ParseCoresFlag(fCores)
 	}
-	if *mdnsFlag {
+	if fMdns {
 		cfg.MDNS = true
 	}
-	if *llmURL != "" {
-		cfg.OaiURL = *llmURL
-	}
-	if *llmKey != "" {
-		cfg.ApiKey = *llmKey
-	}
-	if *llmModel != "" {
-		cfg.OaiModel = *llmModel
-	}
-	if *walletKey != "" {
-		cfg.WalletKey = *walletKey
-	}
-	if *newsKey != "" {
-		cfg.Set("news_api_key", *newsKey)
-	}
-	if *agentName != "" {
-		cfg.Set("agent_name", *agentName)
-	}
-	if *paperOnly {
+	if fPaper {
 		cfg.PaperOnly = true
+	}
+	if fLlmURL != "" {
+		cfg.OaiURL = fLlmURL
+	}
+	if fLlmKey != "" {
+		cfg.ApiKey = fLlmKey
+	}
+	if fModel != "" {
+		cfg.OaiModel = fModel
+	}
+	if fWallet != "" {
+		cfg.WalletKey = fWallet
+	}
+	if fNewsKey != "" {
+		cfg.Set("news_api_key", fNewsKey)
+	}
+	if fName != "" {
+		cfg.Set("agent_name", fName)
+	}
+	if fBankroll > 0 {
+		cfg.StartingBankroll = fBankroll
+	}
+	if fReserve > 0 {
+		cfg.Reserve = fReserve
+	}
+	if fLoop > 0 {
+		cfg.LoopSeconds = fLoop
+	}
+	if fMaxPos > 0 {
+		cfg.MaxPositions = fMaxPos
+	}
+	if fMarkets > 0 {
+		cfg.MarketLimit = fMarkets
+	}
+	if fDailyLoss > 0 {
+		cfg.DailyLossLimit = fDailyLoss
+	}
+	if fTelemURL != "" {
+		cfg.Set("telemetry_url", fTelemURL)
+	}
+	if fTelemSec > 0 {
+		cfg.Set("telemetry_sec", fmt.Sprintf("%d", fTelemSec))
+	}
+	if fPolyRPC != "" {
+		cfg.PolygonRPC = fPolyRPC
+	}
+	if fClobURL != "" {
+		cfg.ClobURL = fClobURL
 	}
 
 	// Apply core limit before starting any goroutines.
