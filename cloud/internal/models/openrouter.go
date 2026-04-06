@@ -15,52 +15,145 @@ import (
 
 var fetchClient = &http.Client{Timeout: 15 * time.Second}
 
-// FetchAllCatalogs fetches model catalogs from OpenRouter and the user's
-// configured LLM endpoint in parallel, merging results into the registry.
-func FetchAllCatalogs(llmURL, apiKey string) {
-var wg sync.WaitGroup
-
-// Always fetch OpenRouter (public, most comprehensive).
-wg.Add(1)
-go func() {
-defer wg.Done()
-fetchOpenRouter()
-}()
-
-// Fetch from the configured endpoint if it's not OpenRouter itself.
-if llmURL != "" && !strings.Contains(llmURL, "openrouter.ai") {
-wg.Add(1)
-go func() {
-defer wg.Done()
-fetchOpenAICompat(llmURL, apiKey, endpointLabel(llmURL))
-}()
+// catalogSource describes a provider model endpoint.
+type catalogSource struct {
+Label   string
+URL     string
+AuthKey string // empty = no auth needed
+Parser  func(body []byte, label string) []ModelInfo
 }
 
+// FetchAllCatalogs fetches model catalogs from all known public providers
+// and the user's configured LLM endpoint, merging into the registry.
+func FetchAllCatalogs(llmURL, apiKey string) {
+sources := publicSources()
+
+// Add user's configured endpoint if not already covered.
+if llmURL != "" {
+label := endpointLabel(llmURL)
+alreadyCovered := false
+for _, s := range sources {
+if strings.Contains(llmURL, extractDomain(s.URL)) {
+// User endpoint matches a known source; inject API key if available.
+if apiKey != "" {
+s.AuthKey = apiKey
+}
+alreadyCovered = true
+break
+}
+}
+if !alreadyCovered {
+sources = append(sources, catalogSource{
+Label:   label,
+URL:     deriveModelsURL(llmURL),
+AuthKey: apiKey,
+Parser:  parseOpenAICompat,
+})
+}
+}
+
+// Add API key to auth-required sources if the user's endpoint matches.
+if apiKey != "" && llmURL != "" {
+for i := range sources {
+if sources[i].AuthKey == "" && strings.Contains(llmURL, extractDomain(sources[i].URL)) {
+sources[i].AuthKey = apiKey
+}
+}
+}
+
+var wg sync.WaitGroup
+for _, src := range sources {
+src := src
+wg.Add(1)
+go func() {
+defer wg.Done()
+fetchSource(src)
+}()
+}
 wg.Wait()
 }
 
-// ── OpenRouter (public, rich metadata) ─────────────────────────
+// publicSources returns all known provider model endpoints.
+// Sources marked with AuthKey="" are public; those with AuthKey="NEEDS_KEY"
+// are skipped unless the user's configured endpoint matches (key injected).
+func publicSources() []catalogSource {
+return []catalogSource{
+// ── Public (no auth needed) ──
+{Label: "OpenRouter", URL: "https://openrouter.ai/api/v1/models", Parser: parseOpenRouterCatalog},
+{Label: "DeepInfra", URL: "https://api.deepinfra.com/v1/openai/models", Parser: parseOpenAICompat},
+{Label: "SambaNova", URL: "https://api.sambanova.ai/v1/models", Parser: parseOpenAICompat},
+{Label: "Kluster", URL: "https://api.kluster.ai/v1/models", Parser: parseOpenAICompat},
 
-func fetchOpenRouter() {
-resp, err := fetchClient.Get("https://openrouter.ai/api/v1/models")
+// ── Auth required — fetched only if user's LLM URL matches ──
+{Label: "GreenPT", URL: "https://api.greenpt.ai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Mistral", URL: "https://api.mistral.ai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Together", URL: "https://api.together.xyz/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Groq", URL: "https://api.groq.com/openai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "DeepSeek", URL: "https://api.deepseek.com/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Fireworks", URL: "https://api.fireworks.ai/inference/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Hyperbolic", URL: "https://api.hyperbolic.xyz/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Cerebras", URL: "https://api.cerebras.ai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "SiliconFlow", URL: "https://api.siliconflow.cn/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Novita", URL: "https://api.novita.ai/v3/openai/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "OpenAI", URL: "https://api.openai.com/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Moonshot", URL: "https://api.moonshot.cn/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Zhipu", URL: "https://open.bigmodel.cn/api/paas/v4/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Baichuan", URL: "https://api.baichuan-ai.com/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Yi", URL: "https://api.01.ai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "MiniMax", URL: "https://api.minimax.chat/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Alibaba", URL: "https://dashscope.aliyuncs.com/compatible-mode/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "xAI", URL: "https://api.x.ai/v1/models", AuthKey: "NEEDS_KEY", Parser: parseOpenAICompat},
+{Label: "Cohere", URL: "https://api.cohere.com/v2/models", AuthKey: "NEEDS_KEY", Parser: parseCohereCompat},
+}
+}
+
+func fetchSource(src catalogSource) {
+// Skip auth-required sources that don't have a real key.
+if src.AuthKey == "NEEDS_KEY" {
+return
+}
+
+req, err := http.NewRequest("GET", src.URL, nil)
 if err != nil {
-slog.Warn("openrouter model fetch failed", "err", err)
+return
+}
+if src.AuthKey != "" {
+req.Header.Set("Authorization", "Bearer "+src.AuthKey)
+}
+
+resp, err := fetchClient.Do(req)
+if err != nil {
+slog.Debug("catalog fetch failed", "provider", src.Label, "err", err)
 return
 }
 defer resp.Body.Close()
 
-body, err := io.ReadAll(resp.Body)
-if err != nil {
-slog.Warn("openrouter model read failed", "err", err)
+if resp.StatusCode != 200 {
+slog.Debug("catalog fetch non-200", "provider", src.Label, "status", resp.StatusCode)
 return
 }
 
+body, err := io.ReadAll(resp.Body)
+if err != nil {
+return
+}
+
+models := src.Parser(body, src.Label)
+if len(models) > 0 {
+AddDynamic(models)
+slog.Info("catalog loaded", "provider", src.Label, "models", len(models))
+}
+}
+
+// ── OpenRouter parser (rich metadata) ──────────────────────────
+
+func parseOpenRouterCatalog(body []byte, label string) []ModelInfo {
 var catalog struct {
 Data []orModel `json:"data"`
 }
 if err := json.Unmarshal(body, &catalog); err != nil {
-slog.Warn("openrouter model parse failed", "err", err)
-return
+slog.Warn("openrouter parse failed", "err", err)
+return nil
 }
 
 var filtered []orModel
@@ -72,77 +165,44 @@ filtered = append(filtered, m)
 sort.Slice(filtered, func(i, j int) bool {
 return filtered[i].ContextLength > filtered[j].ContextLength
 })
-if len(filtered) > 120 {
-filtered = filtered[:120]
+if len(filtered) > 150 {
+filtered = filtered[:150]
 }
 
-models := make([]ModelInfo, 0, len(filtered))
+out := make([]ModelInfo, 0, len(filtered))
 for _, m := range filtered {
 ctxK := m.ContextLength / 1000
 if ctxK < 1 {
 ctxK = 1
 }
-
 promptPrice := parseFloat(m.Pricing.Prompt)
 completionPrice := parseFloat(m.Pricing.Completion)
 perReq := promptPrice*2000 + completionPrice*1000
 
-models = append(models, ModelInfo{
+out = append(out, ModelInfo{
 Name:       m.Name,
 Tx402ID:    m.ID,
 ContextK:   ctxK,
 Reasoning:  estimateReasoning(m.ID),
 Speed:      estimateSpeed(m.ID, promptPrice),
 MinTask:    inferMinTask(estimateReasoning(m.ID)),
-Notes:      "OpenRouter",
+Notes:      label,
 Tx402Price: perReq,
 })
 }
 
-AddDynamic(models)
-slog.Info("openrouter catalog loaded", "fetched", len(catalog.Data), "notable", len(models))
+slog.Info("openrouter catalog parsed", "total", len(catalog.Data), "notable", len(out))
+return out
 }
 
-// ── Generic OpenAI-compatible endpoint ─────────────────────────
-// Works with Mistral, Together, Groq, DeepSeek, DeepInfra, Fireworks,
-// SiliconFlow, Novita, Moonshot, Zhipu, and any OpenAI-compatible provider.
+// ── Generic OpenAI-compatible parser ───────────────────────────
 
-func fetchOpenAICompat(baseURL, apiKey, label string) {
-modelsURL := strings.TrimSuffix(baseURL, "/")
-modelsURL = strings.TrimSuffix(modelsURL, "/chat/completions")
-modelsURL = strings.TrimSuffix(modelsURL, "/")
-modelsURL += "/models"
-
-req, err := http.NewRequest("GET", modelsURL, nil)
-if err != nil {
-return
-}
-if apiKey != "" {
-req.Header.Set("Authorization", "Bearer "+apiKey)
-}
-
-resp, err := fetchClient.Do(req)
-if err != nil {
-slog.Debug("model catalog fetch failed", "provider", label, "err", err)
-return
-}
-defer resp.Body.Close()
-
-if resp.StatusCode != 200 {
-slog.Debug("model catalog fetch non-200", "provider", label, "status", resp.StatusCode)
-return
-}
-
-body, err := io.ReadAll(resp.Body)
-if err != nil {
-return
-}
-
+func parseOpenAICompat(body []byte, label string) []ModelInfo {
 var catalog struct {
 Data []json.RawMessage `json:"data"`
 }
 if err := json.Unmarshal(body, &catalog); err != nil {
-return
+return nil
 }
 
 out := make([]ModelInfo, 0)
@@ -152,11 +212,7 @@ if m != nil {
 out = append(out, *m)
 }
 }
-
-if len(out) > 0 {
-AddDynamic(out)
-slog.Info("provider catalog loaded", "provider", label, "models", len(out))
-}
+return out
 }
 
 func parseGenericModel(raw json.RawMessage, label string) *ModelInfo {
@@ -172,13 +228,17 @@ OutputTokens float64 `json:"output_tokens"`
 } `json:"pricing"`
 } `json:"metadata"`
 ContextLength int `json:"context_length"`
+MaxModelLen   int `json:"max_model_len"`
 }
 if err := json.Unmarshal(raw, &m); err != nil || m.ID == "" {
 return nil
 }
 
 idLow := strings.ToLower(m.ID)
-for _, skip := range []string{"embed", "tts", "whisper", "dall-e", "moderation", "image", "audio", "rerank"} {
+for _, skip := range []string{
+"embed", "tts", "whisper", "dall-e", "moderation",
+"image", "audio", "rerank", "safety", "guard",
+} {
 if strings.Contains(idLow, skip) {
 return nil
 }
@@ -189,6 +249,8 @@ if m.Metadata != nil && m.Metadata.ContextLength > 0 {
 ctxK = m.Metadata.ContextLength / 1000
 } else if m.ContextLength > 0 {
 ctxK = m.ContextLength / 1000
+} else if m.MaxModelLen > 0 {
+ctxK = m.MaxModelLen / 1000
 }
 if ctxK < 1 {
 ctxK = 128
@@ -210,6 +272,42 @@ MinTask:    inferMinTask(reasoning),
 Notes:      label,
 Tx402Price: perReq,
 }
+}
+
+// ── Cohere parser (different response format) ──────────────────
+
+func parseCohereCompat(body []byte, label string) []ModelInfo {
+var catalog struct {
+Models []struct {
+Name          string `json:"name"`
+ContextLength int    `json:"context_length"`
+} `json:"models"`
+}
+if err := json.Unmarshal(body, &catalog); err != nil {
+return nil
+}
+
+out := make([]ModelInfo, 0)
+for _, m := range catalog.Models {
+if m.Name == "" {
+continue
+}
+ctxK := m.ContextLength / 1000
+if ctxK < 1 {
+ctxK = 128
+}
+reasoning := estimateReasoning(m.Name)
+out = append(out, ModelInfo{
+Name:      m.Name,
+Tx402ID:   m.Name,
+ContextK:  ctxK,
+Reasoning: reasoning,
+Speed:     estimateSpeed(m.Name, 0),
+MinTask:   inferMinTask(reasoning),
+Notes:     label,
+})
+}
+return out
 }
 
 // ── Shared types and helpers ───────────────────────────────────
@@ -348,9 +446,28 @@ return s
 return s[:n-1] + "…"
 }
 
+func deriveModelsURL(baseURL string) string {
+u := strings.TrimSuffix(baseURL, "/")
+u = strings.TrimSuffix(u, "/chat/completions")
+u = strings.TrimSuffix(u, "/")
+return u + "/models"
+}
+
+func extractDomain(url string) string {
+url = strings.TrimPrefix(url, "https://")
+url = strings.TrimPrefix(url, "http://")
+if i := strings.Index(url, "/"); i > 0 {
+url = url[:i]
+}
+// Strip "api." prefix for broader matching.
+url = strings.TrimPrefix(url, "api.")
+return url
+}
+
 func endpointLabel(url string) string {
 url = strings.ToLower(url)
 labels := map[string]string{
+"greenpt.ai":     "GreenPT",
 "mistral.ai":     "Mistral",
 "together.xyz":   "Together",
 "groq.com":       "Groq",
@@ -371,6 +488,10 @@ labels := map[string]string{
 "minimax.chat":   "MiniMax",
 "volcengine.com": "Bytedance",
 "dashscope":      "Alibaba",
+"sambanova.ai":   "SambaNova",
+"hyperbolic.xyz": "Hyperbolic",
+"cerebras.ai":    "Cerebras",
+"kluster.ai":     "Kluster",
 "tx402.ai":       "tx402",
 "x402engine":     "x402engine",
 }
