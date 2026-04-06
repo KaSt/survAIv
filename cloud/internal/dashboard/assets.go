@@ -1231,20 +1231,6 @@ function saveTelemetryConfig() {
   });
 }
 
-// OTA not available in cloud mode;
-  xhr.onload = () => {
-    if (xhr.status === 200) {
-      msg.textContent = 'OTA success! Rebooting…';
-      msg.style.color = 'var(--green)';
-    } else {
-      msg.textContent = 'OTA failed: ' + xhr.responseText;
-      msg.style.color = 'var(--red)';
-    }
-  };
-  xhr.onerror = () => { msg.textContent = 'Upload failed'; msg.style.color = 'var(--red)'; };
-  xhr.send(file);
-}
-
 function restartDevice() {
   if (!confirm('Restart device? It will be offline for a few seconds.')) return;
   const msg = $('settings-msg');
