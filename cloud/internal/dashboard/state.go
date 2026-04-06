@@ -446,6 +446,7 @@ func (s *State) ToJSON() []byte {
 		"agent_name":           s.agentName,
 		"firmware":             "cloud",
 		"version":             s.version,
+		"tier":                "giga",
 	}
 	if s.lastError != "" {
 		data["last_error"] = s.lastError
