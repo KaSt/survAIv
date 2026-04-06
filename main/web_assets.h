@@ -196,7 +196,7 @@ border-radius:8px;padding:6px 12px;margin-bottom:12px;font-size:11px;color:var(-
 
 <div class="grid" id="cards">
   <div class="card"><div class="label">Portfolio</div><div class="value" id="v-equity">—</div>
-    <div class="sub"><span id="v-cash">—</span> cash · <span id="v-numpos">0</span> positions</div></div>
+    <div class="sub"><span id="v-cash">—</span> cash · <span id="v-posval">$0.00</span> in positions</div></div>
   <div class="card"><div class="label">P&amp;L</div><div class="value" id="v-pnl">—</div>
     <div class="sub">Realized profit/loss</div></div>
   <div class="card"><div class="label">LLM Spend</div><div class="value" id="v-spend">—</div>
@@ -204,7 +204,7 @@ border-radius:8px;padding:6px 12px;margin-bottom:12px;font-size:11px;color:var(-
   <div class="card"><div class="label">Daily Loss</div><div class="value" id="v-dloss">—</div>
     <div class="sub">Today's drawdown</div></div>
   <div class="card"><div class="label">Cycles</div><div class="value" id="v-cycles">—</div>
-    <div class="sub" id="v-uptime">—</div></div>
+    <div class="sub" id="v-uptime">—</div><div class="sub" id="v-lifetime" style="font-size:0.7em;opacity:0.6">—</div></div>
 </div>
 
 <div class="section">
@@ -681,7 +681,7 @@ function drawPnlChart() {
 function updateState(s) {
   $('v-equity').textContent = fmtUsd(s.budget.equity);
   $('v-cash').textContent = fmtUsd(s.budget.cash);
-  if (s.open_positions !== undefined) $('v-numpos').textContent = s.open_positions;
+  if (s.position_value !== undefined) $('v-posval').textContent = fmtUsd(s.position_value);
 
   const pnlEl = $('v-pnl');
   pnlEl.textContent = (s.budget.realized_pnl >= 0 ? '+' : '') + fmtUsd(s.budget.realized_pnl);
@@ -700,7 +700,8 @@ function updateState(s) {
   $('v-cycles').textContent = s.cycle_count;
   const hrs = Math.floor(s.uptime_seconds / 3600);
   const mins = Math.floor((s.uptime_seconds % 3600) / 60);
-  $('v-uptime').textContent = `Uptime: ${hrs}h ${mins}m`;
+  $('v-uptime').textContent = 'Uptime: ' + hrs + 'h ' + mins + 'm';
+  if (s.lifetime_cycles !== undefined) $('v-lifetime').textContent = s.lifetime_cycles + ' lifetime';
 
   const dot = $('dot');
   const statusText = $('status-text');

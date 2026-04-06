@@ -28,9 +28,10 @@ type State struct {
 	equityHistory  []types.EquitySnapshot
 	scoutedMarkets []types.ScoutedMarket
 
-	agentStatus string
-	cycleCount  int
-	bootEpoch   int64
+	agentStatus    string
+	cycleCount     int
+	lifetimeCycles int
+	bootEpoch      int64
 
 	geoblocked bool
 	geoCountry string
@@ -209,6 +210,7 @@ func (s *State) IncrementCycleCount() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cycleCount++
+	s.lifetimeCycles++
 }
 
 // SetCycleCount sets the cycle counter directly (backward compat).
@@ -216,6 +218,20 @@ func (s *State) SetCycleCount(count int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cycleCount = count
+}
+
+// SetLifetimeCycles sets the lifetime cycle counter (loaded from DB on startup).
+func (s *State) SetLifetimeCycles(n int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lifetimeCycles = n
+}
+
+// LifetimeCycles returns the current lifetime cycle count.
+func (s *State) LifetimeCycles() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.lifetimeCycles
 }
 
 func (s *State) SetLastError(err string) {
@@ -382,9 +398,17 @@ func (s *State) ToJSON() []byte {
 	defer s.mu.RUnlock()
 
 	uptime := time.Now().Unix() - s.bootEpoch
+
+	// Total value of open positions (sum of stakes).
+	var posValue float64
+	for _, p := range s.positions {
+		posValue += p.StakeUsdc
+	}
+
 	data := map[string]interface{}{
 		"status":               s.agentStatus,
 		"cycle_count":          s.cycleCount,
+		"lifetime_cycles":      s.lifetimeCycles,
 		"uptime_seconds":       uptime,
 		"live_mode":            s.liveMode,
 		"geoblocked":           s.geoblocked,
@@ -396,6 +420,7 @@ func (s *State) ToJSON() []byte {
 		"active_model":         s.activeModel,
 		"model_price":          s.modelPrice,
 		"open_positions":       len(s.positions),
+		"position_value":       posValue,
 		"paper_only":           s.paperOnly,
 		"tool_usage":           s.toolUsage,
 		"agent_name":           s.agentName,
@@ -672,8 +697,9 @@ func (s *State) TelemetryReport() map[string]any {
 	defer s.mu.RUnlock()
 
 	report := map[string]any{
-		"status":       s.agentStatus,
-		"cycle_count":  s.cycleCount,
+		"status":           s.agentStatus,
+		"cycle_count":      s.cycleCount,
+		"lifetime_cycles":  s.lifetimeCycles,
 		"uptime":       time.Now().Unix() - s.bootEpoch,
 		"agent_name":   s.agentName,
 		"live_mode":    s.liveMode,

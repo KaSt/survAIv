@@ -58,6 +58,7 @@ class DashboardState {
   void PushHeadlines(const std::vector<std::string> &titles);
   std::string NewsHeadlinesJson() const;
   void IncrementCycleCount();
+  int LifetimeCycles() const;
   void SetLastError(const std::string &error);
   void SetNextRetrySec(int seconds);
   void SetNextCycleEpoch(int64_t epoch);
@@ -118,6 +119,7 @@ class DashboardState {
   // Agent status.
   std::string agent_status_ = "initializing";
   int cycle_count_ = 0;
+  int lifetime_cycles_ = 0;
 
   // Geoblock.
   bool geoblocked_ = false;

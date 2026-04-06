@@ -124,6 +124,7 @@ func main() {
 	dashState := dashboard.NewState()
 	dashState.SetLiveMode(!cfg.PaperOnly)
 	dashState.SetVersion(Version)
+	dashState.SetLifetimeCycles(db.GetConfigInt(database, "lifetime_cycles"))
 
 	// 7. Create wisdom tracker and register as default.
 	wisTracker := wisdom.NewTracker(database, httpClient)
@@ -157,6 +158,7 @@ func main() {
 
 			retryDelay := agnt.RunCycle(ctx)
 			cycle++
+			db.SetConfigInt(database, "lifetime_cycles", dashState.LifetimeCycles())
 
 			// Reset daily loss accumulator at UTC midnight.
 			today := time.Now().UTC().YearDay()

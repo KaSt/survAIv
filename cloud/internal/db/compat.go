@@ -20,6 +20,33 @@ func Upsert(db *sql.DB, table, keyCol, valCol, key, value string) error {
 	return err
 }
 
+// GetConfig reads a string from the config table.
+func GetConfig(d *sql.DB, key string) string {
+	var val string
+	_ = d.QueryRow(Q("SELECT value FROM config WHERE key = ?"), key).Scan(&val)
+	return val
+}
+
+// SetConfig writes a key-value pair to the config table.
+func SetConfig(d *sql.DB, key, value string) {
+	_ = Upsert(d, "config", "key", "value", key, value)
+}
+
+// GetConfigInt reads an integer from the config table (returns 0 on missing/error).
+func GetConfigInt(d *sql.DB, key string) int {
+	s := GetConfig(d, key)
+	if s == "" {
+		return 0
+	}
+	v, _ := strconv.Atoi(s)
+	return v
+}
+
+// SetConfigInt writes an integer to the config table.
+func SetConfigInt(d *sql.DB, key string, val int) {
+	SetConfig(d, key, strconv.Itoa(val))
+}
+
 // Q rewrites a query with ? placeholders to use $1, $2, ... for Postgres.
 // For SQLite, returns the query unchanged.
 func Q(query string) string {

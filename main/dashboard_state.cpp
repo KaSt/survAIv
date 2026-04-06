@@ -11,6 +11,7 @@
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "json_util.h"
+#include "nvs.h"
 
 // CPU usage monitoring via FreeRTOS idle hook counters.
 // Each core's idle task calls our hook when it has nothing to do.
@@ -65,6 +66,15 @@ namespace survaiv {
 
 DashboardState::DashboardState() {
   mutex_ = xSemaphoreCreateMutex();
+  // Load lifetime cycle count from NVS.
+  nvs_handle_t h;
+  if (nvs_open("survaiv_cfg", NVS_READONLY, &h) == ESP_OK) {
+    int32_t val = 0;
+    if (nvs_get_i32(h, "lifetime_cyc", &val) == ESP_OK) {
+      lifetime_cycles_ = static_cast<int>(val);
+    }
+    nvs_close(h);
+  }
 }
 
 void DashboardState::UpdateBudget(double cash, double reserve, double equity,
@@ -215,7 +225,22 @@ double DashboardState::GetCash() const {
 void DashboardState::IncrementCycleCount() {
   xSemaphoreTake(mutex_, portMAX_DELAY);
   cycle_count_++;
+  lifetime_cycles_++;
   xSemaphoreGive(mutex_);
+  // Persist lifetime count to NVS (outside lock — NVS is slow).
+  nvs_handle_t h;
+  if (nvs_open("survaiv_cfg", NVS_READWRITE, &h) == ESP_OK) {
+    nvs_set_i32(h, "lifetime_cyc", static_cast<int32_t>(lifetime_cycles_));
+    nvs_commit(h);
+    nvs_close(h);
+  }
+}
+
+int DashboardState::LifetimeCycles() const {
+  xSemaphoreTake(mutex_, portMAX_DELAY);
+  int val = lifetime_cycles_;
+  xSemaphoreGive(mutex_);
+  return val;
 }
 
 void DashboardState::SetLastError(const std::string &error) {
@@ -283,6 +308,7 @@ std::string DashboardState::ToJson() const {
   std::ostringstream o;
   o << "{\"status\":\"" << JsonEscape(agent_status_) << "\""
     << ",\"cycle_count\":" << cycle_count_
+    << ",\"lifetime_cycles\":" << lifetime_cycles_
     << ",\"uptime_seconds\":" << uptime
     << ",\"live_mode\":" << (live_mode_ ? "true" : "false")
     << ",\"geoblocked\":" << (geoblocked_ ? "true" : "false")
@@ -301,6 +327,11 @@ std::string DashboardState::ToJson() const {
     << ",\"active_model\":\"" << JsonEscape(active_model_) << "\""
     << ",\"model_price\":" << model_price_
     << ",\"open_positions\":" << static_cast<int>(positions_.size());
+
+  // Total value of open positions (sum of stakes).
+  double pos_value = 0.0;
+  for (const auto &p : positions_) pos_value += p.stake_usdc;
+  o << ",\"position_value\":" << pos_value;
 
   if (!last_error_.empty()) {
     o << ",\"last_error\":\"" << JsonEscape(last_error_) << "\""
